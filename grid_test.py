@@ -1,4 +1,4 @@
-from util import tile_util
+from Util import tile_util
 
 def main():
     min_coords = [0, 0]
