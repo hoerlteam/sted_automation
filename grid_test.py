@@ -5,7 +5,9 @@ def main():
     max_coords = [25, 10]
     fov_size = [5, 5]
 
-    print(tile_util.generate_grid(min_coords, max_coords, fov_size))
+    print(tile_util.generate_grid(min_coords, max_coords, fov_size, 1 ))
 
 if __name__ == '__main__':
     main()
+    print(tile_util.clamp(-1, 0, 0.5))
+
