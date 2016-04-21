@@ -74,6 +74,7 @@ def generate_grid_snake(area_min, area_max, fov_dimensions, overlap = 0):
 
     # Calculating coordinates:
     while i <= dy:
+        # move right
         if ii < area_min[0]:
             ii += (1-overlap)*fov_dimensions[0]
             while ii <= dx:
