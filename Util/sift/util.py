@@ -1,7 +1,18 @@
 from PIL import Image
 import numpy as np
 
-def get_interval(start, to, nSteps):
+
+def get_interval(x1, x2, steps):
+        intervals = []
+        dx = x2-x1
+        intervals.append(x1)
+        b = steps-1
+        i = 1
+        while i <= b:
+            a = x1 + (i/b)*dx
+            intervals.append(a)
+            i += 1
+        return intervals
 
 
 
@@ -23,4 +34,3 @@ def read_image_stack(path):
         except:
             break
     return np.dstack(image_list)
-
