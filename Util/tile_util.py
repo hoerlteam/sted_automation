@@ -1,7 +1,6 @@
 def clamp(x, min_x, max_x):
     return max(min_x, min(x, max_x))
 
-
 def generate_grid(area_min, area_max, fov_dimensions, overlap=0):
     """
     get a list of coordinates of fields of view (x,y of upper left corner) covering the area specified by area_min and area_max
@@ -108,3 +107,17 @@ def generate_grid_snake(area_min, area_max, fov_dimensions, overlap=0):
         for x in x_forward_list:
             grid_coordinates.append((x, y_odd[-1]))
     return grid_coordinates
+
+
+def middle2corner(ms_middle_coordinates, fov):
+    """
+    Gives the ability to calculate from the global coordinates of the microscope back to the upper left corner of an
+    image
+    :param ms_middle_coordinates: current coordinates of the measurement for n dimensions
+    :param fov: field of view sizes of n dimensions
+    :return: coordinates of the upper left corner for n dimensions
+    """
+    corner_coords = []
+    for i in range(len(ms_middle_coordinates)):
+        corner_coords.append(ms_middle_coordinates[i] - (0.5*fov[i]))
+    return corner_coords
