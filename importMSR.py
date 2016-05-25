@@ -1,9 +1,8 @@
 from loci.plugins import BF
 
-
+"""
 # manually import ImporterOptions, as the package name contains the "in" constant
 ImporterOptions = __import__("loci.plugins.in.ImporterOptions", globals(), locals(), ['object'], -1)
-
 
 def importMSR(path):
     '''
@@ -20,3 +19,5 @@ def importMSR(path):
         IJ.log("ERROR while opening image file " + path)
 
     return (imps)
+"""
+

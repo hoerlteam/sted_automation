@@ -1,7 +1,6 @@
-"""
-import numpy as np
+"""#import numpy as np
 from specpy import *
-im = Imspector
+im = Imspector()
 ms = im.active_measurement()
 params = ms.parameters()
 """
@@ -17,28 +16,13 @@ def get_fov_dimensions(ms):
     return ms.parameter("ExpControl/scan/range/x/len"), ms.parameter("ExpControl/scan/range/y/len")
 
 
-def acquire_measurement_at_coordinates(im, ms, coords):
-    amount_of_measurements = len(coords)
-    for i in range(amount_of_measurements):
-        amove(ms, coords[i][0], coords[i][1])
-        print(coords[i])
-        im.run(ms)
-        for ii in range(ms.active_configuration().number_of_stacks()):
-            outfd.write(ms.active_configuration().stack(ii))
-        a = input("Enter for continue, or type something to stop: ")
-        if a != "":
-            break
-    outfd = None
-    return None
-
-
 # not yet perfect. Just for testing
-def measurement():
-    generate_file_for_measurement()
-    coords = generate_grid_snake((0, 0), (2e-4, 2e-4), get_fov_dimensions(ms), overlap=0.1)
-    acquire_measurement_at_coordinates(im, ms, coords)
+def measurement_sample():
+    l_of_coords = generate_grid_snake((0, 0), (2e-4, 2e-4), get_fov_dimensions(ms), overlap=0.1)
+    acquire_measurement_at_coordinates(im, ms, l_of_coords)
 
 
+# TODO: Das hier muss alles zu einer klasse werden
 def amove_calc(x2, y2):
     """
     Calculates the coordinates for the absolute movement. "amove" for absolute move
@@ -57,7 +41,7 @@ def amove_calc(x2, y2):
     elif (-38 * 1e-3 < y2 < 38 * 1e-3) is False:
         raise Exception("ERROR: X Coordinate is out of range. Can not move this far")
     else:
-        raise Exception("ERROR: X Coordinate is out of range. Can not move this far")
+        raise Exception("ERROR: Y Coordinate is out of range. Can not move this far")
 
 
 def move_x_calc(x2):
@@ -147,9 +131,38 @@ def move(ms, x2, y2):
         ms.set_parameter("OlympusIX/scanrange/y/offset", move_by_y)
 
 
-def generate_file_for_measurement():
-    filename = "C:\\Users\\RESOLFT\\Desktop\\Tiled\\" + str(generate_random_name2())
+def acquire_measurement_at_coordinates(im, ms, l_of_coords):
+    amount_of_measurements = len(l_of_coords)
+    name = generate_random_name2()
+    for i in range(amount_of_measurements):
+        amove(ms, l_of_coords[i][0], l_of_coords[i][1])
+        print(l_of_coords[i])
+        im.run(ms)
+        save_stack(name, i)
+        a = input("Enter for continue, or type something to stop: ")
+        if a != "":
+            break
+    return None
+
+
+def generate_file_for_measurement(name, salt=""):
+    filename = "C:\\Users\\RESOLFT\\Desktop\\Tiled\\" + str(name) + str(salt)
     outfd = File(filename, File.Write)
+    return outfd
+
+
+def save_stack(name, i):
+    """
+    Saves the stack. A random name should be generated before plus in order to many images, the counter of which image
+    is taken should be given as i.
+    :param name: needs a name from the random name generator
+    :param i: current number of the measurement
+    :return: None. Saves the image into a file
+    """
+    outfd = generate_file_for_measurement(name, i)
+    for ii in range(ms.active_configuration().number_of_stacks()):
+        outfd.write(ms.active_configuration().stack(ii))
+    outfd = None
 
 
 def config_magic(path):
@@ -184,28 +197,47 @@ def changing_config():
 
 
 def generate_random_name():
+    """
+    Generates random name with adler (short name)
+    :return: random name as string
+    """
     import zlib
-    return zlib.adler32(bytes(str(time.time() * 1000), "utf-8"))
+    return str(zlib.adler32(bytes(str(time.time() * 1000), "utf-8")))
 
 
 def generate_random_name2():
+    """
+    Generates a random name for saving images. Md5 is used. Longer names
+    :return: str: name as string
+    """
     import hashlib
     hash_object = hashlib.md5(bytes(str(time.time() * 1000), "utf-8"))
     hex_dig = hash_object.hexdigest()
-    return hex_dig
+    return str(hex_dig)
 
 
-"""
+""" Useless until objective can be changed
+def objective_change(lens_in):
+    if lens_in==10:
+        #lens =
+    elif lens_in==100:
+        #lens =
+    elif lens_in==60:
+        #lens =
+    else:
+        raise Exception("ERROR: Lens not available")
+    ms = im.active_measurement()
+    conf = ms.active_configuration()
+    ms.set_parameter("OlympusIX/light_path/objlens", lens)
+    conf.set_parameter("OlympusIX/light_path/objlens", ms.parameter("OlympusIX/light_path/objlens"))
+    return None
+
+
+
 ms = im.active_measurement()
 conf = ms.active_configuration()
 conf.parameter("OlympusIX/light_path/objlens") must be same as ms.parameter("OlympusIX/light_path/objlens")
 # When changing this parameter in conf instead od measurement settings the measuremnt settings are also accapted.
 # Changing both??
 
-example code:
-lens = XY
-ms = im.active_measurement()
-conf = ms.active_configuration()
-ms.set_parameter("OlympusIX/light_path/objlens", lens)
-conf.set_parameter("OlympusIX/light_path/objlens", ms.parameter("OlympusIX/light_path/objlens")
 """

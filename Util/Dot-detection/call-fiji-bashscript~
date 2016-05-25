@@ -1,0 +1,3 @@
+#!/bin/bash
+
+/mnt/storage/Temp/Fiji.app/ImageJ-linux64 -macro /home/pascal/Schreibtisch/getseriou.py
