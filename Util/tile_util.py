@@ -121,3 +121,20 @@ def middle2corner(ms_middle_coordinates, fov):
     for i in range(len(ms_middle_coordinates)):
         corner_coords.append(ms_middle_coordinates[i] - (0.5*fov[i]))
     return corner_coords
+
+
+def corner2spot(corner_coords, fspot_coords):
+    """
+    Calculates the coordinates of spots after processing with Fiji. Adds the vector coordinates calculated
+    by Fiji to the corner coordinates
+    :param corner_coords: coordinates of the upper left corner of the fov i.e. (0|0) for Fiji
+    :param fspot_coords: coordinates calculated by Fiji
+    :return: returns the actual, global coordinates
+    """
+    if len(corner_coords) != len(fspot_coords):
+        raise Exception("ERROR: Different amount of dimensions between corner coordinates and coordinates"
+                        "provided by Fiji")
+    actual_gcoords = []
+    for i in range(len(corner_coords)):
+        actual_gcoords.append(int(corner_coords[i])+int(fspot_coords[i]))
+    return actual_gcoords

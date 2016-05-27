@@ -25,23 +25,10 @@ import fiji.plugin.trackmate.detection.DogDetectorFactory as DogDetectorFactory
 import fiji.plugin.trackmate.tracking.sparselap.SparseLAPTrackerFactory as SparseLAPTrackerFactory
 import fiji.plugin.trackmate.tracking.LAPUtils as LAPUtils
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer as HyperStackDisplayer
-import fiji.plugin.trackmate.features.FeatureFilter as FeatureFilter
-import fiji.plugin.trackmate.features.FeatureAnalyzer as FeatureAnalyzer
-import fiji.plugin.trackmate.features.spot.SpotContrastAndSNRAnalyzerFactory as SpotContrastAndSNRAnalyzerFactory
-import fiji.plugin.trackmate.action.ExportStatsToIJAction as ExportStatsToIJAction
-import fiji.plugin.trackmate.io.TmXmlReader as TmXmlReader
-import fiji.plugin.trackmate.action.ExportTracksToXML as ExportTracksToXML
-import fiji.plugin.trackmate.io.TmXmlWriter as TmXmlWriter
-import fiji.plugin.trackmate.features.ModelFeatureUpdater as ModelFeatureUpdater
-import fiji.plugin.trackmate.features.SpotFeatureCalculator as SpotFeatureCalculator
-import fiji.plugin.trackmate.features.spot.SpotContrastAndSNRAnalyzer as SpotContrastAndSNRAnalyzer
-import fiji.plugin.trackmate.features.spot.SpotIntensityAnalyzerFactory as SpotIntensityAnalyzerFactory
-import fiji.plugin.trackmate.features.track.TrackSpeedStatisticsAnalyzer as TrackSpeedStatisticsAnalyzer
-import fiji.plugin.trackmate.util.TMUtils as TMUtils
 
 def load_msr_w_ser():
 	# Hier kann man noch den path und die series als variablen angeben
-	file = "/mnt/storage/Pascal/Desktop/Uni/Bachelorarbeit/DATA/CF610sample/20160513_k562_HS2_CF610_003.msr"
+	file = "/home/pascal/uni/Bachelorarbeit/DATA/CF610sample/20160513_k562_HS2_CF610_008.msr"
 	options = ImporterOptions()
 	options.viewHyperstack
 	options.setId(file)
@@ -134,6 +121,33 @@ displayer.render()
 displayer.refresh()
 
 #print(model.getSpots())
-for spot in model.getSpots().iterable(False):
-	print(str(spot.getFloatPosition(0))+ str(spot.getFloatPosition(1)))
-# The feature model, that stores edge and track features.
+def give_back_coords():
+    coordinatesffs = []
+    for spot in model.getSpots().iterable(False):
+        coordinatesffs.append((str(spot.getFloatPosition(0))+ " " + str(spot.getFloatPosition(1))))
+    return coordinatesffs
+coordinates = give_back_coords()
+
+file = open("coords-temp", 'w')
+file.write(str(coordinates))
+file.close()
+
+IJ.run("Quit")
+
+
+
+
+
+
+
+"""
+
+#print(model.getSpots())
+def give_back_coords():
+    coordinatesffs = []
+    for spot in model.getSpots().iterable(False):
+        coordinatesffs.append((str(spot.getFloatPosition(0))+ " " + str(spot.getFloatPosition(1))))
+    return coordinatesffs
+
+IJ.run("Quit")
+"""

@@ -136,7 +136,7 @@ def acquire_measurement_at_coordinates(im, ms, l_of_coords):
     name = generate_random_name2()
     for i in range(amount_of_measurements):
         amove(ms, l_of_coords[i][0], l_of_coords[i][1])
-        print(l_of_coords[i])
+        # print(l_of_coords[i])
         im.run(ms)
         save_stack(name, i)
         a = input("Enter for continue, or type something to stop: ")
@@ -146,6 +146,7 @@ def acquire_measurement_at_coordinates(im, ms, l_of_coords):
 
 
 def generate_file_for_measurement(name, salt=""):
+    # TODO: überlegen wie man das mit dem path macht
     filename = "C:\\Users\\RESOLFT\\Desktop\\Tiled\\" + str(name) + str(salt)
     outfd = File(filename, File.Write)
     return outfd
