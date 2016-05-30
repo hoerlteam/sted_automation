@@ -18,3 +18,4 @@ def sgbs_mesurement(area_min, area_max, fov_dimensions=0 , overlap=0):
     fov_dimensions = get_fov_dimensions(ms)
     grid_coordinates = generate_grid_snake(area_min, area_max, fov_dimensions, overlap)
     acquire_measurement_at_coordinates(im, ms, grid_coordinates)
+    # TODO: Do stitching here

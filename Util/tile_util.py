@@ -1,3 +1,6 @@
+from PIL import Image
+
+
 def clamp(x, min_x, max_x):
     return max(min_x, min(x, max_x))
 
@@ -108,7 +111,7 @@ def generate_grid_snake(area_min, area_max, fov_dimensions, overlap=0):
             grid_coordinates.append((x, y_odd[-1]))
     return grid_coordinates
 
-
+# TODO: Klasse mit instant middle2corner bzw global nach stithing middle to corner
 def middle2corner(ms_middle_coordinates, fov):
     """
     Gives the ability to calculate from the global coordinates of the microscope back to the upper left corner of an
@@ -138,3 +141,6 @@ def corner2spot(corner_coords, fspot_coords):
     for i in range(len(corner_coords)):
         actual_gcoords.append(int(corner_coords[i])+int(fspot_coords[i]))
     return actual_gcoords
+
+
+

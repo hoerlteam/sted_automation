@@ -40,7 +40,7 @@ def load_msr_w_ser():
 	    #imp.show #--alternative
 
 image = load_msr_w_ser()
-image.show()
+#image.show()
 imp = IJ.getImage()
 IJ.run("Auto Threshold", "method=MaxEntropy white");
 
@@ -132,7 +132,7 @@ file = open("coords-temp", 'w')
 file.write(str(coordinates))
 file.close()
 
-IJ.run("Quit")
+sys.exit()
 
 
 

@@ -9,7 +9,7 @@ def call_fiji(path):
     import subprocess
     return subprocess.getoutput([path])
 
-#fspot_coords = call_fiji('./call-fiji-bashscript')
+call_fiji('./call-fiji-bashscript')
 
 
 def read_coords(path):
@@ -20,15 +20,16 @@ def read_coords(path):
     """
     file = open(path, 'r')
     file = file.read()
-    items = re.findall('[0-9].[0-9][0-9][0-9][0-9][0-9][0-9][0-9]', file)
+    items = re.findall('[0-9].[0-9]+', file)
     coordsffs = []
     xitems = items[0::2]
     yitems = items[1::2]
     for i in range(len(xitems)):
-        coordsffs.append(int(xitems[i],int(yitems[i])))
+        coordsffs.append((xitems[i], (yitems[i])))
     return coordsffs
 
-read_coords("coords-temp")
+
+print(read_coords("coords-temp"))
 
 def find_hssites(fiji_script_path, coords_temp_path, fov_dimensions, global_coordinates):
     sites = call_fiji(fiji_script_path)
