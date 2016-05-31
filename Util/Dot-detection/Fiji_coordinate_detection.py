@@ -5,12 +5,15 @@ import re
 # start Fiji script for coordinate detection
 
 
-def call_fiji(path):
+# path =  path to Fiji hard coded?
+
+def call_fiji(path, units="1", series="0"):
     import subprocess
-    return subprocess.getoutput([path])
+    return subprocess.getoutput([path + " " + str(units) + " " + str(series)])
 
-call_fiji('./call-fiji-bashscript')
+call_fiji("/home/pascal/Apps/Fiji.app/ImageJ-linux64  Macro.py", "microm", "1")
 
+# TODO: How do I know which unit to tell Fiji?
 
 def read_coords(path):
     """

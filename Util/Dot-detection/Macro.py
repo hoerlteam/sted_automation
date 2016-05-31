@@ -26,6 +26,28 @@ import fiji.plugin.trackmate.tracking.sparselap.SparseLAPTrackerFactory as Spars
 import fiji.plugin.trackmate.tracking.LAPUtils as LAPUtils
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer as HyperStackDisplayer
 
+series = int(sys.argv[2])
+
+unit = sys.argv[1]
+
+if unit == "1":
+    unit = int(1)
+elif unit == "m":
+    unit = int(1)
+elif unit == "dm":
+    unit = float(0.1)
+elif unit == "cm":
+    unit = float(0.01)
+elif unit == "mm":
+    unit = float(0.001)
+elif unit == "microm":
+    unit = float(0.000001)
+elif unit == "nm":
+    unit = float(0.000000001)
+else:
+    raise Exception("ERROR: unit not supported. Please use m, dm, cm, mm, microm, nm")
+
+
 def load_msr_w_ser():
 	# Hier kann man noch den path und die series als variablen angeben
 	file = "/home/pascal/uni/Bachelorarbeit/DATA/CF610sample/20160513_k562_HS2_CF610_008.msr"
@@ -33,14 +55,14 @@ def load_msr_w_ser():
 	options.viewHyperstack
 	options.setId(file)
 	# setSeriesOn(int s, boolean value)
-	options.setSeriesOn(1,1)
+	options.setSeriesOn(series, 1)
 	imps = BF.openImagePlus(options)
 	for imp in imps:
 	    return imp
 	    #imp.show #--alternative
 
 image = load_msr_w_ser()
-#image.show()
+image.show()
 imp = IJ.getImage()
 IJ.run("Auto Threshold", "method=MaxEntropy white");
 
@@ -124,30 +146,20 @@ displayer.refresh()
 def give_back_coords():
     coordinatesffs = []
     for spot in model.getSpots().iterable(False):
-        coordinatesffs.append((str(spot.getFloatPosition(0))+ " " + str(spot.getFloatPosition(1))))
+        coordinatesffs.append((str("%.11f" %(float(spot.getFloatPosition(0))*unit))+ " " +
+                               str("%.11f" %(float(spot.getFloatPosition(1))*unit))))
     return coordinatesffs
 coordinates = give_back_coords()
 
 file = open("coords-temp", 'w')
 file.write(str(coordinates))
+# sys.argv[1] = erstes Argument nach macro.py
+
 file.close()
 
+""" implement dis
+run("Properties...", "channels=1 slices=1 frames=1 unit=micron pixel_width=0.0200000 pixel_height=0.0200000 voxel_depth=1.0000000");
+"""
+
+
 sys.exit()
-
-
-
-
-
-
-
-"""
-
-#print(model.getSpots())
-def give_back_coords():
-    coordinatesffs = []
-    for spot in model.getSpots().iterable(False):
-        coordinatesffs.append((str(spot.getFloatPosition(0))+ " " + str(spot.getFloatPosition(1))))
-    return coordinatesffs
-
-IJ.run("Quit")
-"""
