@@ -25,141 +25,129 @@ import fiji.plugin.trackmate.detection.DogDetectorFactory as DogDetectorFactory
 import fiji.plugin.trackmate.tracking.sparselap.SparseLAPTrackerFactory as SparseLAPTrackerFactory
 import fiji.plugin.trackmate.tracking.LAPUtils as LAPUtils
 import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer as HyperStackDisplayer
-
-series = int(sys.argv[2])
-
-unit = sys.argv[1]
-
-if unit == "1":
-    unit = int(1)
-elif unit == "m":
-    unit = int(1)
-elif unit == "dm":
-    unit = float(0.1)
-elif unit == "cm":
-    unit = float(0.01)
-elif unit == "mm":
-    unit = float(0.001)
-elif unit == "microm":
-    unit = float(0.000001)
-elif unit == "nm":
-    unit = float(0.000000001)
-else:
-    raise Exception("ERROR: unit not supported. Please use m, dm, cm, mm, microm, nm")
+from ij.measure import Calibration
+import ij.process.AutoThresholder
+#import Util.argparse as argparse
 
 
-def load_msr_w_ser():
-	# Hier kann man noch den path und die series als variablen angeben
-	file = "/home/pascal/uni/Bachelorarbeit/DATA/CF610sample/20160513_k562_HS2_CF610_008.msr"
-	options = ImporterOptions()
-	options.viewHyperstack
-	options.setId(file)
-	# setSeriesOn(int s, boolean value)
-	options.setSeriesOn(series, 1)
-	imps = BF.openImagePlus(options)
-	for imp in imps:
-	    return imp
-	    #imp.show #--alternative
+def load_msr_w_ser(path, series):
+    file = str(path)
+    options = ImporterOptions()
+    #options.viewHyperstack
+    options.setId(file)
+    # setSeriesOn(int s, boolean value)
+    options.setSeriesOn(series, 1)
+    imps = BF.openImagePlus(options)
+    for imp in imps:
+        return imp
 
-image = load_msr_w_ser()
-image.show()
-imp = IJ.getImage()
-IJ.run("Auto Threshold", "method=MaxEntropy white");
+#thresholding  no gui
+# TODO: implement me
 
 
-model = Model()
-model.setLogger(Logger.IJ_LOGGER)   
-settings = Settings()
-settings.setFrom(imp)
-      
-# Configure detector
-settings.detectorFactory = DogDetectorFactory()
-settings.detectorSettings = {
-    DetectorKeys.KEY_DO_SUBPIXEL_LOCALIZATION : True,
-    DetectorKeys.KEY_RADIUS : 0.3,
-    DetectorKeys.KEY_TARGET_CHANNEL : 1,
-    DetectorKeys.KEY_THRESHOLD : 1.,
-    DetectorKeys.KEY_DO_MEDIAN_FILTERING : False,
-} 
+def just_TrackMate_things(imp, threshold):
+    model = Model()
+    model.setLogger(Logger.IJ_LOGGER)
+    settings = Settings()
+    settings.setFrom(imp)
+    # Configure detector
+    settings.detectorFactory = DogDetectorFactory()
+    settings.detectorSettings = {
+        DetectorKeys.KEY_DO_SUBPIXEL_LOCALIZATION : True,
+        DetectorKeys.KEY_RADIUS : 15.0,
+        DetectorKeys.KEY_TARGET_CHANNEL : 1,
+        DetectorKeys.KEY_THRESHOLD : float(threshold),
+        DetectorKeys.KEY_DO_MEDIAN_FILTERING : False,
+    }
+    # Configure tracker
+    settings.trackerFactory = SparseLAPTrackerFactory()
+    settings.trackerSettings = LAPUtils.getDefaultLAPSettingsMap()
+    """reduntand
+    settings.trackerSettings['LINKING_MAX_DISTANCE'] = 0.0 # muss double sein
+    settings.trackerSettings['GAP_CLOSING_MAX_DISTANCE']=0.0 # muss double sein
+    settings.trackerSettings['MAX_FRAME_GAP']= 1  #Muss integer sein
+    """
+    # Add the analyzers for some spot features.
+    # You need to configure TrackMate with analyzers that will generate
+    # the data you need.
+    # Here we just add two analyzers for spot, one that computes generic
+    # pixel intensity statistics (mean, max, etc...) and one that computes
+    # an estimate of each spot's SNR.
+    # The trick here is that the second one requires the first one to be in
+    # place. Be aware of this kind of gotchas, and read the docs.
+    """ redundant:
+    settings.addSpotAnalyzerFactory(SpotIntensityAnalyzerFactory())
+    settings.addSpotAnalyzerFactory(SpotContrastAndSNRAnalyzerFactory()
+    # Add an analyzer for some track features, such as the track mean speed.
+    settings.addTrackAnalyzer(TrackSpeedStatisticsAnalyzer())
+    settings.initialSpotFilterValue = 1
+    print(str(settings))
+    """
+    #----------------------
+    # Instantiate trackmate
+    #----------------------
+    trackmate = TrackMate(model, settings)
+    #------------
+    # Execute all
+    #------------
+    """redundant
+    ok = trackmate.checkInput()
+    if not ok:
+        sys.exit(str(trackmate.getErrorMessage()))
+    """
+    ok = trackmate.process()
+    if not ok:
+        sys.exit(str(trackmate.getErrorMessage()))
+    #----------------
+    # Display results
+    #----------------
+    """redundant
+    model.getLogger().log('Found ' + str(model.getTrackModel().nTracks(True)) + ' tracks.')
+    """
+    selectionModel = SelectionModel(model)
+    displayer =  HyperStackDisplayer(model, selectionModel, imp)
+    displayer.render()
+    displayer.refresh()
+    return model
 
-# Configure tracker
-settings.trackerFactory = SparseLAPTrackerFactory()
-settings.trackerSettings = LAPUtils.getDefaultLAPSettingsMap()
-"""reduntand
-settings.trackerSettings['LINKING_MAX_DISTANCE'] = 0.0 # muss double sein 
-settings.trackerSettings['GAP_CLOSING_MAX_DISTANCE']=0.0 # muss double sein
-settings.trackerSettings['MAX_FRAME_GAP']= 1  #Muss integer sein
-"""
-# Add the analyzers for some spot features.
-# You need to configure TrackMate with analyzers that will generate 
-# the data you need. 
-# Here we just add two analyzers for spot, one that computes generic
-# pixel intensity statistics (mean, max, etc...) and one that computes
-# an estimate of each spot's SNR. 
-# The trick here is that the second one requires the first one to be in
-# place. Be aware of this kind of gotchas, and read the docs. 
-""" redundant:
-settings.addSpotAnalyzerFactory(SpotIntensityAnalyzerFactory())
-settings.addSpotAnalyzerFactory(SpotContrastAndSNRAnalyzerFactory())
-   
-# Add an analyzer for some track features, such as the track mean speed.
-settings.addTrackAnalyzer(TrackSpeedStatisticsAnalyzer())
-   
-settings.initialSpotFilterValue = 1
-   
-print(str(settings))
-"""      
-#----------------------
-# Instantiate trackmate
-#----------------------
-   
-trackmate = TrackMate(model, settings)
-      
-#------------
-# Execute all
-#------------
-   
-"""redundant     
-ok = trackmate.checkInput()
-if not ok:
-    sys.exit(str(trackmate.getErrorMessage()))
-"""
-     
-ok = trackmate.process()
-if not ok:
-    sys.exit(str(trackmate.getErrorMessage()))
-     
-      
-      
-#----------------
-# Display results
-#----------------
-"""redundant
-model.getLogger().log('Found ' + str(model.getTrackModel().nTracks(True)) + ' tracks.')
-"""
-selectionModel = SelectionModel(model)
-displayer =  HyperStackDisplayer(model, selectionModel, imp)
-displayer.render()
-displayer.refresh()
 
-#print(model.getSpots())
-def give_back_coords():
+def give_back_coords(model):
     coordinatesffs = []
     for spot in model.getSpots().iterable(False):
-        coordinatesffs.append((str("%.11f" %(float(spot.getFloatPosition(0))*unit))+ " " +
-                               str("%.11f" %(float(spot.getFloatPosition(1))*unit))))
+        coordinatesffs.append((str(spot.getFloatPosition(0)))+ " " +
+                              (str(spot.getFloatPosition(1))))
     return coordinatesffs
-coordinates = give_back_coords()
-
-file = open("coords-temp", 'w')
-file.write(str(coordinates))
-# sys.argv[1] = erstes Argument nach macro.py
-
-file.close()
-
-""" implement dis
-run("Properties...", "channels=1 slices=1 frames=1 unit=micron pixel_width=0.0200000 pixel_height=0.0200000 voxel_depth=1.0000000");
-"""
 
 
-sys.exit()
+def save_coords_to_temp(coords, tfile="coords-temp"):
+    file = open(str(tfile), 'w')
+    file.write(str(coords))
+    file.close()
+
+
+def main():
+    # parser
+    """parser = argparse.ArgumentParser()
+    parser.add_argument('-t','--threshold', help="value for threshold inside the TrackMate app")
+    parser.add_argument('-s','--series, help="allows to choose a specific series out of the'
+                             'often used .msr file')
+    args = parser.parse_args()
+    """
+    # actual work
+    image = load_msr_w_ser("/home/pascal/uni/Bachelorarbeit/DATA/CF610sample/20160513_k562_HS2_CF610_008.msr", 1)
+    image.show()
+    imp = IJ.getImage()
+    IJ.run("Auto Threshold", "method=MaxEntropy white")
+    imp.setCalibration(Calibration())
+    """if args.threshold != 1:
+        model = just_TrackMate_things(imp, args.threshold)
+    else:
+        model = just_TrackMate_things(imp, 1.0)"""
+    model = just_TrackMate_things(imp, 1.0)
+    coordinates = give_back_coords(model)
+    save_coords_to_temp(coordinates)
+    sys.exit()
+
+
+if __name__ == '__main__':
+    main()

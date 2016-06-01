@@ -1,6 +1,4 @@
 from PIL import Image
-
-
 def clamp(x, min_x, max_x):
     return max(min_x, min(x, max_x))
 

@@ -4,16 +4,17 @@ import re
 #TODO: Funktion um Fiji fov dimensionen zu übergeben + weitergeben an spätere berechnunge am besten innerhalb des Fiji scripts
 # start Fiji script for coordinate detection
 
-
 # path =  path to Fiji hard coded?
 
-def call_fiji(path, units="1", series="0"):
+def call_fiji(path):
     import subprocess
-    return subprocess.getoutput([path + " " + str(units) + " " + str(series)])
+    return subprocess.getoutput([path])
 
-call_fiji("/home/pascal/Apps/Fiji.app/ImageJ-linux64  Macro.py", "microm", "1")
+# implement via argsparse size und threshold und series
+call_fiji("/home/pascal/Apps/Fiji.app/ImageJ-linux64 Macro.py")
 
 # TODO: How do I know which unit to tell Fiji?
+
 
 def read_coords(path):
     """
@@ -23,7 +24,7 @@ def read_coords(path):
     """
     file = open(path, 'r')
     file = file.read()
-    items = re.findall('[0-9].[0-9]+', file)
+    items = re.findall('[0-9]+.[0-9]+', file)
     coordsffs = []
     xitems = items[0::2]
     yitems = items[1::2]
@@ -33,6 +34,7 @@ def read_coords(path):
 
 
 print(read_coords("coords-temp"))
+
 
 def find_hssites(fiji_script_path, coords_temp_path, fov_dimensions, global_coordinates):
     sites = call_fiji(fiji_script_path)
