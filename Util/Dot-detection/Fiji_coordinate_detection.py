@@ -1,19 +1,24 @@
 # coding UTF-8
 from Util.tile_util import middle2corner, corner2spot
 import re
-#TODO: Funktion um Fiji fov dimensionen zu übergeben + weitergeben an spätere berechnunge am besten innerhalb des Fiji scripts
 # start Fiji script for coordinate detection
-
 # path =  path to Fiji hard coded?
+Fiji_hss_finder = '/home/pascal/Apps/Fiji.app/ImageJ-linux64 Macro.py'
+Fiji_cell_finder = '/home/pascal/Apps/Fiji.app/ImageJ-linux64 Macro_bigcell_finder.py'
 
-def call_fiji(path):
+
+def call_fiji(path, series=1, size=15, threshold=1):
+    fiji_params={'path_to_Fiji': str(path),
+                 'series_number': str(series),
+                 'size_of_image': str(size),
+                 'thresh': str(threshold)}
     import subprocess
-    return subprocess.getoutput([path])
+    function_call = '{path_to_Fiji} {series_number} {size_of_image} {thresh}'.format(**fiji_params)
+    return subprocess.getoutput(function_call)
 
-# implement via argsparse size und threshold und series
-call_fiji("/home/pascal/Apps/Fiji.app/ImageJ-linux64 Macro.py")
 
-# TODO: How do I know which unit to tell Fiji?
+#call_fiji(Fiji_hss_finder)
+call_fiji(Fiji_cell_finder)
 
 
 def read_coords(path):

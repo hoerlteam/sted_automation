@@ -3,11 +3,22 @@ from fiji.plugin.trackmate import Settings
 from fiji.plugin.trackmate import TrackMate
 from fiji.plugin.trackmate import SelectionModel
 from fiji.plugin.trackmate import Logger
+from fiji.plugin.trackmate.detection import LogDetectorFactory
+from fiji.plugin.trackmate.tracking.sparselap import SparseLAPTrackerFactory
+from fiji.plugin.trackmate.tracking import LAPUtils
 from ij import IJ
+import fiji.plugin.trackmate.visualization.hyperstack.HyperStackDisplayer as HyperStackDisplayer
+import fiji.plugin.trackmate.features.FeatureFilter as FeatureFilter
+import sys
+import fiji.plugin.trackmate.features.track.TrackDurationAnalyzer as TrackDurationAnalyzer
+from loci.common import Region
 from loci.plugins.in import ImporterOptions
 from loci.plugins import BF
-from ij import ImagePlus, ImageStack
+from ij import IJ, ImagePlus, ImageStack
+import fiji.plugin.trackmate.Settings as Settings
 import fiji.plugin.trackmate.Model as Model
+import fiji.plugin.trackmate.SelectionModel as SelectionModel
+import fiji.plugin.trackmate.TrackMate as TrackMate
 import fiji.plugin.trackmate.Logger as Logger
 import fiji.plugin.trackmate.detection.DetectorKeys as DetectorKeys
 import fiji.plugin.trackmate.detection.DogDetectorFactory as DogDetectorFactory
@@ -43,7 +54,7 @@ def just_TrackMate_things(imp, threshold):
     settings.detectorFactory = DogDetectorFactory()
     settings.detectorSettings = {
         DetectorKeys.KEY_DO_SUBPIXEL_LOCALIZATION : True,
-        DetectorKeys.KEY_RADIUS : 15.0,
+        DetectorKeys.KEY_RADIUS : 75.0,
         DetectorKeys.KEY_TARGET_CHANNEL : 1,
         DetectorKeys.KEY_THRESHOLD : float(threshold),
         DetectorKeys.KEY_DO_MEDIAN_FILTERING : False,
@@ -120,15 +131,16 @@ def main():
     threshold = float(sys.argv[3])
     # actual work
     # argparser wont work due to python 2.5 in Jython
-    image = load_msr_w_ser("/home/pascal/uni/Bachelorarbeit/DATA/CF610sample/20160513_k562_HS2_CF610_008.msr", series)
+    image = load_msr_w_ser("/home/pascal/uni/Bachelorarbeit/DATA/sample2/20160512_k562_001.msr", 0)
     image.show()
     imp = IJ.getImage()
-    IJ.run("Auto Threshold", "method=MaxEntropy white")
+    IJ.run("Auto Threshold", "method=Huang white")
+    IJ.run("Gaussian Blur...", "sigma=5")
+    IJ.run("Auto Threshold", "method=Otsu white")
     imp.setCalibration(Calibration())
     model = just_TrackMate_things(imp, threshold)
     coordinates = give_back_coords(model)
     save_coords_to_temp(coordinates)
     sys.exit()
-
 
 main()
