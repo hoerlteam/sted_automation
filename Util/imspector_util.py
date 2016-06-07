@@ -184,7 +184,7 @@ def config_magic(path):
     return a
 
 
-def changing_config():
+def changing_config(ms, params):
     # deleting some values in order not to crash
     params.pop(b"is_active")
     params.pop(b"prop_driver")
