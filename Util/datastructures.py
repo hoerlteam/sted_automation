@@ -1,4 +1,6 @@
 import random
+from Util.imspector_util import config_magic
+import json
 
 class sorted_list():
     def __init__(self):
@@ -20,8 +22,13 @@ class sorted_list():
 
 
 # TODO implement me!!!
-def set_parameter(settings_dict, path, value):
-    pass
+def set_parameter(params, path, value):
+    params.pop(b"is_active")
+    params.pop(b"prop_driver")
+    params.pop(b"prop_version")
+    config = config_magic(path)
+    eval(params str(config)) = value
+    return None
 
 class Settings():
     def __init__(self):
@@ -32,20 +39,21 @@ class Settings():
             set_parameter(params, bytes(k), v)
 
     def load_from_file(self, path):
-        '''
+        """
         load settings from template file
-        :param path:
-        :return:
-        '''
+        :param path:  path to .json file
+        :return: None
+        """
+        # how can i append my settings dict by a json file
+        with open(str(path), 'r') as f:
+            file = f.read()
+        configs_from_json = (json.loads(file))
+        for key, value in configs_from_json.items():
+            self.settings.update({key: value})
+        return None
 
-        #TODO: do this in JSON?
-        pass
 
-
-
-
-
-
+"""
 def main():
     sl = sorted_list()
     sl2 = sorted_list()
@@ -67,3 +75,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+"""
