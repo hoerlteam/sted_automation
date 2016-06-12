@@ -6,6 +6,7 @@ params = ms.parameters()
 """
 from Util.tile_util import generate_grid_snake
 import time
+from Util.datastructures import *
 
 
 def get_fov_dimensions(ms):
@@ -87,6 +88,7 @@ def amove(ms, x2, y2):
     x_target_coordinate = float(coordinates[0] if coordinates[0] == 0 else coordinates[0] + eps)
     y_target_coordinate = float(coordinates[1] if coordinates[1] == 0 else coordinates[1] + eps)
     if x_target_coordinate is not None and y_target_coordinate is not None:
+        # TODO: Syntax ändern hier nach Settings objekt
         ms.set_parameter("OlympusIX/scanrange/x/offset", x_target_coordinate)
         ms.set_parameter("OlympusIX/scanrange/y/offset", y_target_coordinate)
 
@@ -131,28 +133,36 @@ def move(ms, x2, y2):
         ms.set_parameter("OlympusIX/scanrange/y/offset", move_by_y)
 
 
-def acquire_measurement_at_coordinates(im, ms, l_of_coords):
+def acquire_measurement_at_coordinates(im, ms, l_of_coords, configs, path):
+    conf = Settings()
+    if configs != str:
+        raise Exception("ERROR: configs parameter must be str!")
+    conf.load_from_file(configs)
+    #TODO: passt das so?
+    conf.apply_to_settings_dict(params)
     amount_of_measurements = len(l_of_coords)
     name = generate_random_name2()
     for i in range(amount_of_measurements):
         amove(ms, l_of_coords[i][0], l_of_coords[i][1])
         # print(l_of_coords[i])
         im.run(ms)
-        save_stack(name, i)
+        save_stack(path, name, i)
         a = input("Enter for continue, or type something to stop: ")
         if a != "":
             break
     return None
 
 
-def generate_file_for_measurement(name, salt=""):
+def generate_file_for_measurement(path, name, salt=""):
     # TODO: überlegen wie man das mit dem path macht
-    filename = "C:\\Users\\RESOLFT\\Desktop\\Tiled\\" + str(name) + str(salt)
+    if path != str:
+        raise Exception("ERROR: path must be str!")
+    filename = str(path) + str(name) + str(salt)
     outfd = File(filename, File.Write)
     return outfd
 
 
-def save_stack(name, i):
+def save_stack(path, name, i):
     """
     Saves the stack. A random name should be generated before plus in order to many images, the counter of which image
     is taken should be given as i.
@@ -160,7 +170,7 @@ def save_stack(name, i):
     :param i: current number of the measurement
     :return: None. Saves the image into a file
     """
-    outfd = generate_file_for_measurement(name, i)
+    outfd = generate_file_for_measurement(path, name, i)
     for ii in range(ms.active_configuration().number_of_stacks()):
         outfd.write(ms.active_configuration().stack(ii))
     outfd = None

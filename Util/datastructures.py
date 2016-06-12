@@ -27,7 +27,8 @@ def set_parameter(params, path, value):
     params.pop(b"prop_driver")
     params.pop(b"prop_version")
     config = config_magic(path)
-    eval(params str(config)) = value
+    #eval(params str(config)) = value
+    params str(config) = value
     return None
 
 class Settings():
@@ -35,6 +36,11 @@ class Settings():
         self.settings = dict()
 
     def apply_to_settings_dict(self, params):
+        """
+        applies settings to the active measurement object
+        :param params: ms.setparameters() object
+        :return:
+        """
         for k,v in self.settings.items():
             set_parameter(params, bytes(k), v)
 

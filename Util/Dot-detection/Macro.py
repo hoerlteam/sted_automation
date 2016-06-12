@@ -115,12 +115,12 @@ def save_coords_to_temp(coords, tfile="coords-temp"):
 
 
 def main():
-    series = int(sys.argv[1])
-    #size = sys.argv[2]
+    path_to_image = str(sys.argv[1])
+    series = int(sys.argv[2])
     threshold = float(sys.argv[3])
     # actual work
     # argparser wont work due to python 2.5 in Jython
-    image = load_msr_w_ser("/home/pascal/uni/Bachelorarbeit/DATA/CF610sample/20160513_k562_HS2_CF610_008.msr", series)
+    image = load_msr_w_ser(str(path_to_image), series)
     image.show()
     imp = IJ.getImage()
     IJ.run("Auto Threshold", "method=MaxEntropy white")
