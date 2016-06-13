@@ -1,6 +1,5 @@
-import random
-from Util.imspector_util import config_magic
 import json
+import Util.imspector_util as iu
 
 class sorted_list():
     def __init__(self):
@@ -21,14 +20,18 @@ class sorted_list():
         return self.data.__iter__()
 
 
+def params(config):
+    pass
+
+
 # TODO implement me!!!
 def set_parameter(params, path, value):
     params.pop(b"is_active")
     params.pop(b"prop_driver")
     params.pop(b"prop_version")
-    config = config_magic(path)
-    #eval(params str(config)) = value
-    params str(config) = value
+    config = iu.config_magic(path)
+    # eval(params str(config)) = value
+    params(str(config)) = value
     return None
 
 class Settings():

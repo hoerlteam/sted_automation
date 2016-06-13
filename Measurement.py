@@ -1,7 +1,8 @@
 #! coding:UTF-8
 from Util.tile_util import generate_grid_snake
 from Util.imspector_util import *
-from Util.dot_detection import Fiji_coordinate_detection
+from Util.dot_detection.Fiji_coordinate_detection import find_hssites
+Fiji_path = ' ' #hardcoded?
 #
 # def sgbs_mesurement(area_min, area_max, fov_dimensions=0 , overlap=0):
 #     """
@@ -21,20 +22,22 @@ from Util.dot_detection import Fiji_coordinate_detection
 #     # TODO: Do stitching here
 
 
-def smps(path, coordinates, fov_dimensions, overlap=0):
+def sps(configs, image_path,  macro_path, coordinates, fov_dimensions, overlap=0):
     """
-    Single measurement plus STED
-    :param area_min:
-    :param area_max:
+    singe measurement plus STED measurement
+    :param configs:
+    :param image_path:
+    :param macro_path:
+    :param coordinates:
     :param fov_dimensions:
     :param overlap:
     :return:
     """
-    from specpy import *
+    # implement counter for configs? i=0 -> after measurement i+=1 so that configs[1] gets loaded
+    #from specpy import *
     im = Imspector()
     ms = im.active_measurement()
-    acquire_measurement_at_coordinates(im, ms, coordinates, configs, path)#TODO: add configs here)
-    Fiji_coordinate_detection.call_fiji()
-    settings
-    acquire measurements
-    peace out
+    acquire_measurement_at_coordinates(im, ms, coordinates, configs, image_path)#TODO: add configs here)
+    list_of_sites = find_hssites(Fiji_path, macro_path, image_path, fov_dimensions, coordinates)
+    acquire_measurement_at_coordinates(im, ms, list_of_sites, configs, image_path)
+

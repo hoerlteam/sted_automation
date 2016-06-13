@@ -124,7 +124,7 @@ def middle2corner(ms_middle_coordinates, fov):
     return corner_coords
 
 
-def corner2spot(corner_coords, fspot_coords):
+def corner2spot(corner_coords, fspot_coords, filepath, fov_dimensions):
     """
     Calculates the coordinates of spots after processing with Fiji. Adds the vector coordinates calculated
     by Fiji to the corner coordinates
@@ -136,9 +136,19 @@ def corner2spot(corner_coords, fspot_coords):
         raise Exception("ERROR: Different amount of dimensions between corner coordinates and coordinates"
                         "provided by Fiji")
     actual_gcoords = []
+    factor = calculate_pixel_to_mm(filepath, fov_dimensions)
     for i in range(len(corner_coords)):
-        actual_gcoords.append(int(corner_coords[i])+int(fspot_coords[i]))
+        actual_gcoords.append(int(corner_coords[i])+(int(fspot_coords[i]))*factor)
     return actual_gcoords
 
+
+def calculate_pixel_to_mm(filepath, fov_dimensions):
+    pwidth, pheight = Image.open(open(str(filepath))).size
+    awidth = fov_dimensions[0]
+    aheight = fov_dimensions[1]
+    if (pwidth/awidth) != (pheight/aheight):
+        raise Exception("ERROR: Images did not match. could not calculate factor")
+    else:
+        return int(pwidth/awidth)
 
 
