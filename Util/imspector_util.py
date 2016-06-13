@@ -133,11 +133,11 @@ def move(ms, x2, y2):
         ms.set_parameter("OlympusIX/scanrange/y/offset", move_by_y)
 
 
-def acquire_measurement_at_coordinates(im, ms, l_of_coords, configs, path):
+def acquire_measurement_at_coordinates(im, ms, l_of_coords, configs_path, out_path):
     conf = Settings()
-    if configs != str:
+    if type(configs_path) != str:
         raise Exception("ERROR: configs parameter must be str!")
-    conf.load_from_file(configs)
+    conf.load_from_file(configs_path)
     #TODO: passt das so?
     conf.apply_to_settings_dict(params)
     amount_of_measurements = len(l_of_coords)
@@ -146,7 +146,7 @@ def acquire_measurement_at_coordinates(im, ms, l_of_coords, configs, path):
         amove(ms, l_of_coords[i][0], l_of_coords[i][1])
         # print(l_of_coords[i])
         im.run(ms)
-        save_stack(path, name, i)
+        save_stack(out_path, name, i)
         a = input("Enter for continue, or type something to stop: ")
         if a != "":
             break

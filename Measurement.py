@@ -22,10 +22,10 @@ Fiji_path = ' ' #hardcoded?
 #     # TODO: Do stitching here
 
 
-def sps(configs, image_path,  macro_path, coordinates, fov_dimensions, overlap=0):
+def sps(config_paths, image_path, macro_path, coordinates, overlap=0):
     """
     singe measurement plus STED measurement
-    :param configs:
+    :param config_paths:
     :param image_path:
     :param macro_path:
     :param coordinates:
@@ -37,7 +37,10 @@ def sps(configs, image_path,  macro_path, coordinates, fov_dimensions, overlap=0
     #from specpy import *
     im = Imspector()
     ms = im.active_measurement()
-    acquire_measurement_at_coordinates(im, ms, coordinates, configs, image_path)#TODO: add configs here)
+    if len(config_paths) < 2:
+        raise Exception("need moar config")
+    acquire_measurement_at_coordinates(im, ms, coordinates, config_paths[0], image_path)#TODO: add configs here)
+    fov_dimensions = get_fov_dimensions(ms)
     list_of_sites = find_hssites(Fiji_path, macro_path, image_path, fov_dimensions, coordinates)
-    acquire_measurement_at_coordinates(im, ms, list_of_sites, configs, image_path)
+    acquire_measurement_at_coordinates(im, ms, list_of_sites, config_paths[1], image_path)
 
