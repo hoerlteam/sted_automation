@@ -1,5 +1,5 @@
 from PIL import Image
-
+from functools import reduce
 
 def clamp(x, min_x, max_x):
     return max(min_x, min(x, max_x))
@@ -141,3 +141,18 @@ def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions):
         actual_gcoords.append([(int(corner_coords[0])+(int(fspot_coords[i][0]))*factor[i]),
                               (int(corner_coords[1])+(int(fspot_coords[i][1]))*factor[i])])
     return actual_gcoords
+
+
+def flatten_dict(d, prefix):
+    if isinstance(d, dict):
+        dicts = list()
+        for (k,v) in d.items():
+            dicts.append(flatten_dict(v, "/".join([prefix, k.decode('utf-8')])))
+        return reduce(lambda x, y: dict(list(x.items()) + list(y.items())), dicts)
+    elif isinstance(d, list):
+        dicts = list()
+        for i in range(len(d)):
+            dicts.append(flatten_dict(d[i], "/".join([prefix, str(i)])))
+        return reduce(lambda x, y: dict(list(x.items()) + list(y.items())), dicts)
+    else:
+        return {prefix: d}
