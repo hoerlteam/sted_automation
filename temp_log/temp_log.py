@@ -27,7 +27,7 @@ class ArduinoTempLogger():
         self.temps = []
 
         self.ax = ax
-        self.nToPlot = 100;
+        self.nToPlot = 3600;
 
     def update(self):
         l = self.ser.readline()
@@ -57,7 +57,7 @@ def main(withPlot = False):
     if withPlot:
         fig = plt.figure()
         ax1 = fig.add_subplot(1,1,1)
-        logger = ArduinoTempLogger(outfile="/Users/david/Desktop/log.txt", ax=ax1)
+        logger = ArduinoTempLogger(outfile="C:\\Users\\RESOLFT\\Desktop\\log.txt", device='COM14', ax=ax1)
     else:
         logger = ArduinoTempLogger(outfile="/Users/david/Desktop/log.txt")
 
