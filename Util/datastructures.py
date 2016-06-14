@@ -1,5 +1,5 @@
 import json
-import imspector_util as iu
+import Util.imspector_util
 
 class sorted_list():
     def __init__(self):
@@ -29,7 +29,7 @@ def set_parameter(params, path, value):
     params.pop(b"is_active")
     params.pop(b"prop_driver")
     params.pop(b"prop_version")
-    config = iu.config_magic(path)
+    config = Util.imspector_util.config_magic(path)
     eval(params + str(config) + " = " + str(value))
 
 

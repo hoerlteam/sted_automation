@@ -153,6 +153,17 @@ def acquire_measurement_at_coordinates(im, ms, l_of_coords, configs_path, out_pa
     return None
 
 
+def acquire_measurement(im, ms, configs_path, out_path, name, salt):
+    conf = Settings()
+    if type(configs_path) != str:
+        raise Exception("ERROR: configs parameter must be str!")
+    conf.load_from_file(configs_path)
+    conf.apply_to_settings_dict(params)
+    im.run(ms)
+    save_stack(out_path, name, salt)
+
+
+
 def generate_file_for_measurement(path, name, salt=""):
     # TODO: überlegen wie man das mit dem path macht
     if path != str:
