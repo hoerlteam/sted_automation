@@ -1,12 +1,14 @@
 """#import numpy as np
+"""
 from specpy import *
+"""
 im = Imspector()
 ms = im.active_measurement()
 params = ms.parameters()
 """
 from Util.tile_util import generate_grid_snake
 import time
-from Util.datastructures import *
+from Util import datastructures
 
 
 def get_fov_dimensions(ms):
@@ -157,26 +159,28 @@ def acquire_measurement_at_coordinates(im, ms, l_of_coords, configs_path, out_pa
 
 
 def acquire_measurement(im, ms, configs_path, out_path, name, salt):
-    conf = Settings()
-    if type(configs_path) != str:
+    conf = datastructures.Settings()
+    if not isinstance(configs_path, str):
         raise Exception("ERROR: configs parameter must be str!")
     conf.load_from_file(configs_path)
+    params = ms.parameters()
     conf.apply_to_settings_dict(params)
+    ms.set_parameters(params)
     im.run(ms)
-    save_stack(out_path, name, salt)
+    save_stack(ms, out_path, name, salt)
 
 
 
 def generate_file_for_measurement(path, name, salt=""):
     # TODO: überlegen wie man das mit dem path macht
-    if path != str:
+    if not isinstance(path, str):
         raise Exception("ERROR: path must be str!")
     filename = str(path) + str(name) + str(salt)
     outfd = File(filename, File.Write)
     return outfd
 
 
-def save_stack(path, name, i):
+def save_stack(ms, path, name, i):
     """
     Saves the stack. A random name should be generated before plus in order to many images, the counter of which image
     is taken should be given as i.
