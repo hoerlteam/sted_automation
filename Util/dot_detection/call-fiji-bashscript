@@ -1,0 +1,3 @@
+#!/bin/bash
+#path/to/fiji --headless - marco 
+#/home/pascal/Apps/Fiji.app/ImageJ-linux64  Macro.py
