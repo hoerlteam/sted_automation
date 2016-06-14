@@ -1,6 +1,9 @@
 from PIL import Image
+
+
 def clamp(x, min_x, max_x):
     return max(min_x, min(x, max_x))
+
 
 def generate_grid(area_min, area_max, fov_dimensions, overlap=0):
     """
@@ -124,7 +127,7 @@ def middle2corner(ms_middle_coordinates, fov):
     return corner_coords
 
 
-def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions, fov_dimensions):
+def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions):
     """
     Calculates the coordinates of spots after processing with Fiji. Adds the vector coordinates calculated
     by Fiji to the corner coordinates
@@ -136,19 +139,7 @@ def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions, fov_dimension
         raise Exception("ERROR: Different amount of dimensions between corner coordinates and coordinates"
                         "provided by Fiji")
     actual_gcoords = []
-    factor = calculate_pixel_to_mm(pixel_fov_dimensions, fov_dimensions)
+    factor = (pixel_fov_dimensions[0], pixel_fov_dimensions[1])
     for i in range(len(corner_coords)):
-        actual_gcoords.append(int(corner_coords[i])+(int(fspot_coords[i]))*factor)
+        actual_gcoords.append(int(corner_coords[i])+(int(fspot_coords[i]))*factor[i])
     return actual_gcoords
-
-
-def calculate_pixel_to_mm(pixel_fov_dimensions, fov_dimensions):
-    pwidth, pheight = pixel_fov_dimensions[0], pixel_fov_dimensions[1]
-    awidth = fov_dimensions[0]
-    aheight = fov_dimensions[1]
-    if (pwidth/awidth) != (pheight/aheight):
-        raise Exception("ERROR: Images did not match. could not calculate factor")
-    else:
-        return int(pwidth/awidth)
-
-

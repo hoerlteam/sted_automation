@@ -17,6 +17,9 @@ def get_fov_dimensions(ms):
     return ms.parameter("ExpControl/scan/range/x/len"), ms.parameter("ExpControl/scan/range/y/len")
 
 
+def get_pixel_dimensions(ms):
+    return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz")
+
 # not yet perfect. Just for testing
 def measurement_sample():
     l_of_coords = generate_grid_snake((0, 0), (2e-4, 2e-4), get_fov_dimensions(ms), overlap=0.1)

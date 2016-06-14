@@ -2,7 +2,7 @@
 from Util.tile_util import generate_grid_snake
 from Util.imspector_util import *
 from Util.dot_detection.Fiji_coordinate_detection import find_hssites
-Fiji_path = ' ' #hardcoded?
+fiji_path = 'C:\Users\RESOLFT\Desktop\Fiji.app' #Fiji path on STED commputer
 #
 # def sgbs_mesurement(area_min, area_max, fov_dimensions=0 , overlap=0):
 #     """
@@ -52,5 +52,4 @@ def sps_version2(configs_path, image_path, macro_path, name, salt):
     fov_dimensions = get_fov_dimensions(ms)
     pixel_fov_dimesions = get_pixel_dimensions(ms)
     #TODO: Das da
-    spot_coordinates = find_hssites(fiji_path, macro_path, image_path, fov_dimensions, pixel_fov_dimensions)
-    acquire_measurement_at_coordinates(im, ms, spot_coordinates, configs_path, image_path)
+    spot_coordinates = find_hssites(fiji_path, macro_path, image_path, fov_dimensions, pixel_fov_dimesions)
