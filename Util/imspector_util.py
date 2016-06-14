@@ -203,7 +203,10 @@ def config_magic(path):
     # building the syntax:
     a = ""
     for i in range(len(l)):
-        a += str('[b"') + str(l[i]) + str('"]')
+        if l[i].isdigit():
+            a += str('[') + str(l[i]) + str(']')
+        else:
+            a += str('[b"') + str(l[i]) + str('"]')
     # syntax for setting parameters is params[b"xy"][..].. = z. For that the paths are reframed here
     return a
 

@@ -135,11 +135,9 @@ def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions):
     :param fspot_coords: coordinates calculated by Fiji
     :return: returns the actual, global coordinates
     """
-    if len(corner_coords) != len(fspot_coords):
-        raise Exception("ERROR: Different amount of dimensions between corner coordinates and coordinates"
-                        "provided by Fiji")
     actual_gcoords = []
     factor = (pixel_fov_dimensions[0], pixel_fov_dimensions[1])
-    for i in range(len(corner_coords)):
-        actual_gcoords.append(int(corner_coords[i])+(int(fspot_coords[i]))*factor[i])
+    for i in range(len(fspot_coords)):
+        actual_gcoords.append([(int(corner_coords[0])+(int(fspot_coords[i][0]))*factor[i]),
+                              (int(corner_coords[1])+(int(fspot_coords[i][1]))*factor[i])])
     return actual_gcoords

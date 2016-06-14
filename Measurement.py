@@ -51,5 +51,4 @@ def sps_version2(configs_path, image_path, macro_path, name, salt):
     acquire_measurement(im, ms, configs_path, image_path, name, salt)
     fov_dimensions = get_fov_dimensions(ms)
     pixel_fov_dimesions = get_pixel_dimensions(ms)
-    #TODO: Das da
     spot_coordinates = find_hssites(fiji_path, macro_path, image_path, fov_dimensions, pixel_fov_dimesions)
