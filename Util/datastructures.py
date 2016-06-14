@@ -26,11 +26,13 @@ def params(config):
 
 # TODO document me!!!
 def set_parameter(params, path, value):
-    params.pop(b"is_active")
-    params.pop(b"prop_driver")
-    params.pop(b"prop_version")
+    params.pop(b"is_active", None)
+    params.pop(b"prop_driver", None)
+    params.pop(b"prop_version", None)
     config = Util.imspector_util.config_magic(path)
-    eval(params + str(config) + " = " + str(value))
+    #print(config)
+    assignment_string = str(value) if not isinstance(value, str) else "'" + value + "'"
+    exec("params" + str(config) + " = " + assignment_string )
 
 
 class Settings():
