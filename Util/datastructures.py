@@ -1,7 +1,8 @@
 import json
 import Util.imspector_util
 
-class sorted_list():
+
+class Sorted_List():
     def __init__(self):
         self.data = list()
 
@@ -20,27 +21,23 @@ class sorted_list():
         return self.data.__iter__()
 
 
-def params(config):
-    pass
-
-
 def set_parameter(params, path, value):
     """
     :param params: parameter object (Imspector)
     :param path: path in the parameters dictionary that shall be set
     :param value: value to set the parameter in the dictionary
-    :return: Not implemented
+    :return: None
     """
     params.pop(b"is_active", None)
     params.pop(b"prop_driver", None)
     params.pop(b"prop_version", None)
     config = Util.imspector_util.config_magic(path)
-    #print(config)
+    # print(config)
     assignment_string = str(value) if not isinstance(value, str) else "'" + value + "'"
-    exec("params" + str(config) + " = " + assignment_string )
+    exec("params" + str(config) + " = " + assignment_string)
 
 
-class Settings():
+class Settings:
     def __init__(self):
         self.settings = dict()
 
@@ -50,7 +47,7 @@ class Settings():
         :param params: ms.setparameters() object
         :return:
         """
-        for k,v in self.settings.items():
+        for k, v in self.settings.items():
             set_parameter(params, k, v)
 
     def load_from_file(self, path):
@@ -78,7 +75,25 @@ class Settings():
     def clone(self):
         other = Settings()
         other.settings = self.settings.copy()
-        return(other)
+        return other
+
+    def set_to_coordinates(self, coordination):
+        """
+        Sets the coordinations of an coordination object on a settings dictionary
+        :param coordination: coordination object containing bench_coords, fov_length and offset_coord
+        :return: None
+        """
+        xyz = str("x", "y", "z")
+        bench = coordination.get_bench_coords()
+        fov = coordination.get_fov_len()
+        offset = coordination.get_scan_offset()
+        self.set("OlympusIX/scanrange/x/offset", bench[0])
+        self.set("OlympusIX/scanrange/y/offset", bench[1])
+        self.set("OlympusIX/scanrange/z/off", bench[2])
+        for i in range(len(xyz)):
+            self.set("ExpControl/scan/range/" + xyz[i] + "/len", fov[i])
+        for i in range(len(xyz)):
+            self.set("ExpControl/scan/range/" + xyz[i] + "/off", offset[i])
 
 
 class Coordination:
@@ -91,6 +106,9 @@ class Coordination:
         fov_len = (self.fov_len_snapshot(ms))
         offset_coords = (self.scan_offset_coords_snapshot(ms))
         self.coordinates = (bench_coords, fov_len, offset_coords)
+
+    def __str__(self):
+        return str(self.coordinates)
 
     def bench_coords_snapshot(self, ms):
         x = ms.parameter("OlympusIX/scanrange/x/offset")
@@ -114,20 +132,19 @@ class Coordination:
         """
         :return: returns the coordinates of the bench in form [x, y, z]
         """
-        return self.coordinates[1]
+        return self.coordinates[0]
 
     def get_fov_len(self):
         """
         :return: returns the length of the the fov in form [x, y, z]
         """
-        return self.coordinates[2]
+        return self.coordinates[1]
 
     def get_scan_offset(self):
         """
         :return: returns the scan-offset in form of [x, y, z]
         """
-        return self.coordinates[3]
-
+        return self.coordinates[2]
 
 
 
