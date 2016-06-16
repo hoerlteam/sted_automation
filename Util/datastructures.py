@@ -24,8 +24,13 @@ def params(config):
     pass
 
 
-# TODO document me!!!
 def set_parameter(params, path, value):
+    """
+    :param params: parameter object (Imspector)
+    :param path: path in the parameters dictionary that shall be set
+    :param value: value to set the parameter in the dictionary
+    :return: Not implemented
+    """
     params.pop(b"is_active", None)
     params.pop(b"prop_driver", None)
     params.pop(b"prop_version", None)
@@ -51,7 +56,7 @@ class Settings():
     def load_from_file(self, path):
         """
         load settings from template file
-        :param path:  path to .json file
+        :param path: path to .json file
         :return: None
         """
         # how can i append my settings dict by a json file
@@ -77,25 +82,52 @@ class Settings():
 
 
 class Coordination:
-    def __init__(self):
-        self.coordinates = []
-
-    def snapshot(self, ms):
+    """
+    This class writes th parameters for the global bench coordinates, the lenght of the field of view
+    and the scan offset in a list. [bench_coordinates, fov_lenght, scan_offset].
+    """
+    def __init__(self, ms):
         bench_coords = (self.bench_coords_snapshot(ms))
-        offset_coords = (self.offset_coords_snapshot(ms))
-        self.coordinates.append((bench_coords, offset_coords))
+        fov_len = (self.fov_len_snapshot(ms))
+        offset_coords = (self.scan_offset_coords_snapshot(ms))
+        self.coordinates = (bench_coords, fov_len, offset_coords)
 
     def bench_coords_snapshot(self, ms):
+        x = ms.parameter("OlympusIX/scanrange/x/offset")
+        y = ms.parameter("OlympusIX/scanrange/y/offset")
+        z = ms.parameter("OlympusIX/scanrange/z/off")
+        return [x, y, z]
+
+    def fov_len_snapshot(self, ms):
         x = ms.parameter("ExpControl/scan/range/x/len")
         y = ms.parameter("ExpControl/scan/range/y/len")
         z = ms.parameter("ExpControl/scan/range/z/len")
         return [x, y, z]
 
-    def offset_coords_snapshot(self, ms):
+    def scan_offset_coords_snapshot(self, ms):
         x = ms.parameter("ExpControl/scan/range/x/off")
         y = ms.parameter("ExpControl/scan/range/y/off")
         z = ms.parameter("ExpControl/scan/range/z/off")
         return [x, y, z]
+
+    def get_bench_coords(self):
+        """
+        :return: returns the coordinates of the bench in form [x, y, z]
+        """
+        return self.coordinates[1]
+
+    def get_fov_len(self):
+        """
+        :return: returns the length of the the fov in form [x, y, z]
+        """
+        return self.coordinates[2]
+
+    def get_scan_offset(self):
+        """
+        :return: returns the scan-offset in form of [x, y, z]
+        """
+        return self.coordinates[3]
+
 
 
 
