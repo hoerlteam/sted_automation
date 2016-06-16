@@ -22,6 +22,7 @@ def get_fov_dimensions(ms):
 def get_pixel_dimensions(ms):
     return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz")
 
+
 # not yet perfect. Just for testing
 def measurement_sample():
     l_of_coords = generate_grid_snake((0, 0), (2e-4, 2e-4), get_fov_dimensions(ms), overlap=0.1)
@@ -176,6 +177,7 @@ def generate_file_for_measurement(path, name, salt=""):
     if not isinstance(path, str):
         raise Exception("ERROR: path must be str!")
     filename = str(path) + str(name) + str(salt)
+    # File comes from specpy
     outfd = File(filename, File.Write)
     return outfd
 
@@ -247,30 +249,3 @@ def generate_random_name2():
     hash_object = hashlib.md5(bytes(str(time.time() * 1000), "utf-8"))
     hex_dig = hash_object.hexdigest()
     return str(hex_dig)
-
-
-""" Useless until objective can be changed
-def objective_change(lens_in):
-    if lens_in==10:
-        #lens =
-    elif lens_in==100:
-        #lens =
-    elif lens_in==60:
-        #lens =
-    else:
-        raise Exception("ERROR: Lens not available")
-    ms = im.active_measurement()
-    conf = ms.active_configuration()
-    ms.set_parameter("OlympusIX/light_path/objlens", lens)
-    conf.set_parameter("OlympusIX/light_path/objlens", ms.parameter("OlympusIX/light_path/objlens"))
-    return None
-
-
-
-ms = im.active_measurement()
-conf = ms.active_configuration()
-conf.parameter("OlympusIX/light_path/objlens") must be same as ms.parameter("OlympusIX/light_path/objlens")
-# When changing this parameter in conf instead od measurement settings the measuremnt settings are also accapted.
-# Changing both??
-
-"""

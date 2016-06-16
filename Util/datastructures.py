@@ -76,6 +76,27 @@ class Settings():
         return(other)
 
 
+class Coordination:
+    def __init__(self):
+        self.coordinates = []
+
+    def snapshot(self, ms):
+        bench_coords = (self.bench_coords_snapshot(ms))
+        offset_coords = (self.offset_coords_snapshot(ms))
+        self.coordinates.append((bench_coords, offset_coords))
+
+    def bench_coords_snapshot(self, ms):
+        x = ms.parameter("ExpControl/scan/range/x/len")
+        y = ms.parameter("ExpControl/scan/range/y/len")
+        z = ms.parameter("ExpControl/scan/range/z/len")
+        return [x, y, z]
+
+    def offset_coords_snapshot(self, ms):
+        x = ms.parameter("ExpControl/scan/range/x/off")
+        y = ms.parameter("ExpControl/scan/range/y/off")
+        z = ms.parameter("ExpControl/scan/range/z/off")
+        return [x, y, z]
+
 
 
 def main():
