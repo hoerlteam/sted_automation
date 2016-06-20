@@ -84,7 +84,7 @@ class Settings:
         :return: None
         """
         xyz = str("x", "y", "z")
-        bench = coordination.get_bench_coords()
+        bench = coordination.get_bench_coords
         fov = coordination.get_fov_len()
         offset = coordination.get_scan_offset()
         self.set("OlympusIX/scanrange/x/offset", bench[0])
@@ -96,55 +96,6 @@ class Settings:
             self.set("ExpControl/scan/range/" + xyz[i] + "/off", offset[i])
 
 
-class Coordination:
-    """
-    This class writes th parameters for the global bench coordinates, the lenght of the field of view
-    and the scan offset in a list. [bench_coordinates, fov_lenght, scan_offset].
-    """
-    def __init__(self, ms):
-        bench_coords = (self.bench_coords_snapshot(ms))
-        fov_len = (self.fov_len_snapshot(ms))
-        offset_coords = (self.scan_offset_coords_snapshot(ms))
-        self.coordinates = (bench_coords, fov_len, offset_coords)
-
-    def __str__(self):
-        return str(self.coordinates)
-
-    def bench_coords_snapshot(self, ms):
-        x = ms.parameter("OlympusIX/scanrange/x/offset")
-        y = ms.parameter("OlympusIX/scanrange/y/offset")
-        z = ms.parameter("OlympusIX/scanrange/z/off")
-        return [x, y, z]
-
-    def fov_len_snapshot(self, ms):
-        x = ms.parameter("ExpControl/scan/range/x/len")
-        y = ms.parameter("ExpControl/scan/range/y/len")
-        z = ms.parameter("ExpControl/scan/range/z/len")
-        return [x, y, z]
-
-    def scan_offset_coords_snapshot(self, ms):
-        x = ms.parameter("ExpControl/scan/range/x/off")
-        y = ms.parameter("ExpControl/scan/range/y/off")
-        z = ms.parameter("ExpControl/scan/range/z/off")
-        return [x, y, z]
-
-    def get_bench_coords(self):
-        """
-        :return: returns the coordinates of the bench in form [x, y, z]
-        """
-        return self.coordinates[0]
-
-    def get_fov_len(self):
-        """
-        :return: returns the length of the the fov in form [x, y, z]
-        """
-        return self.coordinates[1]
-
-    def get_scan_offset(self):
-        """
-        :return: returns the scan-offset in form of [x, y, z]
-        """
-        return self.coordinates[2]
 
 
 
