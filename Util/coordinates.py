@@ -1,11 +1,13 @@
 import numpy as np
+from Util.tile_util import *
+
 
 class Coordinates:
     """
     This class writes th parameters for the global bench coordinates, the lenght of the field of view
     and the scan offset in a list. [bench_coordinates, fov_lenght, scan_offset].
     """
-    def __init__(self, bench_coords = [0,0,0], fov_len=[0,0,0], offset_coords=[0,0,0]):
+    def __init__(self, bench_coords=(0, 0, 0), fov_len=(0, 0, 0), offset_coords=(0, 0, 0)):
         self.coordinates = [bench_coords, fov_len, offset_coords]
 
     def __str__(self):
@@ -25,19 +27,17 @@ class Coordinates:
         res.coordinates = self.coordinates.copy()
         return res
 
-
     def create_bench_coordinates(self):
-        '''
+        """
         create a new Coordinates object representing the same subspace, but with just a movement of the stage
         (offset_coords of this object will be 0)
         :return:
-        '''
+        """
         res = self.copy()
         newBenchShift = list(np.array(res.get_bench_coords()) + np.array(res.get_scan_offset()))
         res.set_bench_coords(newBenchShift)
-        res.set_offset_coords([0,0,0])
+        res.set_offset_coords([0, 0, 0])
         return res
-
 
     def get_bench_coords(self):
         """
@@ -56,6 +56,21 @@ class Coordinates:
         :return: returns the scan-offset in form of [x, y, z]
         """
         return self.coordinates[2]
+
+    def middle2corner_from_object(self):
+        return middle2corner(self.coordinates[0], self.coordinates[1])
+
+    def corner2spot_from_object(self, corner_coords, fspot_coords):
+        # define somewhere  ms?
+        fov_pixel_coords = [ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz")]
+
+        # where do the fspot_coords come from? saved in object or somehow as a list
+        return corner2spot(corner_coords, fspot_coords, fov_pixel_coords)
+
+    def middle2spot(self, fspot_coords):
+        return self.corner2spot_from_object(self.middle2corner_from_object(), fspot_coords)
+        # returns coords to move bench?
+
 
 
 def create_coordinates_from_measurement(self, ms):

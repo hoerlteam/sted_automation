@@ -1,14 +1,11 @@
 #from PIL import Image
 from functools import reduce
+from Util.coordinates import *
 
 def clamp(x, min_x, max_x):
     return max(min_x, min(x, max_x))
 
 
-'''
-TODO: rewrite generate grid such that it returns coordinates objects
-or write list -> object function
-'''
 
 def generate_grid(area_min, area_max, fov_dimensions, overlap=0):
     """
@@ -119,8 +116,24 @@ def generate_grid_snake(area_min, area_max, fov_dimensions, overlap=0):
 
 # TODO: Klasse mit instant middle2corner bzw global nach stithing middle to corner
 
-# TODO: write middle to corner, corner to spot, spot to middle functions accepting Coordinates objects as parameters
+
+'''
+TODO: rewrite generate grid such that it returns coordinates objects
+or write list -> object function
+'''
+
+
 #  -> maybe make them menber methods of the Coordinates class
+def generate_grid_oop(area_min, area_max, fov_dimensions, overlap=0):
+    grid_coords = generate_grid_snake(area_min, area_max, fov_dimensions, overlap)
+    list_of_coords_objects = []
+    for i in range(len(grid_coords)):
+        co = Coordinates()
+        co.set_bench_coords(grid_coords[i])
+        list_of_coords_objects.append(co)
+    return list_of_coords_objects
+
+
 def middle2corner(ms_middle_coordinates, fov):
     """
     Gives the ability to calculate from the global coordinates of the microscope back to the upper left corner of an
