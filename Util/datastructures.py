@@ -1,5 +1,6 @@
 import json
 import Util.imspector_util
+import numpy as np
 
 
 class Sorted_List():
@@ -83,8 +84,8 @@ class Settings:
         :param coordination: coordination object containing bench_coords, fov_length and offset_coord
         :return: None
         """
-        xyz = str("x", "y", "z")
-        bench = coordination.get_bench_coords
+        xyz = ("x", "y", "z")
+        bench = coordination.get_bench_coords()
         fov = coordination.get_fov_len()
         offset = coordination.get_scan_offset()
         self.set("OlympusIX/scanrange/x/offset", bench[0])
@@ -97,6 +98,8 @@ class Settings:
 
 
 
+def check_coordinates_valid(coords, min_coords, max_coords):
+    return not((np.array(coords) < np.array(min_coords)).any() | (np.array(coords) > np.array(max_coords)).any())
 
 
 def main():

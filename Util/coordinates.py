@@ -1,5 +1,5 @@
 import numpy as np
-from Util.tile_util import *
+from .coordinate_util import *
 
 
 class Coordinates:
@@ -76,27 +76,6 @@ def create_coordinates_from_measurement(self, ms):
     fov_len = (fov_len_snapshot(ms))
     offset_coords = (scan_offset_coords_snapshot(ms))
     return Coordinates(bench_coords, fov_len, offset_coords)
-
-
-def bench_coords_snapshot(ms):
-    x = ms.parameter("OlympusIX/scanrange/x/offset")
-    y = ms.parameter("OlympusIX/scanrange/y/offset")
-    z = ms.parameter("OlympusIX/scanrange/z/off")
-    return [x, y, z]
-
-
-def fov_len_snapshot(ms):
-    x = ms.parameter("ExpControl/scan/range/x/len")
-    y = ms.parameter("ExpControl/scan/range/y/len")
-    z = ms.parameter("ExpControl/scan/range/z/len")
-    return [x, y, z]
-
-
-def scan_offset_coords_snapshot(ms):
-    x = ms.parameter("ExpControl/scan/range/x/off")
-    y = ms.parameter("ExpControl/scan/range/y/off")
-    z = ms.parameter("ExpControl/scan/range/z/off")
-    return [x, y, z]
 
 
 def main():
