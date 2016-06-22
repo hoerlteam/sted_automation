@@ -83,8 +83,8 @@ class Settings:
         :param coordination: coordination object containing bench_coords, fov_length and offset_coord
         :return: None
         """
-        xyz = str("x", "y", "z")
-        bench = coordination.get_bench_coords
+        xyz = ("x", "y", "z")
+        bench = coordination.get_bench_coords()
         fov = coordination.get_fov_len()
         offset = coordination.get_scan_offset()
         self.set("OlympusIX/scanrange/x/offset", bench[0])
