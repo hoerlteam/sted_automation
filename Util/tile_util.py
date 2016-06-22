@@ -130,6 +130,7 @@ def generate_grid_oop(area_min, area_max, fov_dimensions, overlap=0):
     for i in range(len(grid_coords)):
         co = Coordinates()
         co.set_bench_coords(grid_coords[i])
+		# TODO: set fov here
         list_of_coords_objects.append(co)
     return list_of_coords_objects
 
@@ -147,7 +148,7 @@ def middle2corner(ms_middle_coordinates, fov):
         corner_coords.append(ms_middle_coordinates[i] - (0.5*fov[i]))
     return corner_coords
 
-
+# TODO call pixel_fov_dimensions -> pixel_size
 def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions):
     """
     Calculates the coordinates of spots after processing with Fiji. Adds the vector coordinates calculated

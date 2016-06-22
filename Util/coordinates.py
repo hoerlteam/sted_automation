@@ -26,7 +26,10 @@ class Coordinates:
         res = Coordinates()
         res.coordinates = self.coordinates.copy()
         return res
-
+		
+	def get_all_in_one_offset(self):
+		return list(np.array(self.get_bench_coords()) + np.array(self.get_scan_offset()))
+		
     def create_bench_coordinates(self):
         """
         create a new Coordinates object representing the same subspace, but with just a movement of the stage
@@ -34,7 +37,7 @@ class Coordinates:
         :return:
         """
         res = self.copy()
-        newBenchShift = list(np.array(res.get_bench_coords()) + np.array(res.get_scan_offset()))
+        newBenchShift = self.get_all_in_one_offset()
         res.set_bench_coords(newBenchShift)
         res.set_offset_coords([0, 0, 0])
         return res
@@ -57,18 +60,17 @@ class Coordinates:
         """
         return self.coordinates[2]
 
-    def middle2corner_from_object(self):
-        return middle2corner(self.coordinates[0], self.coordinates[1])
+    def corner_coords(self):
+        return middle2corner(self.get_all_in_one_offset(), self.coordinates[1])
 
-    def corner2spot_from_object(self, corner_coords, fspot_coords):
-        # define somewhere  ms?
-        fov_pixel_coords = [ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz")]
+    def corner2spot_from_object(self, fspot_pixel_coords, pixel_size):
 
         # where do the fspot_coords come from? saved in object or somehow as a list
-        return corner2spot(corner_coords, fspot_coords, fov_pixel_coords)
+        return corner2spot(self.corner_coords(), fspot_pixel_coords, pixel_size)
 
     def middle2spot(self, fspot_coords):
-        return self.corner2spot_from_object(self.middle2corner_from_object(), fspot_coords)
+		# TODO: implement me
+		return self.corner2spot_from_object(self.corner_coords(), fspot_coords)
         # returns coords to move bench?
 
 
