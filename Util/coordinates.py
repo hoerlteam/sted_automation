@@ -26,10 +26,10 @@ class Coordinates:
         res = Coordinates()
         res.coordinates = self.coordinates.copy()
         return res
-		
-	def get_all_in_one_offset(self):
-		return list(np.array(self.get_bench_coords()) + np.array(self.get_scan_offset()))
-		
+
+    def get_all_in_one_offset(self):
+        return list(np.array(self.get_bench_coords()) + np.array(self.get_scan_offset()))
+
     def create_bench_coordinates(self):
         """
         create a new Coordinates object representing the same subspace, but with just a movement of the stage
@@ -64,14 +64,10 @@ class Coordinates:
         return middle2corner(self.get_all_in_one_offset(), self.coordinates[1])
 
     def corner2spot_from_object(self, fspot_pixel_coords, pixel_size):
-
-        # where do the fspot_coords come from? saved in object or somehow as a list
         return corner2spot(self.corner_coords(), fspot_pixel_coords, pixel_size)
 
     def middle2spot(self, fspot_coords):
-		# TODO: implement me
-		return self.corner2spot_from_object(self.corner_coords(), fspot_coords)
-        # returns coords to move bench?
+        return np.array(fspot_coords) - np.array(self.get_all_in_one_offset())
 
 
 
