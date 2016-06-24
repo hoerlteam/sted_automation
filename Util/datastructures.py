@@ -1,5 +1,6 @@
 import json
 import Util.imspector_util
+import numpy as np
 
 
 class Sorted_List():
@@ -97,6 +98,8 @@ class Settings:
 
 
 
+def check_coordinates_valid(coords, min_coords, max_coords):
+    return not((np.array(coords) < np.array(min_coords)).any() | (np.array(coords) > np.array(max_coords)).any())
 
 
 def main():

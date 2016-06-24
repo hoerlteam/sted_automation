@@ -169,7 +169,17 @@ def acquire_measurement(im, ms, configs_path, out_path, name, salt):
     ms.set_parameters(params)
     im.run(ms)
     save_stack(ms, out_path, name, salt)
-
+    
+def acquire_measurement_dummy(im, config):
+    '''
+    test function to acquire a measurement with settings, does not return/save anything
+    '''
+    im.create_measurement()
+    ms = im.active_measurement()
+    params = ms.parameters()
+    config.apply_to_settings_dict(params)
+    ms.set_parameters(params)
+    im.run(ms)
 
 
 def generate_file_for_measurement(path, name, salt=""):
