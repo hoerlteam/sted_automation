@@ -14,7 +14,8 @@ class Coordinates:
         return str(self.coordinates)
 
     def set_bench_coords(self, bench_coords):
-        self.coordinates[0] = bench_coords
+        self.coordinates[0] = ensure_nd(bench_coords, 3)
+        # TODO do this in other setters
 
     def set_offset_coords(self, offset_coords):
         self.coordinates[2] = offset_coords

@@ -17,10 +17,14 @@ def get_fov_dimensions(ms):
     :return: Tuple containing length's of the field of view
     """
     return ms.parameter("ExpControl/scan/range/x/len"), ms.parameter("ExpControl/scan/range/y/len")
-
-
+# TODO: do this in 3d
+# TODO refator: call this pixel size
 def get_pixel_dimensions(ms):
     return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz")
+
+def get_fov_dims_pixel(ms):
+    return ms.parameter("ExpControl/scan/range/x/res"), ms.parameter("ExpControl/scan/range/y/res")
+    
 
 
 # not yet perfect. Just for testing
@@ -180,6 +184,7 @@ def acquire_measurement_dummy(im, config):
     config.apply_to_settings_dict(params)
     ms.set_parameters(params)
     im.run(ms)
+    #TODO: maybe let this funciton return ms
 
 
 def generate_file_for_measurement(path, name, salt=""):

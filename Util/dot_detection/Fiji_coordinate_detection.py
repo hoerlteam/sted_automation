@@ -33,7 +33,7 @@ def read_coords(path):
     xitems = items[0::2]
     yitems = items[1::2]
     for i in range(len(xitems)):
-        coordsffs.append((xitems[i], (yitems[i])))
+        coordsffs.append((float(xitems[i]), float(yitems[i])))
     return coordsffs
 
 

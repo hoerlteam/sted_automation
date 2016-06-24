@@ -1,3 +1,14 @@
+import sys
+
+def ensure_nd(vec, n=3, padding=0):
+    '''
+    ensure that list v is of length n, pad with zeros if necessary
+    '''
+    to_add = n - len(vec)
+    for _ in range(to_add):
+        vec.append(padding)
+    return vec
+
 def clamp(x, min_x, max_x):
     return max(min_x, min(x, max_x))
 
@@ -25,9 +36,12 @@ def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions):
     """
     actual_gcoords = []
     factor = (pixel_fov_dimensions[0], pixel_fov_dimensions[1])
+    print(corner_coords, fspot_coords, factor)
+    sys.stdout.flush()
     for i in range(len(fspot_coords)):
-        actual_gcoords.append([(int(corner_coords[0])+(int(fspot_coords[i][0]))*factor[i]),
-                              (int(corner_coords[1])+(int(fspot_coords[i][1]))*factor[i])])
+        
+        actual_gcoords.append([(float(corner_coords[0])+(float(fspot_coords[i][0]))*factor[0]),
+                              (float(corner_coords[1])+(float(fspot_coords[i][1]))*factor[1])])
     return actual_gcoords
 
 
