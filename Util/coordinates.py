@@ -68,11 +68,6 @@ class Coordinates:
         return corner2spot(self.corner_coords(), fspot_pixel_coords, pixel_size)
 
     def middle2spot(self, fspot_coords):
-        """
-        calculates from middle  to the spot of interes !caution: spot must be in global coords not pixels!
-        :param fspot_coords:
-        :return:
-        """
         return np.array(fspot_coords) - np.array(self.get_all_in_one_offset())
 
 
