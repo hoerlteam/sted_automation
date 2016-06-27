@@ -36,12 +36,12 @@ def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions):
     """
     actual_gcoords = []
     factor = (pixel_fov_dimensions[0], pixel_fov_dimensions[1])
-    print(corner_coords, fspot_coords, factor)
-    sys.stdout.flush()
+    #print(corner_coords, fspot_coords, factor)
+    #sys.stdout.flush()
     for i in range(len(fspot_coords)):
         
-        actual_gcoords.append([(float(corner_coords[0])+(float(fspot_coords[i][0]))*factor[0]),
-                              (float(corner_coords[1])+(float(fspot_coords[i][1]))*factor[1])])
+        actual_gcoords.append([(float(corner_coords[0])+((float(fspot_coords[i][0]))*factor[0])),
+                              (float(corner_coords[1])+((float(fspot_coords[i][1]))*factor[1]))])
     return actual_gcoords
 
 
