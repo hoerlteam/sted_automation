@@ -21,7 +21,7 @@ def fiji_dummy(fov):
     return fspots
 
 
-def save_coords_to_temp(coords, tfile="coords-temp"):
+def save_coords_to_temp(coords, tfile="./Util/dot_detection/coords-temp"):
     file = open(str(tfile), 'w')
     file.write(str(coords))
     file.close()

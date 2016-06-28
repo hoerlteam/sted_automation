@@ -18,7 +18,7 @@ class Coordinates:
         # TODO do this in other setters
 
     def set_offset_coords(self, offset_coords):
-        self.coordinates[2] = offset_coords
+        self.coordinates[2] = ensure_nd(offset_coords, 3)
 
     def set_fov_len(self, fov_len):
         self.coordinates[1] = fov_len

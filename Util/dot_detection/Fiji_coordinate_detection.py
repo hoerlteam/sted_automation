@@ -8,7 +8,7 @@ Fiji_hss_finder = 'Macro.py'
 Fiji_cell_finder = 'Macro_bigcell_finder.py'
 
 
-def call_fiji(Fiji_path, macro_path, image_path, series=1, size=15, threshold=1):
+def call_fiji(Fiji_path, macro_path, image_path, series=1, size=15, threshold=10):
     fiji_params={'path_to_Fiji': str(Fiji_path),
                  'macro_path': str(macro_path),
                  'image_path': str(image_path),

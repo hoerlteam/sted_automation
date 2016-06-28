@@ -184,6 +184,8 @@ def acquire_measurement_dummy(im, config):
     config.apply_to_settings_dict(params)
     ms.set_parameters(params)
     im.run(ms)
+    # here are changes the save stack was not there before:
+    #save_stack(ms, 'C://Users//RESOLFT//Desktop//TEST_folder//', '28_06', i)
     #TODO: maybe let this funciton return ms
 
 
