@@ -80,7 +80,7 @@ class Settings:
 
     def set_to_coordinates(self, coordination):
         """
-        Sets the coordinates of an coordinates object on a settings dictionary -
+        Sets the coordinations of an coordination object on a settings dictionary
         :param coordination: coordination object containing bench_coords, fov_length and offset_coord
         :return: None
         """
