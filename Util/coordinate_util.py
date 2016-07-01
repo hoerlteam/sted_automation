@@ -45,6 +45,10 @@ def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions):
     return actual_gcoords
 
 
+def return_spot_coords(coordinates_object, spots, pixelsd):
+    # implement pixelsd here?
+    corner = middle2corner(coordinates_object.get_scan_offset(), coordinates_object.get_fov_len())
+    actual_coords = corner2spot(corner, spots, pixelsd)
 
 
 def flatten_dict(d, prefix):
