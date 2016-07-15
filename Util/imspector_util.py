@@ -23,14 +23,12 @@ def get_pixel_dimensions(ms):
     return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz")
 
 def get_fov_dims_pixel(ms):
+    """
+    Extracts information about the relation of pixel/m out of the ms-object
+    :param ms: ms-object
+    :return: returns pixel per m
+    """
     return ms.parameter("ExpControl/scan/range/x/res"), ms.parameter("ExpControl/scan/range/y/res")
-    
-
-
-# not yet perfect. Just for testing
-def measurement_sample():
-    l_of_coords = generate_grid_snake((0, 0), (2e-4, 2e-4), get_fov_dimensions(ms), overlap=0.1)
-    acquire_measurement_at_coordinates(im, ms, l_of_coords)
 
 
 # TODO: Das hier muss alles zu einer klasse werden
@@ -173,7 +171,7 @@ def acquire_measurement(im, ms, configs_path, out_path, name, salt):
     ms.set_parameters(params)
     im.run(ms)
     save_stack(ms, out_path, name, salt)
-    
+
 def acquire_measurement_dummy(im, config):
     '''
     test function to acquire a measurement with settings, does not return/save anything
@@ -186,11 +184,10 @@ def acquire_measurement_dummy(im, config):
     im.run(ms)
     # here are changes the save stack was not there before:
     #save_stack(ms, 'C://Users//RESOLFT//Desktop//TEST_folder//', '28_06', i)
-    #TODO: maybe let this funciton return ms
 
 
+# TODO: Redo this if David likes the idea of my name class - Set name object instead of the 3 varaibles
 def generate_file_for_measurement(path, name, salt=""):
-    # TODO: überlegen wie man das mit dem path macht
     if not isinstance(path, str):
         raise Exception("ERROR: path must be str!")
     filename = str(path) + str(name) + str(salt)
@@ -236,6 +233,12 @@ def config_magic(path):
 
 
 def changing_config(ms, params):
+    """
+    Old function that served as template for the config magic syntax - Delete if not needed
+    :param ms:
+    :param params:
+    :return:
+    """
     # deleting some values in order not to crash
     params.pop(b"is_active")
     params.pop(b"prop_driver")
@@ -266,3 +269,5 @@ def generate_random_name2():
     hash_object = hashlib.md5(bytes(str(time.time() * 1000), "utf-8"))
     hex_dig = hash_object.hexdigest()
     return str(hex_dig)
+
+# https://sites.google.com/site/qingzongtseng/find-focus autofocusmodlue for imagej

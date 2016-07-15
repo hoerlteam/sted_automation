@@ -1,9 +1,11 @@
 import sys
+from skimage.feature import blob_dog, blob_log, blob_doh
+%matplotlib inline
 
 def ensure_nd(vec, n=3, padding=0):
-    '''
+    """
     ensure that list v is of length n, pad with zeros if necessary
-    '''
+    """
     to_add = n - len(vec)
     for _ in range(to_add):
         vec.append(padding)
@@ -46,9 +48,17 @@ def corner2spot(corner_coords, fspot_coords, pixel_fov_dimensions):
 
 
 def return_spot_coords(coordinates_object, spots, pixelsd):
+    """
+    Wrapper for middel2corner and corner2spot functions
+    :param coordinates_object: coordinates object
+    :param spots: list of coordinates of interesting spots
+    :param pixelsd: pixeldimensions. Faktor for pixel - µm calculation
+    :return: actual global coordinates of the spots
+    """
     # implement pixelsd here?
     corner = middle2corner(coordinates_object.get_scan_offset(), coordinates_object.get_fov_len())
     actual_coords = corner2spot(corner, spots, pixelsd)
+    return actual_coords
 
 
 def flatten_dict(d, prefix):
@@ -84,3 +94,19 @@ def scan_offset_coords_snapshot(ms):
     y = ms.parameter("ExpControl/scan/range/y/off")
     z = ms.parameter("ExpControl/scan/range/z/off")
     return [x, y, z]
+
+
+def find_blobs(ms, series=0):
+    """
+    function for finding blobs in a image
+    :param ms: measurement containing an image
+    :param series:
+    :return: returns coordinates of the "blobs"
+    """
+    dta = ms.stack(series).data()[0,0,:,:]
+    blbs = blob_log(dta, max_sigma=30, num_sigma=10, threshold=0.02)
+    res = []
+    for b in blbs:
+        res.append([b[1], b[0]])
+    return res
+

@@ -102,6 +102,32 @@ def check_coordinates_valid(coords, min_coords, max_coords):
     return not((np.array(coords) < np.array(min_coords)).any() | (np.array(coords) > np.array(max_coords)).any())
 
 
+class NameManagement:
+    """
+    By selecting the path when defining the object two counters and a name is created. Every time when a name is getting
+    called by the save function, the counter is increased by 1. It returns: /../path/to/whatever/randomname1.
+    Also implemented a STED function to name the STED images with same suffix but sepearte them from the others
+    """
+    def __init__(self, path):
+        self.path = str(path)
+        self.counter1 = int(0)
+        self.name = str(Util.imspector_util.generate_random_name2())
+        # For STED images:
+        self.counter2 = int(0)
+
+    def get_some_image_name(self):
+        self.counter1 += 1
+        out = self.path+"/"+self.name+str(self.counter1)+".msr"
+        return out
+
+    def get_STED_image_name(self):
+        self.counter2 += 1
+        out = self.path+"/"+self.name+"STED"+str(self.counter2)+".msr"
+        return out
+
+
+
+
 def main():
     a = Settings()
     a.load_from_file("./test.json")

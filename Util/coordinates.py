@@ -62,17 +62,40 @@ class Coordinates:
         return self.coordinates[2]
 
     def corner_coords(self):
+        """
+        Calculates the corner coordinates of offset and bench coords together from a object
+        :return: returns the corner coordinates of the image
+        """
         return middle2corner(self.get_all_in_one_offset(), self.coordinates[1])
 
     def corner2spot_from_object(self, fspot_pixel_coords, pixel_size):
+        """
+        Calculates the coordinates of a spot by using the pixeldimensions factor, multiplies it with
+        the pixel lenght and width that is produced by Fiji and adds it to the corner coordinates.
+        :param fspot_pixel_coords: coordinates of interesting points in pixel
+        :param pixel_size: pixeldimensions
+        :return: returns the global coordinates of the spot
+        """
         return corner2spot(self.corner_coords(), fspot_pixel_coords, pixel_size)
 
     def middle2spot(self, fspot_coords):
+        """
+        wrapper for calculating the distance between coordinates of the bench and the coordinates of the interesting
+        spots
+        :param fspot_coords:
+        :return:
+        """
         return np.array(fspot_coords) - np.array(self.get_all_in_one_offset())
 
 
 
 def create_coordinates_from_measurement(self, ms):
+    """
+    Extracts value out of the ms-object by specpy
+    :param self: coordinates object
+    :param ms: measurement object
+    :return: sets the bench_coords, fov_llen, and offset_coords to the self object
+    """
     bench_coords = (bench_coords_snapshot(ms))
     fov_len = (fov_len_snapshot(ms))
     offset_coords = (scan_offset_coords_snapshot(ms))

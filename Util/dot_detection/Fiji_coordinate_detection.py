@@ -9,6 +9,16 @@ Fiji_cell_finder = 'Macro_bigcell_finder.py'
 
 
 def call_fiji(Fiji_path, macro_path, image_path, series=1, size=15, threshold=10):
+    """
+    Calls Fiji, uses Threshold methods and TrackMate for filtering and isolating interesting spots
+    :param Fiji_path: Path where the executable Fiji bin is
+    :param macro_path: Path of the macro that  shall be used
+    :param image_path: Image that shall be analysed
+    :param series: Series of the .msr file
+    :param size: size of the spots that are searched
+    :param threshold: Threshold value for TrackMate thresholding
+    :return: Saves coordinates in coords  temp file
+    """
     fiji_params={'path_to_Fiji': str(Fiji_path),
                  'macro_path': str(macro_path),
                  'image_path': str(image_path),
@@ -19,6 +29,8 @@ def call_fiji(Fiji_path, macro_path, image_path, series=1, size=15, threshold=10
     function_call = '{path_to_Fiji} {macro_path} {image_path} {series_number} {thresh} {size_of_image}'.format(**fiji_params)
     return subprocess.getoutput(function_call)
 
+
+# alternative to trackmate - trackpy
 
 def read_coords(path):
     """

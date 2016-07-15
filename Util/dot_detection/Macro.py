@@ -18,8 +18,13 @@ from ij.measure import Calibration
 import ij.process.AutoThresholder
 import sys
 
-
 def load_msr_w_ser(path, series):
+    """
+    Loads a .msr file from a given path. 1 Series of a .msr file is loaded
+    :param path: path to the image
+    :param series: series of the .msr file
+    :return: returns image es "imp" variable
+    """
     file = str(path)
     options = ImporterOptions()
     #options.viewHyperstack
@@ -35,6 +40,12 @@ def load_msr_w_ser(path, series):
 
 
 def just_TrackMate_things(imp, threshold):
+    """
+    Tracks "interesting" spots/ returns their coordinates in X,Y,Z
+    :param imp: Image as imp variable
+    :param threshold: value for thresholding filter
+    :return: returns a "model" object with the needed information
+    """
     model = Model()
     model.setLogger(Logger.IJ_LOGGER)
     settings = Settings()
@@ -101,6 +112,11 @@ def just_TrackMate_things(imp, threshold):
 
 
 def give_back_coords(model):
+    """
+    Uses the "model" object and extracts the coordinates of the "interesting" spots
+    :param model: model object produced by TrackMate
+    :return: returns coordinates as float (in pixel)
+    """
     coordinatesffs = []
     for spot in model.getSpots().iterable(False):
         coordinatesffs.append((str(spot.getFloatPosition(0)))+ " " +
@@ -109,18 +125,37 @@ def give_back_coords(model):
 
 
 def save_coords_to_temp(coords, tfile="coords-temp"):
+    """
+    Saves the "coords" variable to ./coords-temp file
+    :param coords: coordinates saved in a list
+    :param tfile: temporary file for saving the coordinates
+    :return: None
+    """
     file = open(str(tfile), 'w')
     file.write(str(coords))
     file.close()
 
 
 def main():
+
+    #x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x
+    # parsing arguments
     path_to_image = str(sys.argv[1])
     series = int(sys.argv[2])
-    #size = sys.argv[4]
     threshold = float(sys.argv[3])
+    #size = sys.argv[4]
+    #x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x
+
+
+    #x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x
+    # parsing arguments - alternative for --macro use - ifloop?
+    #path_to_image = str(sys.argv[2])
+    #series = int(sys.argv[3])
+    #threshold = float(sys.argv[4])
+    #size = sys.argv[5]
+    #x#x#x#x#x#x#x#x#x#x#x#x#x#x#x#x
+
     # actual work
-    # argparser wont work due to python 2.5 in Jython
     image = load_msr_w_ser(str(path_to_image), series)
     image.show()
     imp = IJ.getImage()
