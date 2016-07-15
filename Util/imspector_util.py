@@ -1,6 +1,9 @@
 """#import numpy as np
 """
-from specpy import *
+try:
+    from specpy import *
+except ImportError:
+    print("WARNING: no specpy found")
 """
 im = Imspector()
 ms = im.active_measurement()
