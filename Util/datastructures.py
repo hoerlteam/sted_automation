@@ -1,6 +1,7 @@
 import json
 import Util.imspector_util
 import numpy as np
+import os
 
 
 class Sorted_List():
@@ -108,36 +109,69 @@ class NameManagement:
     called by the save function, the counter is increased by 1. It returns: /../path/to/whatever/randomname1.
     Also implemented a STED function to name the STED images with same suffix but sepearte them from the others
     """
-    def __init__(self, path):
+    def __init__(self, path, postfix=".msr", separator="_"):
+        self.separator = separator
+        self.postfix = postfix
         self.path = str(path)
-        self.counter1 = int(0)
+        self.counters = []
+        self.prefixes = []
         self.name = str(Util.imspector_util.generate_random_name2())
-        # For STED images:
-        self.counter2 = int(0)
+        self.prefix2idx = dict()
 
-    def get_some_image_name(self):
-        self.counter1 += 1
-        out = self.path+"/"+self.name+str(self.counter1)+".msr"
+    def add_counter(self, prefix=''):
+        self.counters.append(0)
+        self.prefixes.append(prefix)
+        self.prefix2idx[prefix] = len(self.counters)-1
+
+    def reset_counter(self, idx):
+        if (type(idx) == str):
+            self.counters[self.prefix2idx[idx]] = 0
+        elif (type(idx) == int):
+            self.counters[idx] = 0
+        else:
+            raise Exception("give index or prefix of what you want")
+
+    def get_next_image_name(self, idx):
+        if (type(idx) == str):
+            return self.get_next_image_name_idx(self.prefix2idx[idx])
+        elif (type(idx) == int):
+            return self.get_next_image_name_idx(idx)
+        else:
+            raise Exception("give index or prefix of what you want")
+
+    def get_next_image_name_idx(self, idx):
+
+        self.counters[idx] += 1
+
+        filename = self.name
+        for i in range(idx+1):
+            filename += self.separator + self.prefixes[i] + str(self.counters[i])
+
+        out = os.path.join(self.path, filename + self.postfix)
         return out
 
-    def get_STED_image_name(self):
-        self.counter2 += 1
-        out = self.path+"/"+self.name+"STED"+str(self.counter2)+".msr"
-        return out
+    # def get_STED_image_name(self):
+    #     self.counter2 += 1
+    #     out = self.path+"/"+self.name+"STED"+str(self.counter2)+self.postfix
+    #     return out
 
 
 
 
 def main():
-    a = Settings()
-    a.load_from_file("./test.json")
-    b = a.clone()
+   namer = NameManagement("path")
+   namer.add_counter("frame")
+   namer.add_counter("sted")
+   namer.add_counter("onemore")
 
-    print(a)
-    print(b)
+   print(namer.get_next_image_name("frame"))
+   for _ in range(5):
+      print(namer.get_next_image_name("sted"))
 
-
-
+   namer.reset_counter("sted")
+   print(namer.get_next_image_name("frame"))
+   for _ in range(5):
+      print(namer.get_next_image_name("sted"))
 
 
 if __name__ == '__main__':
