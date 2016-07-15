@@ -1,6 +1,6 @@
 import sys
 from skimage.feature import blob_dog, blob_log, blob_doh
-%matplotlib inline
+
 
 def ensure_nd(vec, n=3, padding=0):
     """
