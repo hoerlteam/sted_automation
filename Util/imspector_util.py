@@ -9,6 +9,10 @@ im = Imspector()
 ms = im.active_measurement()
 params = ms.parameters()
 """
+import skimage
+import skimage.data
+import numpy as np
+import matplotlib.pyplot as plt
 from Util.tile_util import generate_grid_snake
 import time
 from Util import datastructures
@@ -273,4 +277,38 @@ def generate_random_name2():
     hex_dig = hash_object.hexdigest()
     return str(hex_dig)
 
-# https://sites.google.com/site/qingzongtseng/find-focus autofocusmodlue for imagej
+
+def autofocus(im, ms, series=0, dimension=2):
+    im.run()
+    img = ms.stack(series).data()[0, 0, :, :]
+
+    # dimensions of image
+    sh = np.shape(img)
+
+    # define dimension here if needed
+    # dimension = 1
+
+    normvar = []
+    for i in range(sh[dimension]):
+        # get slice i
+
+        # tImg = img[:,:,i]
+
+        if dimension == 0:
+            tImg = img[i, :, :]
+        elif dimension == 1:
+            tImg = img[:, i, :]
+        elif dimension == 2:
+            tImg = img[:, :, i]
+
+    # edge-filter slice
+    tImg = skimage.filters.sobel(tImg)
+    # calculate var/mean
+    normvar.append(np.var(tImg) / np.mean(tImg))
+
+    # manual output:
+    # plt.plot(normvar)
+    # print maximum index
+    # print(normvar.index(max(normvar)))
+
+    return normvar.index(max(normvar))
