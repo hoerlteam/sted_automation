@@ -26,7 +26,7 @@ def get_fov_dimensions(ms):
     return ms.parameter("ExpControl/scan/range/x/len"), ms.parameter("ExpControl/scan/range/y/len"), ms.parameter("ExpControl/scan/range/z/len")
 
 def get_pixel_size(ms):
-    return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz"), ms.parameter("ExpControl/scan/range/y/psz")
+    return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz"), ms.parameter("ExpControl/scan/range/z/psz")
 
 def get_fov_dims_pixel(ms):
     """
