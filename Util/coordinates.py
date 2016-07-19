@@ -8,7 +8,7 @@ class Coordinates:
     and the scan offset in a list. [bench_coordinates, fov_lenght, scan_offset].
     """
     def __init__(self, bench_coords=(0, 0, 0), fov_len=(0, 0, 0), offset_coords=(0, 0, 0)):
-        self.coordinates = [bench_coords, fov_len, offset_coords]
+        self.coordinates = [list(bench_coords), list(fov_len), list(offset_coords)]
 
     def __str__(self):
         return str(self.coordinates)
