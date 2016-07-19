@@ -23,11 +23,10 @@ def get_fov_dimensions(ms):
     :param ms: Measurement
     :return: Tuple containing length's of the field of view
     """
-    return ms.parameter("ExpControl/scan/range/x/len"), ms.parameter("ExpControl/scan/range/y/len")
-# TODO: do this in 3d
-# TODO refator: call this pixel size
-def get_pixel_dimensions(ms):
-    return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz")
+    return ms.parameter("ExpControl/scan/range/x/len"), ms.parameter("ExpControl/scan/range/y/len"), ms.parameter("ExpControl/scan/range/z/len")
+
+def get_pixel_size(ms):
+    return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz"), ms.parameter("ExpControl/scan/range/y/psz")
 
 def get_fov_dims_pixel(ms):
     """
@@ -35,7 +34,7 @@ def get_fov_dims_pixel(ms):
     :param ms: ms-object
     :return: returns pixel per m
     """
-    return ms.parameter("ExpControl/scan/range/x/res"), ms.parameter("ExpControl/scan/range/y/res")
+    return ms.parameter("ExpControl/scan/range/x/res"), ms.parameter("ExpControl/scan/range/y/res"), ms.parameter("ExpControl/scan/range/z/res")
 
 
 # TODO: Das hier muss alles zu einer klasse werden
