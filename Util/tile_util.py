@@ -1,7 +1,10 @@
 #from PIL import Image
 from functools import reduce
+from .imspector_util import get_fov_dimensions
 from .coordinate_util import *
+import logging
 from .coordinates import *
+import time
 
 
 def generate_grid(area_min, area_max, fov_dimensions, overlap=0):
@@ -111,14 +114,6 @@ def generate_grid_snake(area_min, area_max, fov_dimensions, overlap=0):
             grid_coordinates.append((x, y_odd[-1]))
     return grid_coordinates
 
-# TODO: Klasse mit instant middle2corner bzw global nach stithing middle to corner
-
-
-'''
-TODO: rewrite generate grid such that it returns coordinates objects
-or write list -> object function
-'''
-
 
 #  -> maybe make them menber methods of the Coordinates class
 def generate_grid_oop(area_min, area_max, fov_dimensions, overlap=0):
@@ -129,6 +124,86 @@ def generate_grid_oop(area_min, area_max, fov_dimensions, overlap=0):
         # Hacky way to get around 2d here, beware!!!
         # old: co.set_bench_coords(grid_coords[i])
         co.set_bench_coords(grid_coords[i] + tuple([0]))
-        # TODO: set fov here
         list_of_coords_objects.append(co)
     return list_of_coords_objects
+
+
+class EstimatedTime:
+    def __init__(self, n):
+        self.amount_o_m = n
+        self.times = []
+        self.timer = [0, 0]
+
+    def print_estimated_time(self):
+        """
+        Use this function, when the estimated time shall be printed
+        :return:
+        """
+        timer = 0
+        for i in self.times:
+            timer += sum(i)/len(i)
+        timer = timer*self.amount_o_m
+        print("Estimated time left:" + (str(timer/60)) + "minutes")
+
+    def add_measure_type(self):
+        self.times.append([])
+
+    def start_time(self):
+        """
+        Use this method before recording an image
+        :return:
+        """
+        self.timer[0] = time.time()
+
+    def stop_time(self, m_type=0):
+        """
+        This function after image is recorded
+        :param m_type: Define what kind of measurement it is
+        :return:
+        """
+        self.timer[1] = time.time()
+        self.times[m_type].append(self.timer[1]-self.timer[0])
+        self.timer[0], self.timer[1] = 0, 0
+
+
+def ggacp(ms, fov, n):
+    """
+    "Generate Grid Around Current Position"
+    This function takes the current fov of view that is displayed in Imspector and acquires images
+    around this field of view. It can be used for searching for interesting points manually and then
+    taking images around the interesting area.
+
+    Example:
+    n = 0    n = 1             n = 2               n
+                             _ _ _ _ _
+             _ _ _          |_|_|_|_|_|
+     _      |_|_|_|         |_|_|_|_|_|
+    |_|  -> |_|_|_|   ->    |_|_|_|_|_|    ->     ...
+            |_|_|_|         |_|_|_|_|_|
+                            |_|_|_|_|_|
+
+
+    n is the amount of "circles" around the image of interest.
+    The requested are then gets calculated and a grid is generated using the generate_grid_oop function
+    :param ms: measurement object
+    :param fov: field of view for image acquisition afterwards
+    :param n: Amount of rows
+    :return: List of coordinates for image acquisition
+    """
+
+    bench = ms.parameter()  # parameter for bench
+    offset = ms.parameter()  # parameter for offset
+    gbench = ms.parameter()  # parameter for global coords?
+    global_coordinates = [(bench[0] + offset[0] + gbench[0]), (bench[1] + offset[1] + gbench[1])]
+
+    # Corner coordinates of the current field of view in Imspector
+    corner = middle2corner(global_coordinates, fov)
+
+    # Calculating the upper left corner of the field, depending on the amount of rows
+    area_min = [(corner[0] - (fov[0]*n)), (corner[1] - (fov[1]*n))]
+
+    # Calculating the bottom right corner of the filed, depending on the amount of rows
+    area_max = [(corner[0]+(fov[0]*((n*2)+1))), (corner[1]+(fov[1]*((n*2)+1)))]
+
+    list_of_coords = generate_grid_oop(area_min, area_max, fov)
+    return list_of_coords
