@@ -207,3 +207,57 @@ def ggacp(ms, fov, n):
 
     list_of_coords = generate_grid_oop(area_min, area_max, fov)
     return list_of_coords
+
+
+def df_circle_generator(fov):
+    """
+    "David's fancy circle" generator:
+
+    Usage example:
+    for i in df_circle:
+        acquire_measurement(i)
+
+    Generates a circle of infinite coordinates relative to the center coordinates.
+                     ...
+                      ^
+                       \\
+                        O  ->O  ->O  ->O ->O
+                         ^                 |
+                          \\               v
+                        O   O-> O->  O     O
+                        ^    ^       |     |
+                        |     \\     v     v
+                        O   O   O    O     O
+                        ^   ^        |     |
+                        |   |        v     v
+                        O   O <-O<-  O     O
+                        ^                  |
+                        |                  v
+                        O <-O   <-O <- O<- O
+
+
+    :param fov: [x,y] length of the fields of view
+    :return: returns relative position to center (global coordinates)
+    """
+    n = 0
+    corners = [0, 0, 0, 0]
+    yield [0, 0]
+    while True:
+        bookmark = [0, 0]
+        bookmark[0] += corners[2]
+        bookmark[1] += corners[3]
+        while bookmark[0] < corners[0]:
+            yield bookmark
+            bookmark[0] += fov[0]
+        while bookmark[1] > corners[1]:
+            yield bookmark
+            bookmark[1] -= fov[1]
+        while bookmark[0] > corners[2]:
+            yield bookmark
+            bookmark[0] -= fov[0]
+        while bookmark[1] < corners[3]:
+            yield bookmark
+            bookmark[1] += fov[1]
+        n += 1
+        corners = [fov[0]*n, fov[1]*(-n), fov[0]*(-n), fov[1]*n]
+
