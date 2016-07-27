@@ -2,7 +2,6 @@
 from functools import reduce
 from .imspector_util import get_fov_dimensions
 from .coordinate_util import *
-import logging
 from .coordinates import *
 import time
 
@@ -260,4 +259,3 @@ def df_circle_generator(fov):
             bookmark[1] += fov[1]
         n += 1
         corners = [fov[0]*n, fov[1]*(-n), fov[0]*(-n), fov[1]*n]
-

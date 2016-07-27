@@ -2,6 +2,7 @@ import json
 import Util.imspector_util
 import numpy as np
 import os
+import logging
 
 
 class Sorted_List():
@@ -150,10 +151,26 @@ class NameManagement:
         out = os.path.join(self.path, filename + self.postfix)
         return out
 
+    def get_current_image_name(self):
+        return self.name
+
     # def get_STED_image_name(self):
     #     self.counter2 += 1
     #     out = self.path+"/"+self.name+"STED"+str(self.counter2)+self.postfix
     #     return out
+
+
+def coordinate_logger(name_object, coordinates):
+    """
+    Simple wrapper for the logging function adjusted to a certain task.
+    Recommended pre-config:
+    logging.basicConfig(filename='Insert_filename_for_LOG_here', level=logging.INFO, format='%(message)s')
+
+    :param name_object: NameManagement Object
+    :param coordinates: Current coordinates for measurement
+    :return: None
+    """
+    logging.info(("Image: {} at {}".format(name_object.get_current_image_name(), coordinates)))
 
 
 
