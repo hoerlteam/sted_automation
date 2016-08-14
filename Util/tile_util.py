@@ -240,22 +240,28 @@ def df_circle_generator(fov):
     """
     n = 0
     corners = [0, 0, 0, 0]
-    yield [0, 0]
+    co = Coordinates()
+    co.set_bench_coords([0, 0, 0])
+    yield co
     while True:
         bookmark = [0, 0]
         bookmark[0] += corners[2]
         bookmark[1] += corners[3]
         while bookmark[0] < corners[0]:
-            yield bookmark
+            co.set_bench_coords(bookmark)
+            yield co
             bookmark[0] += fov[0]
         while bookmark[1] > corners[1]:
-            yield bookmark
+            co.set_bench_coords(bookmark)
+            yield co
             bookmark[1] -= fov[1]
         while bookmark[0] > corners[2]:
-            yield bookmark
+            co.set_bench_coords(bookmark)
+            yield co
             bookmark[0] -= fov[0]
         while bookmark[1] < corners[3]:
-            yield bookmark
+            co.set_bench_coords(bookmark)
+            yield co
             bookmark[1] += fov[1]
         n += 1
         corners = [fov[0]*n, fov[1]*(-n), fov[0]*(-n), fov[1]*n]
