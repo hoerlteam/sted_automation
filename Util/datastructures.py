@@ -3,6 +3,7 @@ import Util.imspector_util
 import numpy as np
 import os
 import logging
+from functools import reduce
 
 
 class Sorted_List():
@@ -98,6 +99,15 @@ class Settings:
         for i in range(len(xyz)):
             self.set("ExpControl/scan/range/" + xyz[i] + "/off", offset[i])
 
+    def load_from_params_object(self, params):
+        params.pop(b"is_active")
+        params.pop(b"prop_driver")
+        params.pop(b"prop_version")
+        self.settings = flatten_dict(params, "")
+
+    def save_as_json(self, filename):
+        json.dump(self.settings, open(filename, 'w'), indent=4, separators=(',', ': '), sort_keys=True)
+
 
 
 def check_coordinates_valid(coords, min_coords, max_coords):
@@ -173,6 +183,28 @@ def coordinate_logger(name_object, coordinates):
     logging.info(("Image: {} at {}".format(name_object.get_current_image_name(), coordinates)))
 
 
+def dump_to_json(params, out_file):
+    params.pop(b"is_active")
+    params.pop(b"prop_driver")
+    params.pop(b"prop_version")
+
+    json_dict = flatten_dict(params, "")
+
+    return json.dump(json_dict, open(out_file, 'w'), indent=4, separators=(',', ': '), sort_keys=True)
+
+def flatten_dict(d, prefix):
+    if isinstance(d, dict):
+        dicts = list()
+        for (k,v) in d.items():
+            dicts.append(flatten_dict(v, "/".join([prefix, k.decode('utf-8')])))
+        return reduce(lambda x, y: dict(list(x.items()) + list(y.items())), dicts)
+    elif isinstance(d, list):
+        dicts = list()
+        for i in range(len(d)):
+            dicts.append(flatten_dict(d[i], "/".join([prefix, str(i)])))
+        return reduce(lambda x, y: dict(list(x.items()) + list(y.items())), dicts)
+    else:
+        return {prefix[1:]: d}
 
 
 def main():
