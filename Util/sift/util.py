@@ -17,7 +17,7 @@ def get_interval(x1, x2, steps):
 
 
 
-def read_image_stack(path):
+def read_image_stack(path, correct16bit=False):
     """
     :param path: path to .tif file
     :return: stack of layers
@@ -33,4 +33,9 @@ def read_image_stack(path):
             image_file.seek(n)
         except:
             break
-    return np.dstack(image_list)
+
+    res = np.dstack(image_list)
+    if correct16bit:
+        res = res - np.iinfo(np.int16).max - 1
+
+    return res

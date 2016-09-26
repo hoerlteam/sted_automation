@@ -1,0 +1,146 @@
+from skimage.feature import blob_dog, blob_log, blob_doh
+from scipy import ndimage, spatial, stats
+import numpy as np
+import skimage
+from matplotlib import pyplot as plt
+from Util.sift.util import read_image_stack
+import re
+import os
+from collections import defaultdict
+from spot_util import *
+
+def make_proj(img, axis=0, fun=np.max):
+    return np.apply_along_axis(fun, axis, img)
+
+
+def normalize(arr, ran=None):
+    if ran:
+        arr1 = (arr - ran[0]) / (ran[1] - ran[0])
+        arr1[arr1 < 0] = 0.0
+        arr1[arr1 > 1] = 1.0
+        return arr1
+    else:
+        return (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
+
+def make_rgb_maxproj(im1, im2, ran=None, axis=None):
+
+    if axis:
+        p_im1 = make_proj(im1, axis)
+        p_im2 = make_proj(im2, axis)
+    else:
+        p_im1 = make_proj(im1, len(im1.shape) - 1)
+        p_im2 = make_proj(im2, len(im2.shape) - 1)
+
+    return np.dstack((normalize(p_im1, ran), normalize(p_im2, ran), np.zeros(p_im1.shape)))
+
+def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    rgb = make_rgb_maxproj(im1, im2, ran, axis)
+    plt.imshow(rgb)
+    if not axis:
+        axis = len(im1.shape) - 1
+    for d in dets:
+        d1 = np.array(d)[np.arange(3) != axis]
+        c = plt.Circle((d1[1], d1[0]), siz, color='white', linewidth=1.5, fill=False)
+        ax.add_patch(c)
+    plt.draw()
+
+def draw_detections_1c(im, dets, ran=None, axis=None, siz=3):
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    im1 = make_proj(im, axis if axis else len(im.shape) - 1)
+    im1 = normalize(im1, ran)
+    plt.imshow(im1, cmap='gray')
+    if not axis:
+        axis = len(im.shape) - 1
+    for d in dets:
+        d1 = np.array(d)[np.arange(3) != axis]
+        c = plt.Circle((d1[1], d1[0]), siz, color='white', linewidth=1.5, fill=False)
+        ax.add_patch(c)
+    plt.draw()
+
+
+def read_analysis_results(path):
+    res = defaultdict(list)
+    with open(path, 'r') as fd:
+        fd.readline()
+        for line in fd:
+            cells = line.strip().split(',')
+            res[cells[0]].append((float(cells[2]), float(cells[1]), float(cells[3])))
+            res[cells[0]].append((float(cells[5]), float(cells[4]), float(cells[6])))
+    return res
+
+
+def plot_analysis_results(path, csvpath, ran, pix_siz = 0.02):
+    p = '(.*?)(ch[0-9]+?\.tif)'
+
+    acquisitions = defaultdict(list)
+    res = read_analysis_results(csvpath)
+
+    for f in next(os.walk(path))[2]:
+        m = re.match(p, f)
+        if m:
+            acquisitions[m.groups()[0]].append(m.groups()[1])
+            acquisitions[m.groups()[0]].sort()
+
+    for k, v in acquisitions.items():
+        print('--- ' + k + ' ---')
+        im0 = np.array(read_image_stack(os.path.join(path, k) + v[0], True), np.float)
+        im1 = np.array(read_image_stack(os.path.join(path, k) + v[1], True), np.float)
+
+        dets = res[k]
+        dets2 = list()
+        for d in dets:
+            dets2.append(np.array(d) / pix_siz)
+
+        print('--- found ' + str(len(dets)) + ' pairs')
+
+        draw_detections_2c(im0, im1, dets2, ran)
+        plt.show()
+
+
+def plot_files(path, ran=None, thresh=0.1, sigma=3):
+    p = '(.*?)(ch[0-9]+?\.tif)'
+
+    acquisitions = defaultdict(list)
+
+    for f in next(os.walk(path))[2]:
+        m = re.match(p, f)
+        if m:
+            acquisitions[os.path.join(path, m.groups()[0])].append(m.groups()[1])
+            acquisitions[os.path.join(path, m.groups()[0])].sort()
+
+    for k, v in acquisitions.items():
+        print('--- ' + k + ' ---')
+        im0 = np.array(read_image_stack(k + v[0], True), np.float)
+        im1 = np.array(read_image_stack(k + v[1], True), np.float)
+
+        dets = pair_finder_inner(im0, im1, sigma, thresh, False, False)
+
+        print('--- found ' + str(len(dets)) + ' pairs')
+
+        draw_detections_2c(im0, im1, dets, ran)
+        plt.show()
+
+
+
+def main():
+    #plt.imshow(make_proj(read_image_stack( '/Users/david/Desktop/ov_ch1.tif'  ), 2))
+    #plt.show()
+
+    im0 = read_image_stack( '/Users/david/Desktop/ov_ch0.tif', True)
+    im1 = read_image_stack( '/Users/david/Desktop/ov_ch1.tif', True)
+
+    print(im0)
+
+    draw_detections_1c(im0, [[20, 12, 12], [40, 40, 12]])
+    draw_detections_2c(im0, im1, [[20, 12, 12], [40, 40, 12]])
+
+    plt.show()
+
+
+
+
+if __name__ == '__main__':
+    print(read_analysis_results('/Users/david/Desktop/AutomatedAcquisitions/out.csv'))
