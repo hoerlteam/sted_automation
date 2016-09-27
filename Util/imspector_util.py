@@ -178,16 +178,23 @@ def acquire_measurement(im, ms, configs_path, out_path, name, salt):
     im.run(ms)
     save_stack(ms, out_path, name, salt)
 
-def acquire_measurement_dummy(im, config):
+def acquire_measurement_dummy(im, config, justmove=False, delay=0.5):
     '''
     test function to acquire a measurement with settings, does not return/save anything
     '''
     im.create_measurement()
+    
+    time.sleep(delay)
+    
     ms = im.active_measurement()
     params = ms.parameters()
     config.apply_to_settings_dict(params)
     ms.set_parameters(params)
-    im.run(ms)
+    
+    time.sleep(delay)
+    
+    if not justmove:
+        im.run(ms)
     # here are changes the save stack was not there before:
     #save_stack(ms, 'C://Users//RESOLFT//Desktop//TEST_folder//', '28_06', i)
 
