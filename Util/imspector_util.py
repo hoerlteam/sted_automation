@@ -167,7 +167,7 @@ def acquire_measurement_at_coordinates(im, ms, l_of_coords, configs_path, out_pa
     return None
 
 
-def acquire_measurement(im, ms, configs_path, out_path, name, salt):
+def acquire_measurement3(im, ms, configs_path, out_path, name, salt):
     conf = datastructures.Settings()
     if not isinstance(configs_path, str):
         raise Exception("ERROR: configs parameter must be str!")
@@ -177,6 +177,14 @@ def acquire_measurement(im, ms, configs_path, out_path, name, salt):
     ms.set_parameters(params)
     im.run(ms)
     save_stack(ms, out_path, name, salt)
+
+
+def acquire_measurement(im, config):
+    '''
+    Wrapper for acquire_measurement_dummy. For aesthetic reasons.
+    '''
+    acquire_measurement_dummy(im, config)
+
 
 def acquire_measurement_dummy(im, config, justmove=False, delay=0.5):
     '''
@@ -318,3 +326,4 @@ def autofocus(im, ms, series=0, dimension=2):
     # print(normvar.index(max(normvar)))
 
     return normvar.index(max(normvar))
+
