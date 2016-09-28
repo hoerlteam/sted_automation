@@ -15,7 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Util.tile_util import generate_grid_snake
 import time
-from Util import datastructures
+from Util.datastructures import Settings
 
 
 def get_fov_dimensions(ms):
@@ -168,7 +168,7 @@ def acquire_measurement_at_coordinates(im, ms, l_of_coords, configs_path, out_pa
 
 
 def acquire_measurement3(im, ms, configs_path, out_path, name, salt):
-    conf = datastructures.Settings()
+    conf = Settings()
     if not isinstance(configs_path, str):
         raise Exception("ERROR: configs parameter must be str!")
     conf.load_from_file(configs_path)
@@ -179,22 +179,24 @@ def acquire_measurement3(im, ms, configs_path, out_path, name, salt):
     save_stack(ms, out_path, name, salt)
 
 
-def acquire_measurement(im, config):
+def acquire_measurement(im, config, ms=None):
     '''
     Wrapper for acquire_measurement_dummy. For aesthetic reasons.
     '''
-    acquire_measurement_dummy(im, config)
+    acquire_measurement_dummy(im, config, ms)
 
 
-def acquire_measurement_dummy(im, config, justmove=False, delay=0.5):
+def acquire_measurement_dummy(im, config, ms=None, justmove=False, delay=0.5):
     '''
     test function to acquire a measurement with settings, does not return/save anything
     '''
-    im.create_measurement()
-    
+
+    if not ms:
+        im.create_measurement()
+        ms = im.active_measurement()
+
     time.sleep(delay)
-    
-    ms = im.active_measurement()
+
     params = ms.parameters()
     config.apply_to_settings_dict(params)
     ms.set_parameters(params)
@@ -229,28 +231,6 @@ def save_stack(ms, path, name, i):
     for ii in range(ms.active_configuration().number_of_stacks()):
         outfd.write(ms.active_configuration().stack(ii))
     outfd = None
-
-
-def config_magic(path):
-    """
-    Cuts a path into pieces and generates a string for for the set_parameters function
-    :param path: config file path
-    :return: path cut to fit in the set_parameters syntax i.e.: [b"xy"][..]..
-    """
-    l = []
-    # cutting the path into parts of a list:
-    for i in path.split('/'):
-        l.append(i)
-    # building the syntax:
-    a = ""
-    for i in range(len(l)):
-        if l[i].isdigit():
-            a += str('[') + str(l[i]) + str(']')
-        else:
-            a += str('[b"') + str(l[i]) + str('"]')
-    # syntax for setting parameters is params[b"xy"][..].. = z. For that the paths are reframed here
-    #print(a)
-    return a
 
 
 def changing_config(ms, params):
