@@ -1,9 +1,7 @@
 #from PIL import Image
-from functools import reduce
-from .imspector_util import get_fov_dimensions
-from .coordinate_util import *
-from .coordinates import *
 import time
+
+from .coordinates import *
 
 
 def generate_grid(area_min, area_max, fov_dimensions, overlap=0):

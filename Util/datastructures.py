@@ -1,5 +1,4 @@
 import json
-import Util.imspector_util
 import numpy as np
 import os
 import logging
@@ -24,6 +23,27 @@ class Sorted_List():
     def __iter__(self):
         return self.data.__iter__()
 
+def config_magic(path):
+    """
+    Cuts a path into pieces and generates a string for for the set_parameters function
+    :param path: config file path
+    :return: path cut to fit in the set_parameters syntax i.e.: [b"xy"][..]..
+    """
+    l = []
+    # cutting the path into parts of a list:
+    for i in path.split('/'):
+        l.append(i)
+    # building the syntax:
+    a = ""
+    for i in range(len(l)):
+        if l[i].isdigit():
+            a += str('[') + str(l[i]) + str(']')
+        else:
+            a += str('[b"') + str(l[i]) + str('"]')
+    # syntax for setting parameters is params[b"xy"][..].. = z. For that the paths are reframed here
+    #print(a)
+    return a
+
 
 def set_parameter(params, path, value):
     """
@@ -35,7 +55,7 @@ def set_parameter(params, path, value):
     params.pop(b"is_active", None)
     params.pop(b"prop_driver", None)
     params.pop(b"prop_version", None)
-    config = Util.imspector_util.config_magic(path)
+    config = config_magic(path)
     # print(config)
     assignment_string = str(value) if not isinstance(value, str) else "'" + value + "'"
     exec("params" + str(config) + " = " + assignment_string)
