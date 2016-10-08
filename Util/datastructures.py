@@ -2,6 +2,9 @@ import json
 import numpy as np
 import os
 import logging
+import time
+import zlib
+import hashlib
 from functools import reduce
 
 
@@ -23,6 +26,24 @@ class Sorted_List():
     def __iter__(self):
         return self.data.__iter__()
 
+    
+def generate_random_name():
+    """
+    Generates random name with adler (short name)
+    :return: random name as string
+    """
+    return str(zlib.adler32(bytes(str(time.time() * 1000), "utf-8")))
+
+
+def generate_random_name2():
+    """
+    Generates a random name for saving images. Md5 is used. Longer names
+    :return: str: name as string
+    """
+    hash_object = hashlib.md5(bytes(str(time.time() * 1000), "utf-8"))
+    hex_dig = hash_object.hexdigest()
+    return str(hex_dig)
+    
 def config_magic(path):
     """
     Cuts a path into pieces and generates a string for for the set_parameters function
@@ -146,7 +167,7 @@ class NameManagement:
         self.path = str(path)
         self.counters = []
         self.prefixes = []
-        self.name = str(Util.imspector_util.generate_random_name2())
+        self.name = str(generate_random_name2())
         self.prefix2idx = dict()
 
     def add_counter(self, prefix=''):

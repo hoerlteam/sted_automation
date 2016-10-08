@@ -252,24 +252,7 @@ def changing_config(ms, params):
     ms.set_parameters(params)
 
 
-def generate_random_name():
-    """
-    Generates random name with adler (short name)
-    :return: random name as string
-    """
-    import zlib
-    return str(zlib.adler32(bytes(str(time.time() * 1000), "utf-8")))
 
-
-def generate_random_name2():
-    """
-    Generates a random name for saving images. Md5 is used. Longer names
-    :return: str: name as string
-    """
-    import hashlib
-    hash_object = hashlib.md5(bytes(str(time.time() * 1000), "utf-8"))
-    hex_dig = hash_object.hexdigest()
-    return str(hex_dig)
 
 
 def autofocus(im, ms, series=0, dimension=2):
