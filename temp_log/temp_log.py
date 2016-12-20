@@ -57,7 +57,7 @@ def main(withPlot = False):
     if withPlot:
         fig = plt.figure()
         ax1 = fig.add_subplot(1,1,1)
-        logger = ArduinoTempLogger(outfile="C:\\Users\\RESOLFT\\Desktop\\log.txt", device='COM14', ax=ax1)
+        logger = ArduinoTempLogger(outfile="C:\\Users\\RESOLFT\\Desktop\\log" + str(time.time()) + ".txt", device='COM14', ax=ax1)
     else:
         logger = ArduinoTempLogger(outfile="/Users/david/Desktop/log.txt")
 
