@@ -21,7 +21,7 @@ class Coordinates:
         self.coordinates[2] = ensure_nd(offset_coords, 3)
 
     def set_fov_len(self, fov_len):
-        self.coordinates[1] = fov_len
+        self.coordinates[1] = fov_len.copy()
 
     def copy(self):
         res = Coordinates()

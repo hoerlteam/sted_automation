@@ -44,23 +44,24 @@ def cleanup_kdtree(img, kdt, dets, dist):
                 break
         
 
-def find_pairs(kdt2, dets1, dist, invertAxes=True):
+def find_pairs(kdt2, dets1, dets2, dist, invertAxes=True, center=True):
     res = []
     for d in dets1:
         # find nearest neighbor in channel 2, if it is closer than dist
         nn = kdt2.query(d, distance_upper_bound=dist)
-        if not np.isinf(nn[0]):
+        if not (np.isinf(nn[0]) or nn[1] >= len(dets2)):
             # dets were in zyx -> turn to xyz
             if invertAxes:
-                res.append(d[-1::-1])
+                res.append((np.array(d[-1::-1]) + np.array(dets2[nn[1]][-1::-1])) / 2 if center else d[-1::-1])
             else:
-                res.append(d)
+                res.append((np.array(d) + np.array(dets2[nn[1]])) / 2 if center else d)
     return res
 
 
 
 def single_finder(ms, pix_sig=3, threshold=0.01, normalize=True):
     stack1 = ms.stack(0).data()[0,:,:,:]
+    stack1 = np.array(stack1, np.float)
     return single_finder_inner(stack1, pix_sig, threshold, True, normalize)
 
 
@@ -85,6 +86,8 @@ def pair_finder(ms, pix_sig=3, threshold=0.01, normalize=True):
     # get images in both channels
     stack1 = ms.stack(0).data()[0,:,:,:]
     stack2 = ms.stack(1).data()[0,:,:,:]
+    stack1 = np.array(stack1, np.float)
+    stack2 = np.array(stack2, np.float)
 
     return pair_finder_inner(stack1, stack2, pix_sig, threshold, True, normalize)
 
@@ -108,7 +111,7 @@ def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize)
     cleanup_kdtree(stack2, kd2, dets2, 3)
     # for every remaining spot in image1, return a candidate pair if there is a spot in channel 2 that is closer than 5 pixels to it
     res = []
-    for p in find_pairs(kd2, dets1, 5, invertAxes):
+    for p in find_pairs(kd2, dets1, dets2, 5, invertAxes):
         res.append(list(p))
     return res
 

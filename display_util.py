@@ -24,7 +24,7 @@ def normalize(arr, ran=None):
 
 def make_rgb_maxproj(im1, im2, ran=None, axis=None):
 
-    if axis:
+    if axis != None:
         p_im1 = make_proj(im1, axis)
         p_im2 = make_proj(im2, axis)
     else:
@@ -38,7 +38,7 @@ def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
     ax = fig.add_subplot(1, 1, 1)
     rgb = make_rgb_maxproj(im1, im2, ran, axis)
     plt.imshow(rgb)
-    if not axis:
+    if axis == None:
         axis = len(im1.shape) - 1
     for d in dets:
         d1 = np.array(d)[np.arange(3) != axis]
@@ -52,7 +52,7 @@ def draw_detections_1c(im, dets, ran=None, axis=None, siz=3):
     im1 = make_proj(im, axis if axis else len(im.shape) - 1)
     im1 = normalize(im1, ran)
     plt.imshow(im1, cmap='gray')
-    if not axis:
+    if axis == None:
         axis = len(im.shape) - 1
     for d in dets:
         d1 = np.array(d)[np.arange(3) != axis]
