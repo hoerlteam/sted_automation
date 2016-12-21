@@ -4,7 +4,7 @@ from sys import stdout
 
 def setup_csv_writer(fd):
     fieldnames = ['file', 'type', 'time_complete', 'stg_x', 'stg_y', 'stg_z', 'scan_x', 'scan_y', 'scan_z']
-    writer = csv.DictWriter(fd, fieldnames=fieldnames, extrasaction='ignore')
+    writer = csv.DictWriter(fd, fieldnames=fieldnames, extrasaction='ignore', lineterminator='\n')
     writer.writeheader()
     return writer
 
