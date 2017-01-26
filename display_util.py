@@ -8,6 +8,8 @@ import re
 import os
 from collections import defaultdict
 from spot_util import *
+from csv import DictReader
+
 
 def make_proj(img, axis=0, fun=np.max):
     return np.apply_along_axis(fun, axis, img)
@@ -22,8 +24,8 @@ def normalize(arr, ran=None):
     else:
         return (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
-def make_rgb_maxproj(im1, im2, ran=None, axis=None):
 
+def make_rgb_maxproj(im1, im2, ran=None, axis=None):
     if axis != None:
         p_im1 = make_proj(im1, axis)
         p_im2 = make_proj(im2, axis)
@@ -32,6 +34,7 @@ def make_rgb_maxproj(im1, im2, ran=None, axis=None):
         p_im2 = make_proj(im2, len(im2.shape) - 1)
 
     return np.dstack((normalize(p_im1, ran), normalize(p_im2, ran), np.zeros(p_im1.shape)))
+
 
 def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
     fig = plt.figure()
@@ -45,6 +48,7 @@ def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
         c = plt.Circle((d1[1], d1[0]), siz, color='white', linewidth=1.5, fill=False)
         ax.add_patch(c)
     plt.draw()
+
 
 def draw_detections_1c(im, dets, ran=None, axis=None, siz=3):
     fig = plt.figure()
@@ -64,15 +68,19 @@ def draw_detections_1c(im, dets, ran=None, axis=None, siz=3):
 def read_analysis_results(path):
     res = defaultdict(list)
     with open(path, 'r') as fd:
-        fd.readline()
-        for line in fd:
-            cells = line.strip().split(',')
-            res[cells[0]].append((float(cells[2]), float(cells[1]), float(cells[3])))
-            res[cells[0]].append((float(cells[5]), float(cells[4]), float(cells[6])))
+        dr = DictReader(fd)
+
+        for line in dr:
+            res[line['file'].split(os.path.sep)[-1]].append(
+                (float(line['d11']), float(line['d01']), float(line['d21'])))
+            res[line['file'].split(os.path.sep)[-1]].append(
+                (float(line['d12']), float(line['d02']), float(line['d22'])))
+
+    #print(res)
     return res
 
 
-def plot_analysis_results(path, csvpath, ran, pix_siz = 0.02):
+def plot_analysis_results(path, csvpath, ran, pix_siz=0.02):
     p = '(.*?)(ch[0-9]+?\.tif)'
 
     acquisitions = defaultdict(list)
@@ -124,13 +132,12 @@ def plot_files(path, ran=None, thresh=0.1, sigma=3):
         plt.show()
 
 
-
 def main():
-    #plt.imshow(make_proj(read_image_stack( '/Users/david/Desktop/ov_ch1.tif'  ), 2))
-    #plt.show()
+    # plt.imshow(make_proj(read_image_stack( '/Users/david/Desktop/ov_ch1.tif'  ), 2))
+    # plt.show()
 
-    im0 = read_image_stack( '/Users/david/Desktop/ov_ch0.tif', True)
-    im1 = read_image_stack( '/Users/david/Desktop/ov_ch1.tif', True)
+    im0 = read_image_stack('/Users/david/Desktop/ov_ch0.tif', True)
+    im1 = read_image_stack('/Users/david/Desktop/ov_ch1.tif', True)
 
     print(im0)
 
@@ -138,8 +145,6 @@ def main():
     draw_detections_2c(im0, im1, [[20, 12, 12], [40, 40, 12]])
 
     plt.show()
-
-
 
 
 if __name__ == '__main__':
