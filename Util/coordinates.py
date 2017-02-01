@@ -8,7 +8,7 @@ class Coordinates:
     and the scan offset in a list. [bench_coordinates, fov_lenght, scan_offset].
     """
     def __init__(self, bench_coords=(0, 0, 0), fov_len=(0, 0, 0), offset_coords=(0, 0, 0)):
-        self.coordinates = [list(bench_coords), list(fov_len), list(offset_coords)]
+        self.coordinates = [ensure_nd(list(bench_coords),3), ensure_nd(list(fov_len), 3), ensure_nd(list(offset_coords),3)]
 
     def __str__(self):
         return str(self.coordinates)
@@ -21,7 +21,7 @@ class Coordinates:
         self.coordinates[2] = ensure_nd(offset_coords, 3)
 
     def set_fov_len(self, fov_len):
-        self.coordinates[1] = fov_len.copy()
+        self.coordinates[1] = ensure_nd(fov_len.copy(), 3)
 
     def copy(self):
         res = Coordinates()
