@@ -17,7 +17,9 @@ def main():
         inputDir = path
 
 	print(allseries)
-    ij_io.resave_msr_folder_as_jpeg_sum_projection(inputDir, allseries)
+    
+    for d, _, _ in os.walk(inputDir):
+        ij_io.resave_msr_folder_as_jpeg_sum_projection(d, allseries)
 
 
 if __name__ == '__main__':
