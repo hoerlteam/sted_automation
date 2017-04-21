@@ -82,22 +82,22 @@ def single_finder_inner(stack1, pix_sig, threshold, invertAxes, normalize):
     return res
 
 
-def pair_finder(ms, pix_sig=3, thresholds=[0.01, 0.01], normalize=True):
+def pair_finder(ms, pix_sig=3, thresholds=[0.01, 0.01], normalize=True, median_thresholds=[3,3], median_radius=5):
     # get images in both channels
     stack1 = ms.stack(0).data()[0,:,:,:]
     stack2 = ms.stack(1).data()[0,:,:,:]
     stack1 = np.array(stack1, np.float)
     stack2 = np.array(stack2, np.float)
 
-    return pair_finder_inner(stack1, stack2, pix_sig, thresholds, True, normalize)
+    return pair_finder_inner(stack1, stack2, pix_sig, thresholds, True, normalize,median_thresholds, median_radius)
 
 
-def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize):
+def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize, median_thresholds, median_radius):
     # detect blobs via Laplacian-of-Gaussian (only blobs brighter than threshold)
     sig = pix_sig / np.sqrt(2)
-    dets1 = detect_blobs(stack1, [sig, sig, sig], threshold[0], normalize)
+    dets1 = detect_blobs(stack1, [sig, sig, sig], threshold[0], normalize, median_thresholds[0], median_radius)
     dets1 = list(dets1)
-    dets2 = detect_blobs(stack2, [sig, sig, sig], threshold[0], normalize)
+    dets2 = detect_blobs(stack2, [sig, sig, sig], threshold[1], normalize, median_thresholds[1], median_radius)
     dets2 = list(dets2)
     # did not find any spots in one of the channels -> return empty results
     if (len(dets1) == 0 or len(dets2) == 0):
