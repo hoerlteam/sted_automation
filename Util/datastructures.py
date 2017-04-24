@@ -60,11 +60,23 @@ def config_magic(path):
         if l[i].isdigit():
             a += str('[') + str(l[i]) + str(']')
         else:
-            a += str('[b"') + str(l[i]) + str('"]')
+            a += str('["') + str(l[i]) + str('"]')
     # syntax for setting parameters is params[b"xy"][..].. = z. For that the paths are reframed here
     #print(a)
     return a
 
+def check_path_in_dict(d, path):
+    l = path.split('/')
+    d_ = d
+    for li in l:
+        if li.isdigit():
+            li = int(li)
+        
+        if (isinstance(d_, dict) and (li in d_.keys())) or (isinstance(d_, list) and (li < len(d_))):
+            d_ = d_[li]
+        else: 
+            return False
+    return True
 
 def set_parameter(params, path, value):
     """
@@ -73,9 +85,6 @@ def set_parameter(params, path, value):
     :param value: value to set the parameter in the dictionary
     :return: None
     """
-    params.pop(b"is_active", None)
-    params.pop(b"prop_driver", None)
-    params.pop(b"prop_version", None)
     config = config_magic(path)
     # print(config)
     assignment_string = str(value) if not isinstance(value, str) else "'" + value + "'"
@@ -93,7 +102,8 @@ class Settings:
         :return:
         """
         for k, v in self.settings.items():
-            set_parameter(params, k, v)
+            if check_path_in_dict(params, k):
+                set_parameter(params, k, v)
 
     def load_from_file(self, path):
         """
@@ -132,9 +142,9 @@ class Settings:
         bench = coordination.get_bench_coords()
         fov = coordination.get_fov_len()
         offset = coordination.get_scan_offset()
-        self.set("OlympusIX/scanrange/x/offset", bench[0])
-        self.set("OlympusIX/scanrange/y/offset", bench[1])
-        self.set("OlympusIX/scanrange/z/off", bench[2])
+        
+        for i in range(len(xyz)):
+            self.set('ExpControl/scan/range/offsets/coarse/' + xyz[i] + '/g_off', bench[i])
         for i in range(len(xyz)):
             self.set("ExpControl/scan/range/" + xyz[i] + "/len", fov[i])
         for i in range(len(xyz)):

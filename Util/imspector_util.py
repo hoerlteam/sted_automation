@@ -23,10 +23,10 @@ def get_fov_dimensions(ms):
     :param ms: Measurement
     :return: Tuple containing length's of the field of view
     """
-    return ms.parameter("ExpControl/scan/range/x/len"), ms.parameter("ExpControl/scan/range/y/len"), ms.parameter("ExpControl/scan/range/z/len")
+    return ms.parameters("ExpControl/scan/range/x/len"), ms.parameters("ExpControl/scan/range/y/len"), ms.parameters("ExpControl/scan/range/z/len")
 
 def get_pixel_size(ms):
-    return ms.parameter("ExpControl/scan/range/x/psz"), ms.parameter("ExpControl/scan/range/y/psz"), ms.parameter("ExpControl/scan/range/z/psz")
+    return ms.parameters("ExpControl/scan/range/x/psz"), ms.parameters("ExpControl/scan/range/y/psz"), ms.parameters("ExpControl/scan/range/z/psz")
 
 def get_fov_dims_pixel(ms):
     """
@@ -34,7 +34,7 @@ def get_fov_dims_pixel(ms):
     :param ms: ms-object
     :return: returns pixel per m
     """
-    return ms.parameter("ExpControl/scan/range/x/res"), ms.parameter("ExpControl/scan/range/y/res"), ms.parameter("ExpControl/scan/range/z/res")
+    return ms.parameters("ExpControl/scan/range/x/res"), ms.parameters("ExpControl/scan/range/y/res"), ms.parameters("ExpControl/scan/range/z/res")
 
 
 # TODO: Das hier muss alles zu einer klasse werden
@@ -174,7 +174,7 @@ def acquire_measurement3(im, ms, configs_path, out_path, name, salt):
     conf.load_from_file(configs_path)
     params = ms.parameters()
     conf.apply_to_settings_dict(params)
-    ms.set_parameters(params)
+    ms.set_parameters('', params)
     im.run(ms)
     save_stack(ms, out_path, name, salt)
 
@@ -194,13 +194,20 @@ def acquire_measurement_dummy(im, config, ms=None, justmove=False, delay=0.5):
     if not ms:
         im.create_measurement()
         ms = im.active_measurement()
+        
+        # we have to apply parameters twice to make sure that
+        # parameters that are greyed out in a default measurement
+        # are set as well
+        
+        params = ms.parameters('')
+        config.apply_to_settings_dict(params)
+        ms.set_parameters('', params)
 
-    time.sleep(delay)
-
-    params = ms.parameters()
+    params = ms.parameters('')
     config.apply_to_settings_dict(params)
-    ms.set_parameters(params)
+    ms.set_parameters('', params)
     
+    # wait a bit to make sure the stage has moved enough
     time.sleep(delay)
     
     if not justmove:
