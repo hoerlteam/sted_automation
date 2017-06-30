@@ -41,7 +41,7 @@ def refine_point(img, guess, maxiter=10):
     except np.linalg.LinAlgError:
         return guess
 
-    # FIXME: why div/2 here
+    # FIXME: why div/2 here?
     res = -hinv.dot(dx) / 2
     if np.any(np.abs(res) >= 0.5):
         if maxiter > 1:
