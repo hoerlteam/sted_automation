@@ -1,5 +1,6 @@
 from .taskgeneration import (AcquisitionTaskGenerator,
                              DefaultLocationRemover,
+                             DefaultLocationKeeper,
                              DefaultScanOffsetsSettingsGenerator,
                              DefaultStageOffsetsSettingsGenerator,
                              NewestDataSelector,

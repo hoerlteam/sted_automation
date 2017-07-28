@@ -1,6 +1,6 @@
 from itertools import cycle
 from copy import deepcopy
-from ..util import remove_filter_from_dict, gen_json, update_dicts
+from ..util import remove_filter_from_dict, gen_json, update_dicts, filter_dict
 from operator import add
 from functools import reduce
 
@@ -179,6 +179,38 @@ class ZDCOffsetSettingsGenerator(DefaultStageOffsetsSettingsGenerator):
               'ExpControl/scan/range/y/off',
               'ExpControl/scan/range/offsets/coarse/z/g_off'
               ]
+
+
+class DefaultLocationKeeper():
+    """
+    this wrapper can be used to keep just the location-related updates from the
+    output of a settings generator.
+    """
+
+    _filtersToKeep = ['ExpControl/scan/range/offsets',
+                        'ExpControl/scan/range/x/off',
+                        'ExpControl/scan/range/x/g_off',
+                        'ExpControl/scan/range/y/off',
+                        'ExpControl/scan/range/y/g_off',
+                        'ExpControl/scan/range/z/off',
+                        'ExpControl/scan/range/z/g_off'
+                      ]
+
+    def __init__(self, coordinateProvider):
+        self.coordinateProvider = coordinateProvider
+
+    def __call__(self):
+        res = []
+        for l in self.coordinateProvider():
+            lModified = []
+            for meas, settings in l:
+                measI = {}
+                for f in DefaultLocationKeeper._filtersToKeep:
+                    mI = filter_dict(meas, f)
+                    measI = update_dicts(measI, gen_json(mI, f) if not (mI is None) else {})
+                lModified.append((measI, settings))
+            res.append(lModified)
+        return res
 
 class DefaultLocationRemover():
     """
