@@ -41,7 +41,7 @@ def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
     ax = fig.add_subplot(1, 1, 1)
     rgb = make_rgb_maxproj(im1, im2, ran, axis)
     plt.imshow(rgb)
-    if axis == None:
+    if axis is None:
         axis = len(im1.shape) - 1
     for d in dets:
         d1 = np.array(d)[np.arange(3) != axis]
