@@ -1,8 +1,10 @@
-from itertools import count
+from itertools import count, chain
 
 from queue import PriorityQueue
 from collections import defaultdict
 from time import time, sleep, clock
+import os
+import hashlib
 
 from .imspector.imspector import MockImspectorConnection
 from .data import RichData
@@ -236,3 +238,33 @@ class AcquisitionPipeline():
         self.queue = AcquisitionPriorityQueue()
         self.queue.put(task, lvl)
         return self
+    
+class DefaultNameHandler():
+    """
+    file name handler
+    """
+    
+    def __init__(self, path, levels, prefix=None, ending = '.msr'):
+        self.path = path
+        self.levels = levels
+        self.ending = ending
+        if prefix is None:
+            hash_object = hashlib.md5(bytes(str(time()), "utf-8"))
+            hex_dig = hash_object.hexdigest()
+            self.prefix = str(hex_dig)
+        else:
+            self.prefix = prefix
+            
+        if not os.path.exists(path):
+            os.makedirs(path)
+            
+    def _mkdir_if_necessary(self):
+        pass
+            
+    def get_filename(self, idxes):
+        insert = chain.from_iterable(zip([l.name for l in self.levels.levels[0:len(idxes)]], idxes))
+        insert = list(insert)
+        return ((self.prefix + '_{}_{}' * len(idxes)).format(*insert) + self.ending)
+    
+    def get_path(self, idxes):
+        return os.path.join(self.path, self.get_filename(idxes))

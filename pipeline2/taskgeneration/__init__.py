@@ -6,4 +6,5 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              NewestDataSelector,
                              NewestSettingsSelector,
                              SpiralOffsetGenerator,
-                             ZDCOffsetSettingsGenerator)
+                             ZDCOffsetSettingsGenerator,
+                             JSONFileConfigLoader)

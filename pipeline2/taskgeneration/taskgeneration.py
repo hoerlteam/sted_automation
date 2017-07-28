@@ -3,6 +3,7 @@ from copy import deepcopy
 from pipeline2.util import remove_filter_from_dict, gen_json, update_dicts, filter_dict
 from operator import add
 from functools import reduce
+import json
 
 
 def _relative_spiral_generator(steps, start=[0,0]):
@@ -11,7 +12,7 @@ def _relative_spiral_generator(steps, start=[0,0]):
     with given step sizes
     """
     n = 0
-    yield start.copy()
+    yield start[0:2].copy()
     while True:
         bookmark = [- n * steps[0] + start[0], n * steps[1] + start[0]]
         for _ in range(2*n):
@@ -52,9 +53,12 @@ class AcquisitionTaskGenerator():
         maxMeasurements = max((len(updateI) for updateI in updates))
         cyclesMeas = [cycle(updateI) for updateI in updates]
 
+        if maxMeasurements == 0:
+            return
         for _ in range(maxMeasurements):
 
             # broadcast configurations within measurements
+            # FIXME: why StopIteration here?
             configs = [next(meas) for meas in cyclesMeas]
             maxConfigs = max((len(confI) for confI in configs))
             cyclesConfig = [cycle(confI) for confI in configs]
@@ -206,7 +210,7 @@ class DefaultLocationKeeper():
             for meas, settings in l:
                 measI = {}
                 for f in DefaultLocationKeeper._filtersToKeep:
-                    mI = filter_dict(meas, f)
+                    mI = filter_dict(meas, f, False)
                     measI = update_dicts(measI, gen_json(mI, f) if not (mI is None) else {})
                 lModified.append((measI, settings))
             res.append(lModified)
@@ -270,6 +274,46 @@ class SpiralOffsetGenerator():
     def get_locations(self):
         return [next(self.gen) if (self.zOff is None) else (next(self.gen) + [self.zOff])]
 
+class JSONFileConfigLoader():
+    """
+    load settings from JSON dump
+    """
+    def __init__(self, measurementConfigFileNames, settingsConfigFileNames=None, asMeasurements=True):
+        self.measConfigs = []
+        self.asMeasurements = asMeasurements
+        for mFile in measurementConfigFileNames:
+            with open(mFile, 'r') as fd:
+                d = json.load(fd)
+                # remove, otherwise Imspector complains that those parameters do not exist (yet?)
+                d = remove_filter_from_dict(d, '/Measurement/LoopMeasurement')
+                d = remove_filter_from_dict(d, '/Measurement/ResumeIdx')
+                # remove, otherwise we will always use a set propset
+                d = remove_filter_from_dict(d, '/Measurement/propset_id')
+                self.measConfigs.append(d)
+        
+        self.settingsConfigs = []
+        if settingsConfigFileNames is None:
+            for _ in range(len(self.measConfigs)):
+                self.settingsConfigs.append(dict())
+        else:
+            if len(settingsConfigFileNames) != len(self.measConfigs):
+                raise ValueError('length of settings and measurement configs dont match')
+            for sFile in settingsConfigFileNames:
+                with open(sFile, 'r') as fd:
+                    self.settingsConfigs.append(json.load(fd))
+    
+    def __call__(self):
+        res = []
+        if self.asMeasurements:
+            for i in range(len(self.measConfigs)):
+                res.append([(self.measConfigs[i], self.settingsConfigs[i])])
+        else:
+            resInner = []
+            for i in range(len(self.measConfigs)):
+                resInner.append([(self.measConfigs[i], self.settingsConfigs[i])])
+            res.append(resInner)
+        return res
+    
 def main():
 
     from pipeline2.taskgeneration import SpiralOffsetGenerator

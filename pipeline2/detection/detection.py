@@ -2,7 +2,7 @@ from spot_util import pair_finder_inner
 import numpy as np
 from ..util import filter_dict
 
-from ... import display_util
+from display_util import draw_detections_2c
 
 
 class LegacySpotPairFinder():
@@ -25,7 +25,7 @@ class LegacySpotPairFinder():
         return self
 
     def doPlot(self, pairsPixel, stack1, stack2):
-        display_util.draw_detections_2c(stack1, stack2, [s[-1::-1] for s in pairsPixel], [1, 10], 0, 3)
+        draw_detections_2c(stack1, stack2, [s[-1::-1] for s in pairsPixel], [1, 10], 0, 3)
 
     def correctForOffset(self, pairsPixel, setts):
         offsOld = np.array([filter_dict(
@@ -70,7 +70,7 @@ class ZDCSpotPairFinder(LegacySpotPairFinder):
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         # we use the coarse offset here
-        offsOld[2] = filter_dict(setts, 'ExpControl/scan/range/offsets/coarse/z/g_off')
+        offsOld[2] = filter_dict(setts, 'ExpControl/scan/range/offsets/coarse/z/g_off', False)
 
         lensOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
