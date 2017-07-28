@@ -252,6 +252,7 @@ class SpiralOffsetGenerator():
     def __init__(self):
         self.fov = [5e-5, 5e-5]
         self.start = [0, 0]
+        self.zOff = None
         self.gen = _relative_spiral_generator(self.fov, self.start)
     def withFOV(self, fov):
         self.fov = fov
@@ -261,5 +262,10 @@ class SpiralOffsetGenerator():
         self.start = start
         self.gen = _relative_spiral_generator(self.fov, self.start)
         return self
+
+    def withZOffset(self, zOff):
+        self.zOff = zOff
+        return self
+
     def get_locations(self):
-        return [next(self.gen)]
+        return [next(self.gen) if (self.zOff is None) else (next(self.gen) + [self.zOff])]
