@@ -1,6 +1,6 @@
 from itertools import cycle
 from copy import deepcopy
-from ..util import remove_filter_from_dict, gen_json, update_dicts, filter_dict
+from pipeline2.util import remove_filter_from_dict, gen_json, update_dicts, filter_dict
 from operator import add
 from functools import reduce
 
@@ -269,3 +269,13 @@ class SpiralOffsetGenerator():
 
     def get_locations(self):
         return [next(self.gen) if (self.zOff is None) else (next(self.gen) + [self.zOff])]
+
+def main():
+
+    from pipeline2.taskgeneration import SpiralOffsetGenerator
+    spiralGen = SpiralOffsetGenerator().withStart([0,0]).withFOV([5,5]).withZOffset(1)
+    for _ in range(5):
+        print(spiralGen.get_locations())
+
+if __name__ == '__main__':
+    main()
