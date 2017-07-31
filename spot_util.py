@@ -140,6 +140,10 @@ def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize,
     dets1 = list(dets1)
     dets2 = detect_blobs(stack2, [sig, sig, sig], threshold[1], normalize, median_thresholds[1], median_radius)
     dets2 = list(dets2)
+
+    print('no of candidates stack1: {}'.format(len(dets1)))
+    print('no of candidates stack2: {}'.format(len(dets2)))
+
     # did not find any spots in one of the channels -> return empty results
     if (len(dets1) == 0 or len(dets2) == 0):
         return []
@@ -150,6 +154,10 @@ def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize,
     # if spots (in one channel) are closer than 3 pixels, pick the brighter of the two
     cleanup_kdtree(stack1, kd1, dets1, 3)
     cleanup_kdtree(stack2, kd2, dets2, 3)
+
+    print('remaining after cleanup stack1: {}'.format(len(dets1)))
+    print('remaining after cleanup stack2: {}'.format(len(dets2)))
+
     # for every remaining spot in image1, return a candidate pair if there is a spot in channel 2 that is closer than 5 pixels to it
     res = []
     for p in find_pairs(kd2, dets1, dets2, 5, invertAxes):
