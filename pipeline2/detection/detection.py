@@ -19,9 +19,14 @@ class LegacySpotPairFinder():
         self.medianThresholds = medianThresholds
         self.medianRadius = medianRadius
         self.plotDetections = False
+        self.verbose = False
 
     def withPlotDetections(self, plotDetections=True):
         self.plotDetections = plotDetections
+        return self
+
+    def withVerbose(self, verbose=True):
+        self.verbose = verbose
         return self
 
     def doPlot(self, pairsPixel, stack1, stack2):
@@ -40,7 +45,7 @@ class LegacySpotPairFinder():
         res = []
         for pair in pairsPixel:
             pairT = np.array(pair, dtype=float)
-            res.append(list(offsOld - (lensOld / .2) + pairT * pszOld))
+            res.append(list(offsOld - (lensOld / 2) + pairT * pszOld))
         return res
 
     def get_locations(self):
@@ -51,15 +56,32 @@ class LegacySpotPairFinder():
         stack1 = data.data[0][0][0, :, :, :]
         stack2 = data.data[0][1][0, :, :, :]
 
+        # make float
+        stack1 = np.array(stack1, np.float)
+        stack2 = np.array(stack2, np.float)
+
         setts = data.measurementSettings[0]
 
         pairsRaw = pair_finder_inner(stack1, stack2, self.sigma, self.thresholds, True, False, self.medianThresholds,
                                      self.medianRadius)
+
+        if self.verbose:
+            print(self.__class__.__name__ + ': found {} spot pairs. pixel coordinates:'.format(len(pairsRaw)))
+            for pr in pairsRaw:
+                print(pr)
+
         # plot
         if self.plotDetections:
             self.doPlot(pairsRaw, stack1, stack2)
 
-        return self.correctForOffset(pairsRaw, setts)
+        corrected = self.correctForOffset(pairsRaw, setts)
+
+        if self.verbose:
+            print(self.__class__.__name__ + ': found {} spot pairs. offsets:'.format(len(pairsRaw)))
+            for pc in corrected:
+                print(pc)
+
+        return corrected
 
 
 class ZDCSpotPairFinder(LegacySpotPairFinder):
@@ -72,16 +94,19 @@ class ZDCSpotPairFinder(LegacySpotPairFinder):
         # we use the coarse offset here
         offsOld[2] = filter_dict(setts, 'ExpControl/scan/range/offsets/coarse/z/g_off', False)
 
+        print(offsOld)
         lensOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
+        print(lensOld)
         pszOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
+        print(pszOld)
         res = []
         for pair in pairsPixel:
             pairT = np.array(pair, dtype=float)
-            res.append(list(offsOld - (lensOld / .2) + pairT * pszOld))
+            res.append(list(offsOld - (lensOld / 2) + pairT * pszOld))
         return res
 
 
