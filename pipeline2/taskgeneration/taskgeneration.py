@@ -14,7 +14,7 @@ def _relative_spiral_generator(steps, start=[0,0]):
     n = 0
     yield start[0:2].copy()
     while True:
-        bookmark = [- n * steps[0] + start[0], n * steps[1] + start[0]]
+        bookmark = [- n * steps[0] + start[0], n * steps[1] + start[1]]
         for _ in range(2*n):
             yield bookmark.copy()
             bookmark[0] += steps[0]
@@ -51,10 +51,14 @@ class AcquisitionTaskGenerator():
         updates = [updateGenI() for updateGenI in self.updateGens]
 
         maxMeasurements = max((len(updateI) for updateI in updates))
+        minMeasurements = min((len(updateI) for updateI in updates))
+
         cyclesMeas = [cycle(updateI) for updateI in updates]
 
-        if maxMeasurements == 0:
+        # nothing to do, e.g. no detections
+        if minMeasurements == 0:
             return
+
         for _ in range(maxMeasurements):
 
             # broadcast configurations within measurements
@@ -178,7 +182,7 @@ class DefaultStageOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
               'ExpControl/scan/range/offsets/coarse/y/g_off',
               'ExpControl/scan/range/offsets/coarse/z/g_off']
 
-class ZDCOffsetSettingsGenerator(DefaultStageOffsetsSettingsGenerator):
+class ZDCOffsetSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
     _paths = ['ExpControl/scan/range/x/off',
               'ExpControl/scan/range/y/off',
               'ExpControl/scan/range/offsets/coarse/z/g_off'
@@ -258,6 +262,7 @@ class SpiralOffsetGenerator():
         self.start = [0, 0]
         self.zOff = None
         self.gen = _relative_spiral_generator(self.fov, self.start)
+        self.verbose = False
     def withFOV(self, fov):
         self.fov = fov
         self.gen = _relative_spiral_generator(self.fov, self.start)
@@ -270,9 +275,15 @@ class SpiralOffsetGenerator():
     def withZOffset(self, zOff):
         self.zOff = zOff
         return self
+    def withVerbose(self, verbose=True):
+        self.verbose = verbose
+        return self
 
     def get_locations(self):
-        return [next(self.gen) if (self.zOff is None) else (next(self.gen) + [self.zOff])]
+        res = next(self.gen) if (self.zOff is None) else (next(self.gen) + [self.zOff])
+        if self.verbose:
+            print(self.__class__.__name__ + ': new coordinates: ' + str(res))
+        return [res]
 
 class JSONFileConfigLoader():
     """
@@ -310,7 +321,7 @@ class JSONFileConfigLoader():
         else:
             resInner = []
             for i in range(len(self.measConfigs)):
-                resInner.append([(self.measConfigs[i], self.settingsConfigs[i])])
+                resInner.append((self.measConfigs[i], self.settingsConfigs[i]))
             res.append(resInner)
         return res
     
