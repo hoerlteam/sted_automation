@@ -146,12 +146,9 @@ class AcquisitionPipeline():
 
                     # update imspector
                     if updatesI == 0:
-                        self.im.makeMeasurementFromTask(acquisition_task.getUpdates(updatesI))
+                        self.im.makeMeasurementFromTask(acquisition_task.getUpdates(updatesI), acquisition_task.delay)
                     else:
-                        self.im.makeConfigurationFromTask(acquisition_task.getUpdates(updatesI))
-
-                    # we might want to sleep
-                    sleep(acquisition_task.delay)
+                        self.im.makeConfigurationFromTask(acquisition_task.getUpdates(updatesI), acquisition_task.delay)
 
                     # run in imspector
                     self.im.runCurrentMeasurement()
