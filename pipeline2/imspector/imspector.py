@@ -1,5 +1,6 @@
-from ..util import update_dicts
+from ..util import update_dicts, filter_dict
 import numpy as np
+import time
 from unittest.mock import MagicMock
 from ..data import RichData
 
@@ -33,7 +34,7 @@ class ImspectorConnection():
             data.append(np.copy(self.im.active_measurement().stack(name).data()))
         return globalParams, measParameters, data
 
-    def makeMeasurementFromTask(self, task):
+    def makeMeasurementFromTask(self, task, halfDelay=0.0):
         ms = self.im.create_measurement()
         measUpdates, confUpdates = task
         measUpdates = update_dicts(*measUpdates)
@@ -41,11 +42,21 @@ class ImspectorConnection():
 
         # we do the update twice to also set grayed-out values
         ms.set_parameters('', measUpdates)
+        self.im.set_parameters('', confUpdates)
+        # wait if requested
+        time.sleep(halfDelay)
         ms.set_parameters('', measUpdates)
         self.im.set_parameters('', confUpdates)
-        self.im.set_parameters('', confUpdates)
+        # wait again if requested
+        time.sleep(halfDelay)
 
-    def makeConfigurationFromTask(self, task):
+        # NB: sync axis seems to jump back to frame after setting
+        # if we want lines, we manually re-set just that one parameter
+
+        if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
+            ms.set_parameters('Measurement/axes/num_synced', 1)
+
+    def makeConfigurationFromTask(self, task, halfDelay = 0.0):
         ms = self.im.active_measurement()
         ac = ms.active_configuration()
         ac = ms.clone(ac)
@@ -57,9 +68,19 @@ class ImspectorConnection():
 
         # we do the update twice to also set grayed-out values
         ms.set_parameters('', measUpdates)
+        self.im.set_parameters('', confUpdates)
+        # wait if requested
+        time.sleep(halfDelay)
         ms.set_parameters('', measUpdates)
         self.im.set_parameters('', confUpdates)
-        self.im.set_parameters('', confUpdates)
+        # wait again if requested
+        time.sleep(halfDelay)
+
+        # NB: sync axis seems to jump back to frame after setting
+        # if we want lines, we manually re-set just that one parameter
+
+        if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
+            ms.set_parameters('Measurement/axes/num_synced', 1)
 
     def runCurrentMeasurement(self):
         ms = self.im.active_measurement()
