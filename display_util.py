@@ -48,6 +48,7 @@ def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
         c = plt.Circle((d1[1], d1[0]), siz, color='white', linewidth=1.5, fill=False)
         ax.add_patch(c)
     plt.draw()
+    plt.show()
 
 
 def draw_detections_1c(im, dets, ran=None, axis=None, siz=3):
