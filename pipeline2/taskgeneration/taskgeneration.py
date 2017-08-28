@@ -5,6 +5,8 @@ from operator import add
 from functools import reduce
 import json
 
+from unittest.mock import MagicMock
+
 
 def _relative_spiral_generator(steps, start=[0,0]):
     """
@@ -332,5 +334,18 @@ def main():
     for _ in range(5):
         print(spiralGen.get_locations())
 
+
+def ATGTest():
+    locMock = MagicMock(return_value = [])
+    locMock.get_locations = MagicMock(return_value = [])
+    og = ZDCOffsetSettingsGenerator(locMock)
+
+    pipelineMock = MagicMock()
+    atg = AcquisitionTaskGenerator(0, og)
+    atg(pipelineMock)
+
+
+    print(locMock.get_locations())
+
 if __name__ == '__main__':
-    main()
+    ATGTest()
