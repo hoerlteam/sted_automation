@@ -1,5 +1,6 @@
 import sys
 from skimage.feature import blob_dog, blob_log, blob_doh
+import math
 
 
 def ensure_nd(vec, n=3, padding=0):
@@ -14,17 +15,25 @@ def ensure_nd(vec, n=3, padding=0):
 def clamp(x, min_x, max_x):
     return max(min_x, min(x, max_x))
 
-def middle2corner(ms_middle_coordinates, fov):
+def middle2corner(ms_middle_coordinates, fov, pixelsd=None):
     """
     Gives the ability to calculate from the global coordinates of the microscope back to the upper left corner of an
     image
     :param ms_middle_coordinates: current coordinates of the measurement for n dimensions
     :param fov: field of view sizes of n dimensions
+    :param pixelsd : pixel size, may be None, if this is given, we will correct FOV in the same way Imspector does it:
+                    actual dim = (floor(specified dim / pixel size) - 1) * pixel size
     :return: coordinates of the upper left corner for n dimensions
     """
+    fov_corrected = list(fov)
+
+    if pixelsd is not None:
+        for i in range(len(fov_corrected)):
+            fov_corrected[i] = (math.floor(fov[i] / pixelsd[i]) - 1) * pixelsd[i]
+
     corner_coords = []
     for i in range(len(ms_middle_coordinates)):
-        corner_coords.append(ms_middle_coordinates[i] - (0.5*fov[i]))
+        corner_coords.append(ms_middle_coordinates[i] - (0.5*fov_corrected[i]))
     return corner_coords
 
 # TODO call pixel_fov_dimensions -> pixel_size
