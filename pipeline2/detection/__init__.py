@@ -1,1 +1,1 @@
-from .detection import LegacySpotPairFinder, ZDCSpotPairFinder
+from .detection import LegacySpotPairFinder, ZDCSpotPairFinder, SimpleSingleChannelSpotDetector

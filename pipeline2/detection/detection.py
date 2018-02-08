@@ -1,9 +1,97 @@
-from spot_util import pair_finder_inner
+from spot_util import pair_finder_inner, detect_blobs
 import numpy as np
+import collections
+
 from ..util import filter_dict
 
 from display_util import draw_detections_2c
 
+class SimpleSingleChannelSpotDetector():
+    '''
+    simple LoG-based spot detector in one channel
+    '''
+    def __init__(self, dataSource, sigmas, threshold, channel=0, medianThreshold=3, medianRadius=5):
+        self.dataSource = dataSource
+        self.sigmas = sigmas
+        self.threshold = threshold
+        self.channel = channel
+        self.medianThreshold = medianThreshold
+        self.medianRadius = medianRadius
+        self.plotDetections = False
+        self.verbose = False
+        
+        
+    def withPlotDetections(self, plotDetections=True):
+        self.plotDetections = plotDetections
+        return self
+
+    
+    def withVerbose(self, verbose=True):
+        self.verbose = verbose
+        return self
+    
+    
+    def doPlot(self, spots_pixel, img):
+        # TODO: implement me!
+        pass
+
+    def correctForOffset(self, locs, setts):
+        offsOld = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+
+        lensOld = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+
+        pszOld = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+
+        # TODO: fix offset here
+        res = []
+        for loc in locs:
+            locT = np.array(pair, dtype=float)
+            res.append(list(offsOld - (lensOld / 2) + locT * pszOld))
+        return res
+    
+    
+    def get_locations(self):
+        data = self.dataSource.get_data()
+        if (data.numConfigurations < 1) or (data.numImages(0) < 1):
+            raise ValueError(
+                'no images present. TODO: fail gracefully/skip here')
+        
+        img = data.data[0][self.channel][0, :, :, :]
+        
+
+        # make float
+        img = np.array(img, np.float)
+        setts = data.measurementSettings[0]
+
+        if not isinstance(self.sigmas, (collections.Sequence, np.ndarray)):
+            self.sigmas = [self.sigmas, self.sigmas, self.sigmas]
+            
+        # NB: will give locs in z,y,x -> invert
+        locs = detect_blobs(img, self.sigmas, self.threshold, False, self.medianThreshold,
+                                     self.medianRadius)
+        locs = [l[-1::-1] for l in locs]
+
+        if self.verbose:
+            print(self.__class__.__name__ + ': found {} spots. pixel coordinates:'.format(len(locs)))
+            for loc in locs:
+                print(loc)
+
+        # plot
+        if self.plotDetections:
+            self.doPlot(locs, img)
+
+        corrected = self.correctForOffset(locs, setts)
+
+        if self.verbose:
+            print(self.__class__.__name__ + ': found {} spots. offsets:'.format(len(locs)))
+            for locC in corrected:
+                print(locC)
+
+        return corrected
+    
 
 class LegacySpotPairFinder():
     """
