@@ -1,6 +1,7 @@
 from spot_util import pair_finder_inner, detect_blobs
 import numpy as np
 import collections
+from matplotlib import pyplot as plt
 
 from ..util import filter_dict
 
@@ -33,8 +34,10 @@ class SimpleSingleChannelSpotDetector():
     
     def doPlot(self, spots_pixel, img):
         draw_detections_1c(img, [s[-1::-1] for s in spots_pixel], None, 0, 3)
+        plt.show()
+        
 
-    def correctForOffset(self, locs, setts):
+    def correctForOffset(self, locs, setts, ignore_dim):
         offsOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
@@ -47,7 +50,7 @@ class SimpleSingleChannelSpotDetector():
         res = []
         for loc in locs:
             locT = np.array(loc, dtype=float)
-            res.append(_correct_offset(loc, offsOld, lensOld, pszOld))
+            res.append(_correct_offset(loc, offsOld, lensOld, pszOld, ignore_dim))
         return res
     
     
@@ -71,6 +74,8 @@ class SimpleSingleChannelSpotDetector():
         locs = detect_blobs(img, self.sigmas, self.threshold, False, self.medianThreshold,
                                      self.medianRadius)
         locs = [l[-1::-1] for l in locs]
+        
+        ignore_dim = np.array([d for d in img.shape][-1::-1]) == 1
 
         if self.verbose:
             print(self.__class__.__name__ + ': found {} spots. pixel coordinates:'.format(len(locs)))
@@ -81,7 +86,7 @@ class SimpleSingleChannelSpotDetector():
         if self.plotDetections:
             self.doPlot(locs, img)
 
-        corrected = self.correctForOffset(locs, setts)
+        corrected = self.correctForOffset(locs, setts, ignore_dim)
 
         if self.verbose:
             print(self.__class__.__name__ + ': found {} spots. offsets:'.format(len(locs)))
@@ -118,7 +123,7 @@ class LegacySpotPairFinder():
     def doPlot(self, pairsPixel, stack1, stack2):
         draw_detections_2c(stack1, stack2, [s[-1::-1] for s in pairsPixel], [1, 10], 0, 3)
 
-    def correctForOffset(self, pairsPixel, setts):
+    def correctForOffset(self, pairsPixel, setts, ignore_dim):
         offsOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
@@ -131,7 +136,7 @@ class LegacySpotPairFinder():
         res = []
         for pair in pairsPixel:
             pairT = np.array(pair, dtype=float)
-            res.append(_correct_offset(pairT, offsOld, lensOld, pszOld))
+            res.append(_correct_offset(pairT, offsOld, lensOld, ignore_dim))
         return res
 
     def get_locations(self):
@@ -160,7 +165,8 @@ class LegacySpotPairFinder():
         if self.plotDetections:
             self.doPlot(pairsRaw, stack1, stack2)
 
-        corrected = self.correctForOffset(pairsRaw, setts)
+        ignore_dim = np.array([d for d in stack1.shape][-1::-1]) == 1
+        corrected = self.correctForOffset(pairsRaw, setts, ignore_dim)
 
         if self.verbose:
             print(self.__class__.__name__ + ': found {} spot pairs. offsets:'.format(len(pairsRaw)))
@@ -173,7 +179,7 @@ class LegacySpotPairFinder():
 class ZDCSpotPairFinder(LegacySpotPairFinder):
 
 
-    def correctForOffset(self, pairsPixel, setts):
+    def correctForOffset(self, pairsPixel, setts, ignore_dim):
         offsOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
@@ -189,22 +195,25 @@ class ZDCSpotPairFinder(LegacySpotPairFinder):
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         print(pszOld)
+        
         res = []
         for pair in pairsPixel:
             pairT = np.array(pair, dtype=float)
             #res.append(list(offsOld - (lensOld / 2) + pairT * pszOld))
-            res.append(_correct_offset(pairT, offsOld, lensOld, pszOld))
+            res.append(_correct_offset(pairT, offsOld, lensOld, pszOld, ignore_dim))
         return res
 
 
-def _correct_offset(x, off, length, psz):
+def _correct_offset(x, off, length, psz, ignore_dim):
     """
     correct pixel coordinates x to world coordinates
     :param x: pixel coordinates (array-like)
     :param off: Imspector metadata offset (array-like)
     :param length: Imspector metadata FOV-length (array-like)
     :param psz: Imspector metadata pixel-size (array-like)
+    :param ignore_dim: dimensions to ignore (keep offset) (boolen array-like)
     :return: x in world coordinates (array-like)
     """
-    return (np.array(off, dtype=float) - (np.array(length, dtype=float)
-            - np.array(psz, dtype=float)) / 2.0 + np.array(x, dtype=float) * np.array(psz, dtype=float))
+    return (np.array(off, dtype=float) - np.logical_not(np.array(ignore_dim)) * (np.array(length, dtype=float)
+            - np.array(psz, dtype=float)) / 2.0 
+            + np.logical_not(np.array(ignore_dim)) * np.array(x, dtype=float) * np.array(psz, dtype=float))

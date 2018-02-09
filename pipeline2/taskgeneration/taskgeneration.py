@@ -166,10 +166,21 @@ class BoundingBoxLocationGrouper():
     def __init__(self, locationGenerator, boundingBoxSize):
         self.locationGenerator = locationGenerator
         self.boundingBoxSize = boundingBoxSize
+        self.verbose = False
+        
+    def withVerbose(self, verbose=True):
+        self.verbose = verbose
+        return self
 
     def get_locations(self):
         xs = self.locationGenerator.get_locations()
-        return group_in_bounding_boxes(xs, self.boundingBoxSize)
+        res = group_in_bounding_boxes(xs, self.boundingBoxSize)
+        
+        if self.verbose:
+            print('grouped detections into {} FOVS:'.format(len(res)))
+            for loc in res:
+                print(loc)
+        return res
 
 
 class DefaultFOVSettingsGenerator():
@@ -189,7 +200,9 @@ class DefaultFOVSettingsGenerator():
         multiple `configurations` in one measurement
     """
     def __init__(self, lengths, pixelSizes, asMeasurements=True):
-        pass
+        self.lengths = lengths
+        self.pixelSizes = pixelSizes
+        self.asMeasurements = asMeasurements
 
     _paths_len = ['ExpControl/scan/range/x/len',
                   'ExpControl/scan/range/y/len',

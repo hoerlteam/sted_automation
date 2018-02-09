@@ -205,7 +205,7 @@ def detect_blobs(img, sigmas, threshold, normalize=False, threshold_rel_median=3
 
     # do log filtering and local maxima detection
     logimg = -ndimage.gaussian_laplace(img, sigmas) * (sigmas[0] ** 2)
-    peaks = skimage.feature.peak_local_max(logimg, threshold_abs=threshold)
+    peaks = skimage.feature.peak_local_max(logimg, threshold_abs=threshold, min_distance=1, exclude_border=False)
 
 
     if threshold_rel_median:

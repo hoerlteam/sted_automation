@@ -28,7 +28,7 @@ def group_in_bounding_boxes(xs, bbox_size):
         or bbox_size == 0 in any dimension
     """
 
-    worklist = [x for x in xs]
+    worklist = [list(x) for x in xs]
     bbox_centers = []
 
     # check for incompatible arguments
