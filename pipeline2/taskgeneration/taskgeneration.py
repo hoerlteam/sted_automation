@@ -191,6 +191,31 @@ class DefaultFOVSettingsGenerator():
     def __init__(self, lengths, pixelSizes, asMeasurements=True):
         pass
 
+    _paths_len = ['ExpControl/scan/range/x/len',
+                  'ExpControl/scan/range/y/len',
+                  'ExpControl/scan/range/z/len'
+                  ]
+    _paths_psz = ['ExpControl/scan/range/x/psz',
+                  'ExpControl/scan/range/y/psz',
+                  'ExpControl/scan/range/z/psz'
+                  ]
+
+    def __call__(self):
+
+        res = []
+        for l, psz in zip(self.lengths, self.pixelSizes ):
+            resD = {}
+            paths = cycle(zip(self._paths_len, self._paths_psz))
+            for l_i, psz_i in zip(l, psz):
+                path_l, path_psz = next(paths)
+                resD = update_dicts(resD, gen_json(l_i, path_l))
+                resD = update_dicts(resD, gen_json(psz_i, path_psz))
+            res.append([(resD, {})])
+        if self.asMeasurements:
+            return res
+        else:
+            return [reduce(add, res)]
+
 
 class DefaultScanOffsetsSettingsGenerator():
     _paths = ['ExpControl/scan/range/x/off',

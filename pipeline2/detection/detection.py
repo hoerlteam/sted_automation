@@ -45,11 +45,10 @@ class SimpleSingleChannelSpotDetector():
         pszOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
-        # TODO: fix offset here
         res = []
         for loc in locs:
-            locT = np.array(pair, dtype=float)
-            res.append(list(offsOld - (lensOld / 2) + locT * pszOld))
+            locT = np.array(loc, dtype=float)
+            res.append(_correct_offset(loc, offsOld, lensOld, pszOld))
         return res
     
     
@@ -133,7 +132,7 @@ class LegacySpotPairFinder():
         res = []
         for pair in pairsPixel:
             pairT = np.array(pair, dtype=float)
-            res.append(list(offsOld - (lensOld / 2) + pairT * pszOld))
+            res.append(_correct_offset(pairT, offsOld, lensOld, pszOld))
         return res
 
     def get_locations(self):
@@ -194,7 +193,19 @@ class ZDCSpotPairFinder(LegacySpotPairFinder):
         res = []
         for pair in pairsPixel:
             pairT = np.array(pair, dtype=float)
-            res.append(list(offsOld - (lensOld / 2) + pairT * pszOld))
+            #res.append(list(offsOld - (lensOld / 2) + pairT * pszOld))
+            res.append(_correct_offset(pairT, offsOld, lensOld, pszOld))
         return res
 
 
+def _correct_offset(x, off, length, psz):
+    """
+    correct pixel coordinates x to world coordinates
+    :param x: pixel coordinates (array-like)
+    :param off: Imspector metadata offset (array-like)
+    :param length: Imspector metadata FOV-length (array-like)
+    :param psz: Imspector metadata pixel-size (array-like)
+    :return: x in world coordinates (array-like)
+    """
+    return (np.array(off, dtype=float) - (np.array(length, dtype=float)
+            - np.array(psz, dtype=float)) / 2.0 + np.array(x, dtype=float) * np.array(psz, dtype=float))
