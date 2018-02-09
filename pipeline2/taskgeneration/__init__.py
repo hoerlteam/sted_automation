@@ -7,4 +7,5 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              NewestSettingsSelector,
                              SpiralOffsetGenerator,
                              ZDCOffsetSettingsGenerator,
-                             JSONFileConfigLoader)
+                             JSONFileConfigLoader,
+                             BoundingBoxLocationGrouper)

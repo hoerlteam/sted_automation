@@ -146,6 +146,42 @@ class NewestSettingsSelector():
         data = pipeline.data.get(latestMeasurementIdx, None)
         return [list(zip(data.measurementSettings, data.globalSettings))]
 
+class BoundingBoxLocationGrouper():
+    '''
+    Wrapper for a locationGenerator that groups locations into bounding boxes of defined size.
+    This may be necessary to avoid multiple imaging of the same object.
+    
+    TODO: implement
+
+    Parameters
+    ----------
+    locationGenerator : object implementing `get_locations` (returnung iterable of 3d location vectors)
+        generator of locations
+    boundingBoxSize : 3d vector (array-like)
+        size of the bounding boxes to group in (same unit as vecors returned by locationGenerator)
+    '''
+    def __init__(self, locationGenerator, boundingBoxSize):
+        pass
+    
+class DefaultFOVSettingsGenerator():
+    '''
+    SettingsGenerator to set field of view (FOV) to defined length and pixel size. 
+    
+    TODO: implement
+    
+    Parameters
+    ----------
+    lenghts : iterable of 3d-vectors
+        lenghts of the FOVs to image
+    pixelSizes : iterable of 3d-vectors
+        pixel sizes of FOVs to image
+    asMeasurements: boolean
+        if more than one FOV is specified: wheter to create multiple `measurements` or
+        multipe `configurations` in one measurement
+    '''
+    def __init__(self, lenghts, pixelSizes, asMeasurements=True):
+        pass
+
 
 class DefaultScanOffsetsSettingsGenerator():
     _paths = ['ExpControl/scan/range/x/off',
@@ -162,6 +198,12 @@ class DefaultScanOffsetsSettingsGenerator():
             self.fun = fun
 
     def __call__(self):
+        '''
+        Returns
+        -------
+        settings: list of list of (measurement_parameters, global_parameters) tuples
+            parameter updates (global updates == {}) for every configuration in every measurement to acquire.
+        '''
         locs = self.fun()
 
         res = []
