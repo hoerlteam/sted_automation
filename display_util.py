@@ -54,14 +54,15 @@ def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
 def draw_detections_1c(im, dets, ran=None, axis=None, siz=3):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    im1 = make_proj(im, axis if axis else len(im.shape) - 1)
+    im1 = make_proj(im, axis if axis is not None else len(im.shape) - 1)
+    print(im1.shape)
     im1 = normalize(im1, ran)
     plt.imshow(im1, cmap='gray')
     if axis == None:
         axis = len(im.shape) - 1
     for d in dets:
         d1 = np.array(d)[np.arange(3) != axis]
-        c = plt.Circle((d1[1], d1[0]), siz, color='white', linewidth=1.5, fill=False)
+        c = plt.Circle((d1[1], d1[0]), siz, color='red', linewidth=1.5, fill=False)
         ax.add_patch(c)
     plt.draw()
 
