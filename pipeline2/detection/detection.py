@@ -4,7 +4,7 @@ import collections
 
 from ..util import filter_dict
 
-from display_util import draw_detections_2c
+from display_util import draw_detections_2c, draw_detections_1c
 
 class SimpleSingleChannelSpotDetector():
     '''
@@ -32,8 +32,7 @@ class SimpleSingleChannelSpotDetector():
     
     
     def doPlot(self, spots_pixel, img):
-        # TODO: implement me!
-        pass
+        draw_detections_1c(img, [s[-1::-1] for s in spots_pixel], None, 0, 3)
 
     def correctForOffset(self, locs, setts):
         offsOld = np.array([filter_dict(
