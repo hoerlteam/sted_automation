@@ -5,6 +5,8 @@ from operator import add
 from functools import reduce
 import json
 
+from .fov_util import group_in_bounding_boxes
+
 from unittest.mock import MagicMock
 
 
@@ -148,40 +150,45 @@ class NewestSettingsSelector():
         data = pipeline.data.get(latestMeasurementIdx, None)
         return [list(zip(data.measurementSettings, data.globalSettings))]
 
+
 class BoundingBoxLocationGrouper():
-    '''
+    """
     Wrapper for a locationGenerator that groups locations into bounding boxes of defined size.
     This may be necessary to avoid multiple imaging of the same object.
-    
-    TODO: implement
 
     Parameters
     ----------
-    locationGenerator : object implementing `get_locations` (returnung iterable of 3d location vectors)
+    locationGenerator : object implementing `get_locations` (returning iterable of 3d location vectors)
         generator of locations
     boundingBoxSize : 3d vector (array-like)
         size of the bounding boxes to group in (same unit as vecors returned by locationGenerator)
-    '''
+    """
     def __init__(self, locationGenerator, boundingBoxSize):
-        pass
-    
+        self.locationGenerator = locationGenerator
+        self.boundingBoxSize = boundingBoxSize
+
+    def get_locations(self):
+        xs = self.locationGenerator.get_locations()
+        return group_in_bounding_boxes(xs, self.boundingBoxSize)
+
+
 class DefaultFOVSettingsGenerator():
-    '''
+    """
     SettingsGenerator to set field of view (FOV) to defined length and pixel size. 
     
     TODO: implement
     
     Parameters
     ----------
-    lenghts : iterable of 3d-vectors
-        lenghts of the FOVs to image
+    lengths : iterable of 3d-vectors
+        lengths of the FOVs to image
     pixelSizes : iterable of 3d-vectors
         pixel sizes of FOVs to image
     asMeasurements: boolean
-        if more than one FOV is specified: wheter to create multiple `measurements` or
-        multipe `configurations` in one measurement
-    '''
-    def __init__(self, lenghts, pixelSizes, asMeasurements=True):
+        if more than one FOV is specified: whether to create multiple `measurements` or
+        multiple `configurations` in one measurement
+    """
+    def __init__(self, lengths, pixelSizes, asMeasurements=True):
         pass
 
 

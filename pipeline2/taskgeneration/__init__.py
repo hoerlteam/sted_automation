@@ -8,4 +8,5 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              SpiralOffsetGenerator,
                              ZDCOffsetSettingsGenerator,
                              JSONFileConfigLoader,
-                             BoundingBoxLocationGrouper)
+                             BoundingBoxLocationGrouper,
+                             DefaultFOVSettingsGenerator)
