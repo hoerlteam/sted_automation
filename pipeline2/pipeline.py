@@ -150,8 +150,13 @@ class AcquisitionPipeline():
                     else:
                         self.im.makeConfigurationFromTask(acquisition_task.getUpdates(updatesI), acquisition_task.delay)
 
+                    meas_startime = time()
+
                     # run in imspector
                     self.im.runCurrentMeasurement()
+
+                    meas_endtime = time()
+
 
                     # add data copy (of most recent configuration) to internal storage
                     self.data[currentMeasurementIdx].append(*self.im.getCurrentData())
@@ -187,6 +192,15 @@ class AcquisitionPipeline():
                 break
 
             print('PIPELINE {} FINISHED'.format(self.name))
+
+    def withDataStorage(self, data):
+        """
+        set a custom Data storage
+        :param data: data storage object, must act like defaultdict(RichData)
+        :return: self
+        """
+        self.data = data
+        return self
 
     def withPipelineLevels(self, lvls):
         """
