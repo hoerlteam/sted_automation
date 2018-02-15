@@ -34,12 +34,15 @@ class RichData:
 
 class HDF5DataStore(defaultdict):
 
-    def __init__(self, fd, pipeline_levels):
-        super().__init__(lambda idx : HDF5RichData(fd, pipeline_levels, idx ))
+    def __init__(self, fd, pipeline_levels, root_path='experiment'):
+        super().__init__(lambda idx : HDF5RichData(fd, pipeline_levels, idx , root_path))
         self.fd = fd
         self.pll = pipeline_levels
 
-        # TODO: write some general info (pipeline levels, etc. ) to root ('experiment') group
+        if not root_path in self.fd:
+            self.fd.create_group(root_path)
+        attrs = h5py.AttributeManager(self.fd[root_path])
+        attrs['levels'] = ','.join([str(lvl) for lvl in self.pll.levels])
 
     def __missing__(self, key):
         ret = self[key] = self.default_factory(key)
@@ -48,17 +51,18 @@ class HDF5DataStore(defaultdict):
 
 class HDF5RichData(RichData):
 
-    def __init__(self, fd, pipeline_levels, idxes):
+    def __init__(self, fd, pipeline_levels, idxes, root_path='experiment'):
         super(HDF5RichData, self).__init__()
         self.fd = fd
         self.pll = pipeline_levels
         self.idxes = idxes
+        self.root_path = root_path
 
     def append(self, globalSettings=None, measurementSettings=None, data=None):
         super(HDF5RichData, self).append(globalSettings, measurementSettings, data)
 
         # make HDF5 group if it does not exist already (first config in acquisition)
-        group_path = _hdf5_group_path(self.pll, self.idxes)
+        group_path = _hdf5_group_path(self.pll, self.idxes, self.root_path)
         if not group_path in self.fd:
             self.fd.create_group(group_path)
             attrs = h5py.AttributeManager(self.fd[group_path])
