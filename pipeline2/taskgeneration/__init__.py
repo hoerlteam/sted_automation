@@ -9,4 +9,5 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              ZDCOffsetSettingsGenerator,
                              JSONFileConfigLoader,
                              BoundingBoxLocationGrouper,
-                             DefaultFOVSettingsGenerator)
+                             DefaultFOVSettingsGenerator,
+                             DefaultScanModeSettingsGenerator)

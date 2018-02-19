@@ -11,7 +11,7 @@ class SimpleSingleChannelSpotDetector():
     '''
     simple LoG-based spot detector in one channel
     '''
-    def __init__(self, dataSource, sigmas, threshold, channel=0, medianThreshold=3, medianRadius=5):
+    def __init__(self, dataSource, sigmas, threshold, channel=0, medianThreshold=3, medianRadius=5, withRefinement=True):
         self.dataSource = dataSource
         self.sigmas = sigmas
         self.threshold = threshold
@@ -20,6 +20,7 @@ class SimpleSingleChannelSpotDetector():
         self.medianRadius = medianRadius
         self.plotDetections = False
         self.verbose = False
+        self.withRefinement = withRefinement
         
         
     def withPlotDetections(self, plotDetections=True):
@@ -66,17 +67,36 @@ class SimpleSingleChannelSpotDetector():
         # make float
         img = np.array(img, np.float)
         setts = data.measurementSettings[0]
-
+        
+        # check which dimensions are singleton (note: x,y,z here!)
+        ignore_dim = np.array([d for d in img.shape][-1::-1]) == 1
+        
+        # if sigma is scalar: repeat for number of 'valid' dimensions
         if not isinstance(self.sigmas, (collections.Sequence, np.ndarray)):
-            self.sigmas = [self.sigmas, self.sigmas, self.sigmas]
-            
-        # NB: will give locs in z,y,x -> invert
-        locs = detect_blobs(img, self.sigmas, self.threshold, False, self.medianThreshold,
-                                     self.medianRadius)
+            self.sigmas = [self.sigmas] * int(len(ignore_dim) - np.sum(ignore_dim))
+        
+        # discard singleton dimensions for detection
+        img_ = np.squeeze(img)
+        
+        # do detection
+        locs = detect_blobs(img_, self.sigmas, self.threshold, False, self.medianThreshold,
+                                     self.medianRadius, self.withRefinement)
+
+        # re-introduce zeroes to get back to 3-d (if we dropped dims)
+        locs_expanded = []
+        for loc in locs:
+            print(loc)
+            loc = list(loc)
+            for i in range(len(ignore_dim)):
+                # NB: we have to invert ignore_dim to get z,y,x
+                if ignore_dim[-1::-1][i]:
+                    loc = loc[:i] + [0] + loc[i:]
+            locs_expanded.append(loc)
+        locs = locs_expanded
+        
+        # NB: detection will give locs in z,y,x -> invert
         locs = [l[-1::-1] for l in locs]
         
-        ignore_dim = np.array([d for d in img.shape][-1::-1]) == 1
-
         if self.verbose:
             print(self.__class__.__name__ + ': found {} spots. pixel coordinates:'.format(len(locs)))
             for loc in locs:

@@ -187,8 +187,6 @@ class DefaultFOVSettingsGenerator():
     """
     SettingsGenerator to set field of view (FOV) to defined length and pixel size. 
     
-    TODO: implement
-    
     Parameters
     ----------
     lengths : iterable of 3d-vectors
@@ -229,6 +227,69 @@ class DefaultFOVSettingsGenerator():
         else:
             return [reduce(add, res)]
 
+class DefaultScanModeSettingsGenerator():
+    """
+    SettingsGenerator to set the scan mode (e.g xy, xyz, xy,...)
+    
+    Parameters
+    ----------
+    
+    modes: iterable of strings
+        the mode strings, e.g. 'xy'
+    asMeasurements: boolean
+        if more than one FOV is specified: whether to create multiple `measurements` or
+        multiple `configurations` in one measurement    
+    """
+    
+    def __init__(self, modes, asMeasurements=True):
+        self.modes = modes
+        self.asMeasurements = asMeasurements
+        
+    def __call__(self):
+        res = []
+        
+        for mode in self.modes:
+            resD = {}
+            resD = update_dicts(resD, gen_json(DefaultScanModeSettingsGenerator.gen_mode_flag(mode), self._path))
+            
+            resD = update_dicts(
+                resD,
+                gen_json(['ExpControl {}'.format(mode[i].upper()) if i < len(mode) else "None" for i in range(4)],
+                self._path_axes))
+            res.append([(resD, {})])
+        
+        print(res)
+        if self.asMeasurements:
+            return res
+        else:
+            return [reduce(add, res)]
+        
+    _path = 'ExpControl/scan/range/mode'
+    _path_axes = 'Measurement/axes/scan_axes'
+        
+    @staticmethod
+    def gen_mode_flag(mode_str):
+
+        _mode_vals = {
+        'x' : 0,
+        'y' : 1,
+        'z' : 2,
+        't' : 3
+        }
+
+        if len(mode_str) > 4:
+            return None
+        res = 0
+        for _ in range(3 - len(mode_str)):
+            print(res)
+            res = (res + 1) << 2
+            res = (res + 1) << 2
+        for i, c in enumerate(reversed(mode_str)):
+            res = res << 2
+            res = res + _mode_vals[c]
+            if not i == len(mode_str) - 1:
+                res = res << 2
+        return res
 
 class DefaultScanOffsetsSettingsGenerator():
     _paths = ['ExpControl/scan/range/x/off',

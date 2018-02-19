@@ -52,14 +52,14 @@ class HDF5DataStore(defaultdict):
 class HDF5RichData(RichData):
 
     def __init__(self, fd, pipeline_levels, idxes, root_path='experiment'):
-        super(HDF5RichData, self).__init__()
+        super().__init__()
         self.fd = fd
         self.pll = pipeline_levels
         self.idxes = idxes
         self.root_path = root_path
 
     def append(self, globalSettings=None, measurementSettings=None, data=None):
-        super(HDF5RichData, self).append(globalSettings, measurementSettings, data)
+        super().append(globalSettings, measurementSettings, data)
 
         # make HDF5 group if it does not exist already (first config in acquisition)
         group_path = _hdf5_group_path(self.pll, self.idxes, self.root_path)
@@ -86,7 +86,7 @@ class HDF5RichData(RichData):
         # save channels as actual datasets
         for idx, data_i in enumerate(data):
             path_channel = '/'.join([cfg_path, str(idx)])
-            self.fd.create_dataset(path_channel, data_i)
+            self.fd.create_dataset(path_channel, data=data_i)
 
 
 def _hdf5_group_path(pll, idxes, root_name='experiment'):

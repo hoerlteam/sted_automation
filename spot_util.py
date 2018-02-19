@@ -4,6 +4,8 @@ import numpy as np
 from numpy.linalg import inv
 import skimage
 
+from calmutils.localization import refine_point
+
 
 def mean_along_axis(img, axis):
     '''
@@ -14,8 +16,8 @@ def mean_along_axis(img, axis):
     profile = np.mean(img, axes)
     return profile
 
-
-def refine_point(img, guess, maxiter=10):
+# TODO: better debug of upstream, then remove this
+def refine_point_(img, guess, maxiter=10):
     ones = tuple([1 for _ in guess])
 
     img_ = img
@@ -29,6 +31,8 @@ def refine_point(img, guess, maxiter=10):
 
     cut = img_[np.ix_(*idxes)]
     gr = np.gradient(cut)
+    
+    #print(gr)
     dx = np.array([gr[i][ones] for i in range(len(guess))])
 
     hessian = np.zeros((len(guess), len(guess)))
@@ -36,9 +40,11 @@ def refine_point(img, guess, maxiter=10):
         for j in range(len(guess)):
             hessian[i, j] = np.gradient(gr[i], axis=j)[ones]
 
+    #print(hessian)
     try:
         hinv = inv(hessian)
     except np.linalg.LinAlgError:
+        print('Fit did not converge')
         return guess
 
     # FIXME: why div/2 here?
@@ -196,7 +202,7 @@ def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize,
     return res
 
 
-def detect_blobs(img, sigmas, threshold, normalize=False, threshold_rel_median=3, med_radius=5):
+def detect_blobs(img, sigmas, threshold, normalize=False, threshold_rel_median=3, med_radius=5, refine=False):
     img = skimage.util.img_as_float(img)
 
     # scale image to 0=min 1=max
@@ -211,6 +217,9 @@ def detect_blobs(img, sigmas, threshold, normalize=False, threshold_rel_median=3
     if threshold_rel_median:
         medimg = ndimage.median_filter(img, med_radius)
         peaks = [p for p in peaks if img[tuple(p)] > medimg[tuple(p)] * threshold_rel_median]
+        
+    if refine:
+        peaks = [refine_point_(img, p) for p in peaks]
 
     return peaks    
 
