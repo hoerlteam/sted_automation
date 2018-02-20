@@ -1,4 +1,4 @@
-from spot_util import pair_finder_inner, detect_blobs
+from spot_util import pair_finder_inner, detect_blobs, focus_in_stack
 import numpy as np
 import collections
 from matplotlib import pyplot as plt
@@ -6,6 +6,58 @@ from matplotlib import pyplot as plt
 from ..util import filter_dict
 
 from display_util import draw_detections_2c, draw_detections_1c
+
+class SimpleLegacyFocusHold():
+
+    def __init__(self, dataSource, configuration=0, channel=0):
+        self.dataSource = dataSource
+        self.configuration = configuration
+        self.channel = channel
+        self.verbose = False
+
+    def withVerbose(self, verbose=True):
+        self.verbose = verbose
+        return self
+
+    def get_locations(self):
+        data = self.dataSource.get_data()
+
+        # no data yet -> empty update
+        if data is None:
+            if self.verbose:
+                print(self.__class__.__name__ + ': No data for Z correction present -> skipping.')
+            return [[None, None, None]]
+
+        if (data.numConfigurations <= self.configuration) or (data.numImages(self.configuration) <= self.channel):
+            raise ValueError('no images present. TODO: fail gracefully/skip here')
+
+        img = data.data[self.configuration][self.channel][0, :, :, :]
+        # make float
+        img = np.array(img, np.float)
+        setts = data.measurementSettings[self.configuration]
+
+        offsOld = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+
+        pszOld = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+
+        # 2d image -> empty update
+        if data.shape[0] <= 1:
+            if self.verbose:
+                print(self.__class__.__name__ + ': Image is 2D, cannot do Z correction -> skipping.')
+            return [[None, None, None]]
+
+        zDelta = focus_in_stack(img, pszOld[2])
+        newZ = offsOld[2] + zDelta
+
+        if self.verbose:
+            print(self.__class__.__name__ + ': Corrected Focus (was {}, new {})'.format(offsOld[2], newZ))
+            return [[None, None, newZ]]
+
+
+
+
 
 class SimpleSingleChannelSpotDetector():
     '''

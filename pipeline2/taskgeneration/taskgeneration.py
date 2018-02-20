@@ -319,7 +319,12 @@ class DefaultScanOffsetsSettingsGenerator():
             resD = {}
             path = cycle(self._paths)
             for l in loc:
-                resD = update_dicts(resD, gen_json(l, next(path)))
+                p =  next(path)
+
+                # components of loc may be noe, e.g. if we only want to update z
+                if l is None:
+                    continue
+                resD = update_dicts(resD, gen_json(l, p))
             res.append([(resD, {})])
         if self.asMeasurements:
             return res
