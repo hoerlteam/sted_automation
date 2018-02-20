@@ -67,7 +67,7 @@ def focus_in_stack(img, pixsize_z):
     smoothprofile = ndimage.gaussian_filter1d(profile, 3, mode='constant')
     tmax = np.argmax(smoothprofile)
     # calculate offset of maximum in comparison to middle
-    pix_d = tmax - (len(profile) / 2)
+    pix_d = tmax - ((len(profile) - 1) / 2)
     return pix_d * pixsize_z
 
 
