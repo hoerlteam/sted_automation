@@ -1,1 +1,1 @@
-from .imspector import ImspectorConnection
+from .imspector import ImspectorConnection, get_current_stage_coords

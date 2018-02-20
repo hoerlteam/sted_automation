@@ -61,9 +61,9 @@ def refine_point_(img, guess, maxiter=10):
     return guess + res
 
 
-def focus_in_stack(img, pixsize_z):
+def focus_in_stack(img, pixsize_z, axis=1):
     # get mean profile, smooth it via a Gaussian blur
-    profile = mean_along_axis(img, 1)
+    profile = mean_along_axis(img, axis)
     smoothprofile = ndimage.gaussian_filter1d(profile, 3, mode='constant')
     tmax = np.argmax(smoothprofile)
     # calculate offset of maximum in comparison to middle

@@ -258,7 +258,6 @@ class DefaultScanModeSettingsGenerator():
                 self._path_axes))
             res.append([(resD, {})])
         
-        print(res)
         if self.asMeasurements:
             return res
         else:

@@ -37,23 +37,24 @@ class SimpleLegacyFocusHold():
         setts = data.measurementSettings[self.configuration]
 
         offsOld = np.array([filter_dict(
-            setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+            setts, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         pszOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         # 2d image -> empty update
-        if data.shape[0] <= 1:
+        if img.shape[0] <= 1:
             if self.verbose:
                 print(self.__class__.__name__ + ': Image is 2D, cannot do Z correction -> skipping.')
             return [[None, None, None]]
 
-        zDelta = focus_in_stack(img, pszOld[2])
-        newZ = offsOld[2] + zDelta
+        zDelta = focus_in_stack(img, pszOld[2], 0)
+        newZ = offsOld[2] - zDelta
 
         if self.verbose:
             print(self.__class__.__name__ + ': Corrected Focus (was {}, new {})'.format(offsOld[2], newZ))
-            return [[None, None, newZ]]
+        
+        return [[None, None, newZ]]
 
 
 
