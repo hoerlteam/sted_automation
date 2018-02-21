@@ -153,7 +153,7 @@ class AcquisitionPipeline():
                     meas_startime = time()
 
                     # run in imspector
-                    self.im.runCurrentMeasurement()
+                    self.im.runCurrentMeasurement(acquisition_task.getUpdates(updatesI))
 
                     meas_endtime = time()
 

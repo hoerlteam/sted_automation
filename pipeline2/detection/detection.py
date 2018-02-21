@@ -101,6 +101,11 @@ class SimpleSingleChannelSpotDetector():
         pszOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
+        if self.verbose:
+            print('old offset: {}'.format(offsOld))
+            print('old length: {}'.format(lensOld))
+            print('old pixel size: {}'.format(pszOld))
+            
         res = []
         for loc in locs:
             locT = np.array(loc, dtype=float)
@@ -138,7 +143,6 @@ class SimpleSingleChannelSpotDetector():
         # re-introduce zeroes to get back to 3-d (if we dropped dims)
         locs_expanded = []
         for loc in locs:
-            print(loc)
             loc = list(loc)
             for i in range(len(ignore_dim)):
                 # NB: we have to invert ignore_dim to get z,y,x

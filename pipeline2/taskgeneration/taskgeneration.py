@@ -256,6 +256,10 @@ class DefaultScanModeSettingsGenerator():
                 resD,
                 gen_json(['ExpControl {}'.format(mode[i].upper()) if i < len(mode) else "None" for i in range(4)],
                 self._path_axes))
+            
+            # z-cut -> sync line
+            if len(mode) == 2 and 'z' in mode.lower():
+                resD = update_dicts(resD, gen_json(1, 'Measurement/axes/num_synced'))
             res.append([(resD, {})])
         
         if self.asMeasurements:

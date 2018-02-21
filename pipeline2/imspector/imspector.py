@@ -80,11 +80,22 @@ class ImspectorConnection():
         # if we want lines, we manually re-set just that one parameter
 
         if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
-            ms.set_parameters('Measurement/axes/num_synced', 1)
+            ms.active_configuration().set_parameters('Measurement/axes/num_synced', 1)
 
-    def runCurrentMeasurement(self):
+    def runCurrentMeasurement(self, task=None):
+        
         ms = self.im.active_measurement()
-        # ms.activate(ms.configuration(ms.number_of_configurations()-1))
+        ms.activate(ms.configuration(ms.number_of_configurations()-1))
+        
+        # re-check num_synched
+        if task is not None:
+            measUpdates, confUpdates = task
+            measUpdates = update_dicts(*measUpdates)
+            confUpdates = update_dicts(*confUpdates)
+            if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
+                ms.set_parameters('Measurement/axes/num_synced', 1)
+                ms.configuration(ms.number_of_configurations()-1).set_parameters('Measurement/axes/num_synced', 1)
+                
         self.im.run(ms)
 
     def saveCurrentMeasurement(self, path):
