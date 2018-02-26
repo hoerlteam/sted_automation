@@ -1,7 +1,72 @@
 import pipeline2
 import h5py
 import json
+import re
 from collections import defaultdict
+import numpy as np
+
+class H5DataReader:
+    """
+    reader for experiment data stored as hdf5
+
+    Parameters
+    ----------
+    fd: h5py File
+        the file object to read from, should be opened in read mode
+    root_path: str
+        name of the root group in fd
+
+    """
+    def __init__(self, fd, root_path='experiment'):
+        self.fd = fd
+        self.root_path = root_path
+        self.levels = h5py.AttributeManager(self.fd[root_path])['levels'].split(',')
+        self.idxes = self._get_indices()
+
+    def _get_indices(self):
+        """
+        get all the numerical indices of data in the hdf5 file
+        :return: list if index tuples
+        """
+
+        p = re.compile('(\\d*)(?:_){,1}'.join(map(lambda l : '(?:{}){{,1}}'.format(l), self.levels)) + '(\\d*)')
+        idxes = []
+
+        for k in self.fd[self.root_path].keys():
+            if not p.match(k):
+                continue
+            g = p.match(k).groups()
+            g = tuple([int(gi) for gi in g if gi != ''])
+            idxes.append(g)
+        return idxes
+
+    def get_data(self, idx):
+        """
+        get the RichData with the given numerical index or None, if it does not exist
+        :param idx: int-tuple, the index of the data to access
+        :return:
+        """
+        if idx not in self.idxes:
+            return None
+        pll = pipeline2.PipelineLevels(*self.levels)
+        path = _hdf5_group_path(pll, idx, self.root_path)
+        ds = self.fd[path]
+
+        num_configs = h5py.AttributeManager(ds)['num_configs']
+
+        res = RichData()
+        for i in range(num_configs):
+            ds_i = ds[str(i)]
+            att = h5py.AttributeManager(ds_i)
+            num_channels = att['num_channels']
+            global_meta = json.loads(att['global_meta'])
+            measurement_meta = json.loads(att['measurement_meta'])
+            imgs = []
+            for j in range(num_channels):
+                imgs.append(np.array(ds_i[str(j)]))
+            res.append(global_meta, measurement_meta, imgs)
+        return res
+
 
 class RichData:
     """
@@ -97,10 +162,16 @@ def _hdf5_group_path(pll, idxes, root_name='experiment'):
     return path
 
 
-def main():
+def _path_test():
     pll = pipeline2.PipelineLevels('ov', 'det', 'det2')
     idxes = (1,2)
     print(_hdf5_group_path(pll, idxes))
+
+def main():
+    path = '/Volumes/cooperation_data/TobiasRagoczy_StamLab/DavidHoerl/20180226_pipeline2test/70e4cfc46f335a6f75066cfbbf65f8d9.h5'
+    with h5py.File(path, 'r') as fd:
+        r = H5DataReader(fd)
+        print(r.get_data((0,0)).measurementSettings)
 
 if __name__ == '__main__':
     main()
