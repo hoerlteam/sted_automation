@@ -7,6 +7,24 @@ from ..util import filter_dict
 
 from display_util import draw_detections_2c, draw_detections_1c
 
+class SimpleLocationRepeater():
+    
+    def __init__(self, locationProvider, n=2):
+        self.locationProvider = locationProvider
+        self.n = n
+        
+    def get_locations(self):
+        locs = self.locationProvider.get_locations()
+        res = []
+        
+        for loc in locs:
+            for _ in range(self.n):
+                res.append(loc)
+        
+        return res
+        
+    
+
 class SimpleLegacyFocusHold():
 
     def __init__(self, dataSource, configuration=0, channel=0):
@@ -64,7 +82,8 @@ class SimpleSingleChannelSpotDetector():
     '''
     simple LoG-based spot detector in one channel
     '''
-    def __init__(self, dataSource, sigmas, threshold, channel=0, medianThreshold=3, medianRadius=5, withRefinement=True):
+    def __init__(self, dataSource, sigmas, threshold, channel=0, medianThreshold=3, medianRadius=5, withRefinement=True,
+                 generateStageOffsets=False):
         self.dataSource = dataSource
         self.sigmas = sigmas
         self.threshold = threshold
@@ -74,6 +93,7 @@ class SimpleSingleChannelSpotDetector():
         self.plotDetections = False
         self.verbose = False
         self.withRefinement = withRefinement
+        self.generateStageOffsets = generateStageOffsets
         
         
     def withPlotDetections(self, plotDetections=True):
@@ -92,8 +112,12 @@ class SimpleSingleChannelSpotDetector():
         
 
     def correctForOffset(self, locs, setts, ignore_dim):
-        offsOld = np.array([filter_dict(
-            setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+        if self.generateStageOffsets:
+            offsOld = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+        else:
+            offsOld = np.array([filter_dict(
+                setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         lensOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
@@ -291,6 +315,6 @@ def _correct_offset(x, off, length, psz, ignore_dim):
     :param ignore_dim: dimensions to ignore (keep offset) (boolen array-like)
     :return: x in world coordinates (array-like)
     """
-    return (np.array(off, dtype=float) - np.logical_not(np.array(ignore_dim)) * (np.array(length, dtype=float)
-            - np.array(psz, dtype=float)) / 2.0 
-            + np.logical_not(np.array(ignore_dim)) * np.array(x, dtype=float) * np.array(psz, dtype=float))
+    return (np.array(off, dtype=float) # old offset
+            - np.logical_not(np.array(ignore_dim)) * np.array(length, dtype=float) / 2.0 # minus half length
+            + np.logical_not(np.array(ignore_dim)) * np.array(x, dtype=float) * np.array(psz, dtype=float)) # new offset in units

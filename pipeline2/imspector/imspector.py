@@ -25,7 +25,12 @@ class MockImspectorConnection():
 class ImspectorConnection():
     def __init__(self, im):
         self.im = im
+        self.verbose = False
 
+    def withVerbose(self, verbose=True):
+        self.verbose = verbose
+        return self
+        
     def getCurrentData(self):
         globalParams = self.im.parameters('')
         measParameters = self.im.active_measurement().parameters('')
@@ -36,16 +41,19 @@ class ImspectorConnection():
 
     def makeMeasurementFromTask(self, task, halfDelay=0.0):
         ms = self.im.create_measurement()
+        time.sleep(halfDelay)
         measUpdates, confUpdates = task
         measUpdates = update_dicts(*measUpdates)
         confUpdates = update_dicts(*confUpdates)
 
         # we do the update twice to also set grayed-out values
         ms.set_parameters('', measUpdates)
+        time.sleep(halfDelay)
         self.im.set_parameters('', confUpdates)
         # wait if requested
         time.sleep(halfDelay)
         ms.set_parameters('', measUpdates)
+        time.sleep(halfDelay)
         self.im.set_parameters('', confUpdates)
         # wait again if requested
         time.sleep(halfDelay)
@@ -68,7 +76,7 @@ class ImspectorConnection():
 
         # we do the update twice to also set grayed-out values
         ms.set_parameters('', measUpdates)
-        self.im.set_parameters('', confUpdates)
+        #self.im.set_parameters('', confUpdates)
         # wait if requested
         time.sleep(halfDelay)
         ms.set_parameters('', measUpdates)
@@ -95,7 +103,18 @@ class ImspectorConnection():
             if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
                 ms.set_parameters('Measurement/axes/num_synced', 1)
                 ms.configuration(ms.number_of_configurations()-1).set_parameters('Measurement/axes/num_synced', 1)
-                
+        
+        if self.verbose:
+            par = ms.parameters('')
+            offsStage = np.array([filter_dict(
+                par, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+            offsScan = np.array([filter_dict(
+                par, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+            
+            print('running acquisition:')
+            print('stage offsets: {}'.format(offsStage))
+            print('scan offsets: {}'.format(offsScan))
+            
         self.im.run(ms)
 
     def saveCurrentMeasurement(self, path):
