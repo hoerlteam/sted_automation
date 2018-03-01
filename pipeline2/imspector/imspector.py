@@ -76,7 +76,7 @@ class ImspectorConnection():
 
         # we do the update twice to also set grayed-out values
         ms.set_parameters('', measUpdates)
-        #self.im.set_parameters('', confUpdates)
+        self.im.set_parameters('', confUpdates)
         # wait if requested
         time.sleep(halfDelay)
         ms.set_parameters('', measUpdates)
@@ -110,10 +110,13 @@ class ImspectorConnection():
                 par, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
             offsScan = np.array([filter_dict(
                 par, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+            offsGlobal = np.array([filter_dict(
+                par, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
             
             print('running acquisition:')
             print('stage offsets: {}'.format(offsStage))
             print('scan offsets: {}'.format(offsScan))
+            print('scan offsets global: {}'.format(offsGlobal))
             
         self.im.run(ms)
 
