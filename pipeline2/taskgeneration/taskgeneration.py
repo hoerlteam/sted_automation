@@ -258,8 +258,12 @@ class DefaultScanModeSettingsGenerator():
                 self._path_axes))
             
             # z-cut -> sync line
+            # FIXME: this causes weird problems in xz cut followed by any other image
+            # therefore, we removed it for the time being...
+            '''
             if len(mode) == 2 and 'z' in mode.lower():
                 resD = update_dicts(resD, gen_json(1, 'Measurement/axes/num_synced'))
+            '''
             res.append([(resD, {})])
         
         if self.asMeasurements:

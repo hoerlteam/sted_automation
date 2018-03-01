@@ -21,7 +21,6 @@ class MockImspectorConnection():
         self.saveCurrentMeasurement = MagicMock(return_value=None)
         self.closeCurrentMeasurement = MagicMock(return_value=None)
 
-
 class ImspectorConnection():
     def __init__(self, im):
         self.im = im
@@ -40,6 +39,7 @@ class ImspectorConnection():
         return globalParams, measParameters, data
 
     def makeMeasurementFromTask(self, task, halfDelay=0.0):
+        # FIXME: check if all the delays are really necessary
         ms = self.im.create_measurement()
         time.sleep(halfDelay)
         measUpdates, confUpdates = task
@@ -60,6 +60,7 @@ class ImspectorConnection():
 
         # NB: sync axis seems to jump back to frame after setting
         # if we want lines, we manually re-set just that one parameter
+        # FIXME: this causes weird problems in xz cut followed by any other image
 
         if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
             ms.set_parameters('Measurement/axes/num_synced', 1)
@@ -86,9 +87,10 @@ class ImspectorConnection():
 
         # NB: sync axis seems to jump back to frame after setting
         # if we want lines, we manually re-set just that one parameter
+        # FIXME: this causes weird problems in xz cut followed by any other image
 
         if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
-            ms.active_configuration().set_parameters('Measurement/axes/num_synced', 1)
+            ms.set_parameters('Measurement/axes/num_synced', 1)
 
     def runCurrentMeasurement(self, task=None):
         
@@ -96,6 +98,9 @@ class ImspectorConnection():
         ms.activate(ms.configuration(ms.number_of_configurations()-1))
         
         # re-check num_synched
+        # TODO: re-activate ?
+        # FIXME: this causes weird problems in xz cut followed by any other image
+        '''
         if task is not None:
             measUpdates, confUpdates = task
             measUpdates = update_dicts(*measUpdates)
@@ -103,6 +108,7 @@ class ImspectorConnection():
             if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
                 ms.set_parameters('Measurement/axes/num_synced', 1)
                 ms.configuration(ms.number_of_configurations()-1).set_parameters('Measurement/axes/num_synced', 1)
+        '''
         
         if self.verbose:
             par = ms.parameters('')
