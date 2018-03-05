@@ -288,7 +288,6 @@ class DefaultScanModeSettingsGenerator():
             return None
         res = 0
         for _ in range(3 - len(mode_str)):
-            print(res)
             res = (res + 1) << 2
             res = (res + 1) << 2
         for i, c in enumerate(reversed(mode_str)):
