@@ -10,4 +10,5 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              JSONFileConfigLoader,
                              BoundingBoxLocationGrouper,
                              DefaultFOVSettingsGenerator,
-                             DefaultScanModeSettingsGenerator)
+                             DefaultScanModeSettingsGenerator,
+                             DefaultScanFieldSettingsGenerator)

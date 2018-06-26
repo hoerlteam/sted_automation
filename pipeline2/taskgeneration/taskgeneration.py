@@ -338,6 +338,64 @@ class DefaultScanOffsetsSettingsGenerator():
             return [reduce(add, res)]
 
 
+class DefaultScanFieldSettingsGenerator():
+
+    _paths_off = ['ExpControl/scan/range/x/off',
+                  'ExpControl/scan/range/y/off',
+                  'ExpControl/scan/range/z/off'
+                  ]
+
+    _paths_len = ['ExpControl/scan/range/x/len',
+                  'ExpControl/scan/range/y/len',
+                  'ExpControl/scan/range/z/len'
+                  ]
+    _paths_psz = ['ExpControl/scan/range/x/psz',
+                  'ExpControl/scan/range/y/psz',
+                  'ExpControl/scan/range/z/psz'
+                  ]
+
+    def __init__(self, fieldGenerator, pszs, asMeasurements=True, fun=None):
+
+        self.fieldGenerator = fieldGenerator
+        self.asMeasurements = asMeasurements
+        self.pszs = pszs
+
+        if fun is None:
+            self.fun = fieldGenerator.get_fields
+        else:
+            self.fun = fun
+
+    def __call__(self):
+        '''
+        Returns
+        -------
+        settings: list of list of (measurement_parameters, global_parameters) tuples
+            parameter updates (global updates == {}) for every configuration in every measurement to acquire.
+        '''
+        fields = self.fun()
+
+        res = []
+        for loc, fov in fields:
+            resD = {}
+            path = cycle(zip(self._paths_off, self._paths_psz, self._paths_len))
+            for off, psz, fov_len in zip(loc, self.pszs, fov):
+                po, ppsz, pl =  next(path)
+
+                # components of loc may be None, e.g. if we only want to update z
+                if off is not None:
+                    resD = update_dicts(resD, gen_json(off, po))
+                if psz is not None:
+                    resD = update_dicts(resD, gen_json(psz, ppsz))
+                if fov_len is not None:
+                    resD = update_dicts(resD, gen_json(fov_len, pl))
+            res.append([(resD, {})])
+
+        if self.asMeasurements:
+            return res
+        else:
+            return [reduce(add, res)]
+
+
 class DefaultStageOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
     _paths = ['ExpControl/scan/range/offsets/coarse/x/g_off',
               'ExpControl/scan/range/offsets/coarse/y/g_off',

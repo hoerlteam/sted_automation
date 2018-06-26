@@ -1,1 +1,2 @@
 from .detection import LegacySpotPairFinder, ZDCSpotPairFinder, SimpleSingleChannelSpotDetector, SimpleLegacyFocusHold, SimpleLocationRepeater
+from .nucleus_detection import SimpleNucleusMidplaneDetector
