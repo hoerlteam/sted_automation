@@ -112,6 +112,7 @@ class SimpleNucleusMidplaneDetector():
         self.verbose = False
         self.do_plot = False
         self.filt = {}
+        self.expand = 1.2
 
     def withVerbose(self, verbose=True):
         self.verbose = verbose
@@ -123,6 +124,10 @@ class SimpleNucleusMidplaneDetector():
 
     def withFilter(self, filt=True):
         self.filt = filt
+        return self
+    
+    def withFOVExpansion(self, expand):
+        self.expand = expand
         return self
 
     def get_fields(self):
@@ -141,6 +146,10 @@ class SimpleNucleusMidplaneDetector():
         img = data.data[self.configuration][self.channel][0, :, :, :]
         # make float
         img = np.array(img, np.float)
+        
+        # check which dimensions are singleton (note: x,y,z here!)
+        ignore_dim = np.array([d for d in img.shape][-1::-1]) == 1
+        
         setts = data.measurementSettings[self.configuration]
 
         offsOld = np.array([filter_dict(
@@ -153,16 +162,29 @@ class SimpleNucleusMidplaneDetector():
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
 
+        if self.verbose:
+            print('Nucleus Detection:')
+            print('old offset: {}'.format(offsOld))
+            print('old len: {}'.format(lensOld))
+            print('old psz: {}'.format(pszOld))
+            
         midplanes = nucleus_midplane_detection(img, 0, self.filt, self.do_plot, True)
 
         res = []
 
         for (ymin, xmin, ymax, xmax, zmid) in midplanes:
 
+            if self.verbose:
+                print('pixel result: {}'.format((ymin, xmin, ymax, xmax, zmid)))
+            
             # get offset and fov in world units
-            off = np.array([(xmax-xmin)/2, (ymax-ymin)/2, zmid], dtype=np.float)
-            off = _correct_offset(off, offsOld, lensOld, pszOld)
-            fov = [(xmax - xmin)*pszOld[0], (ymax - ymin)*pszOld[1], None]
+            off = np.array([(xmax+xmin)/2, (ymax+ymin)/2, zmid], dtype=np.float)
+            
+            if self.verbose:
+                print('pixel off: {}'.format(off))
+                
+            off = _correct_offset(off, offsOld, lensOld, pszOld, ignore_dim)
+            fov = [(xmax - xmin)*pszOld[0]*self.expand, (ymax - ymin)*pszOld[1]*self.expand, None]
 
             if self.verbose:
                 print(self.__class__.__name__ + ': Found Nucleus at {}, FOV: {}'.format(off, fov))
