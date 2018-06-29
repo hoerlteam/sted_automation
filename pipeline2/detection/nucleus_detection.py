@@ -52,6 +52,8 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
     # max project along z
     # use gamma corrected mip, blur and edge images as features
     mip = np.apply_along_axis(np.max, axis, img)
+    if bg_val is not None:
+        mip[mip==bg_val] = 0
     mip = rescale_intensity(mip)
     mip = adjust_gamma(mip, 0.5)
     blur = ndi.gaussian_filter(mip, 3)
@@ -65,7 +67,11 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
         seg = km.fit_predict(feat).reshape(mip.shape)
     else:
         mip2 = np.apply_along_axis(np.max, axis, img)
+        test = mip[mip2 != bg_val]
+        print(test.shape)
         feat = np.dstack([mip[mip2 != bg_val], blur[mip2 != bg_val], edge[mip2 != bg_val]])
+        print(feat.shape)
+        feat = feat.reshape((-1,3))
         km = KMeans(2)
         seg_tmp = km.fit_predict(feat)
         seg = np.zeros_like(mip)
@@ -78,6 +84,8 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
     # ignore objects touching the border
     if ignore_border:
         seg = clear_border(seg)
+        
+    # TODO: remove objects touching the bg_val area!
 
     # cleanup labels (erosion, size filtering)
     seg = erosion(seg, disk(3))

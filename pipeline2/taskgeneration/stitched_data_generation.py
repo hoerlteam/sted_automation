@@ -16,7 +16,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
     """
 
     def __init__(self, pipeline, level, channel=0, configuration=0):
-        super().__init__(self, pipeline, level)
+        super().__init__(pipeline, level)
         self.channel = channel
         self.configuration = configuration
 
@@ -40,6 +40,8 @@ class StitchedNewestDataSelector(NewestDataSelector):
         idxes_same_level = [idx for idx in self.pipeline.data.keys() if
                             len(idx) == len_of_idx and idx != latestMeasurementIdx]
 
+        
+        print('Virtual BBOX ref: {}, {}'.format(min_r, len_r))
         # get all overlapping data
         data_other = []
         for idx in idxes_same_level:
@@ -48,6 +50,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
             # virtual bbox of image
             setts_i = data_other_i.measurementSettings[self.configuration]
             (min_i, len_i) = _virtual_bbox_from_settings(setts_i)
+            print('Virtual BBOX test: {}, {}'.format(min_i, len_i))
 
             # check overlap
             overlap = (_get_overlaps(len_r, len_i, min_r, min_i)) is not None
@@ -97,16 +100,16 @@ class StitchedNewestDataSelector(NewestDataSelector):
             stitch_setts = update_dicts(stitch_setts, gen_json(offs_scan[i] + additional_off[i], 'ExpControl/scan/range/{}/off'.format(d)))
 
         # add singleton (T) dimension
-        res_img = np.reshape((1, ) + stitched.shape)
+        res_img = stitched.reshape((1, ) + stitched.shape)
         # add None for images of other channels
-        res_data = [None] * self.channel + res_img + [None] * (len(data_newest[self.configuration]) - 1)
+        res_data = [None] * self.channel + [res_img] + [None] * (len(data_newest.data[self.configuration]) - (self.channel + 1))
 
         # wrap results, use None for other configs
         res = RichData()
         for _ in range(self.configuration):
             res.append(None, None, None)
         res.append(data_newest.globalSettings[self.configuration], stitch_setts, res_data)
-        for _ in range(len(data_newest.globalSettings)-1):
+        for _ in range(len(data_newest.globalSettings)-(self.configuration + 1)):
             res.append(None, None, None)
 
         return res
@@ -179,8 +182,8 @@ def _get_overlaps(len1, len2, off1=None, off2=None):
     r_max = []
 
     for d in range(len(len1)):
-        min_1 = off_1[d]
-        min_2 = off_2[d]
+        min_1 = off1[d]
+        min_2 = off2[d]
         max_1 = min_1 + len1[d]
         max_2 = min_2 + len2[d]
 
