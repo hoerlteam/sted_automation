@@ -12,3 +12,5 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              DefaultFOVSettingsGenerator,
                              DefaultScanModeSettingsGenerator,
                              DefaultScanFieldSettingsGenerator)
+
+from .stitched_data_generation import StitchedNewestDataSelector

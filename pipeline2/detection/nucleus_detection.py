@@ -16,7 +16,7 @@ from ..util import filter_dict
 from .detection import _correct_offset
 
 
-def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_border=True):
+def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
     """
     Detect midplanes of nuclei in image stack
 
@@ -33,6 +33,8 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
         whether to plot the segmentation or not
     ignore_border: boolean
         whether to ignore object on the image border or not
+    bg_val: numeric
+        value of empty background (e.g. in stitched images), will be ignored in segmentation
 
     Returns
     -------
@@ -56,10 +58,18 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
     edge = sobel(mip)
 
     # 2-means clustering of features for segmentation
-    feat = np.dstack([mip, blur, edge])
-    feat = feat.reshape((np.prod(feat.shape[:-1]), feat.shape[-1]))
-    km = KMeans(2)
-    seg = km.fit_predict(feat).reshape(mip.shape)
+    if bg_val is None:
+        feat = np.dstack([mip, blur, edge])
+        feat = feat.reshape((np.prod(feat.shape[:-1]), feat.shape[-1]))
+        km = KMeans(2)
+        seg = km.fit_predict(feat).reshape(mip.shape)
+    else:
+        mip2 = np.apply_along_axis(np.max, axis, img)
+        feat = np.dstack([mip[mip2 != bg_val], blur[mip2 != bg_val], edge[mip2 != bg_val]])
+        km = KMeans(2)
+        seg_tmp = km.fit_predict(feat)
+        seg = np.zeros_like(mip)
+        seg[mip2 != bg_val] = seg_tmp
 
     # k-Means might call backround 0 and foreground 1
     if (np.mean(mip[seg == 0]) > np.mean(mip[seg == 1])):
@@ -168,7 +178,7 @@ class SimpleNucleusMidplaneDetector():
             print('old len: {}'.format(lensOld))
             print('old psz: {}'.format(pszOld))
             
-        midplanes = nucleus_midplane_detection(img, 0, self.filt, self.do_plot, True)
+        midplanes = nucleus_midplane_detection(img, 0, self.filt, self.do_plot, True, -1)
 
         res = []
 
