@@ -83,7 +83,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         len_orig_half = np.array(list(reversed(img.shape)), dtype=float)/2
         len_stitched_half = np.array(list(reversed(stitched.shape)), dtype=float)/2
 
-        additional_off = len_stitched_half - len_orig_half - min_rev
+        additional_off = len_stitched_half - (len_orig_half - min_rev)
 
         # to pixel units
         offs_scan = np.array([filter_dict(
