@@ -40,6 +40,7 @@ class AcquisitionTaskGenerator():
         self.level = level
         self.updateGens = updateGens
         self.delay = 0
+        self.taskFilters = []
 
     def withDelay(self, delay):
         """
@@ -47,6 +48,11 @@ class AcquisitionTaskGenerator():
         (e.g. to wait for the stage to move)
         """
         self.delay = delay
+        return self
+
+    def withFilters(self, *filters):
+        for filter in filters:
+            self.taskFilters.append(filter)
         return self
 
     def __call__(self, pipeline):
@@ -63,6 +69,10 @@ class AcquisitionTaskGenerator():
         if minMeasurements == 0:
             return
 
+        # update the filters
+        for filt in self.taskFilters:
+            filt.update()
+
         for _ in range(maxMeasurements):
 
             # broadcast configurations within measurements
@@ -77,7 +87,18 @@ class AcquisitionTaskGenerator():
                 finalConfs.append([next(upd) for upd in cyclesConfig])
 
             # print(json.dumps(finalConfs, indent=2))
-            pipeline.queue.put(AcquisitionTask(self.level).withUpdates(finalConfs).withDelay(self.delay), self.level)
+            task = AcquisitionTask(self.level).withUpdates(finalConfs).withDelay(self.delay)
+
+            # reject task if it does not conform to a filter
+            skip = False
+            for filt in self.taskFilters:
+                if not filt.conforms(task):
+                    skip = True
+            if skip:
+                continue
+
+
+            pipeline.queue.put(task, self.level)
 
 
 class AcquisitionTask():
