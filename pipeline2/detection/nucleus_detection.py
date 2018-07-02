@@ -5,7 +5,7 @@ from skimage.color import label2rgb
 from skimage.filters import sobel
 from skimage.exposure import rescale_intensity, adjust_gamma
 from skimage.measure import regionprops
-from skimage.morphology import erosion, disk
+from skimage.morphology import erosion, disk, dilation, square
 from skimage.segmentation import relabel_sequential, clear_border
 from sklearn.cluster import KMeans
 
@@ -85,7 +85,21 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
     if ignore_border:
         seg = clear_border(seg)
         
-    # TODO: remove objects touching the bg_val area!
+    # remove objects touching the bg_val area
+    if bg_val is not None:
+        mip2 = np.max(img, axis=axis)
+        # we dilate the bg_val area by one pixel and the get all unique labels in that area
+        bg_dil_mask = dilation(mip2==bg_val, square(3))
+        labels, n_objs = ndi.label(seg)
+        labels_touching_bg = set(list(np.unique(labels[bg_dil_mask])))
+
+        # new mask, setting only objects with labels not in set of background-touching labels
+        seg2 = np.zeros_like(seg)
+        for rprop in regionprops(labels):
+            if not rprop.label in labels_touching_bg:
+                (min_row, min_col, max_row, max_col) = rprop.bbox
+                seg2[min_row:max_row, min_col:max_col][rprop.image]=1
+        seg = seg2
 
     # cleanup labels (erosion, size filtering)
     seg = erosion(seg, disk(3))
