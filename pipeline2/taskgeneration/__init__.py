@@ -14,3 +14,5 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              DefaultScanFieldSettingsGenerator)
 
 from .stitched_data_generation import StitchedNewestDataSelector
+
+from .task_filtering import AlreadyImagedFOVFilter
