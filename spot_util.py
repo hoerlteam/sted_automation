@@ -91,7 +91,7 @@ def cleanup_kdtree(img, kdt, dets, dist):
                 break
         
 
-def find_pairs(kdt2, dets1, dets2, dist, invertAxes=True, center=True):
+def find_pairs(kdt2, dets1, dets2, dist, invertAxes=True, center=True, return_pair=False):
     res = []
     for d in dets1:
         # find nearest neighbor in channel 2, if it is closer than dist
@@ -99,9 +99,15 @@ def find_pairs(kdt2, dets1, dets2, dist, invertAxes=True, center=True):
         if not (np.isinf(nn[0]) or nn[1] >= len(dets2)):
             # dets were in zyx -> turn to xyz
             if invertAxes:
-                res.append((np.array(d[-1::-1]) + np.array(dets2[nn[1]][-1::-1])) / 2 if center else d[-1::-1])
+                if return_pair:
+                    res.append((d[-1::-1], dets2[nn[1]][-1::-1]))
+                else:
+                    res.append((np.array(d[-1::-1]) + np.array(dets2[nn[1]][-1::-1])) / 2 if center else d[-1::-1])
             else:
-                res.append((np.array(d) + np.array(dets2[nn[1]])) / 2 if center else d)
+                if return_pair:
+                    res.append(d, dets2[nn[1]])
+                else:
+                    res.append((np.array(d) + np.array(dets2[nn[1]])) / 2 if center else d)
     return res
 
 
@@ -170,7 +176,7 @@ def pair_finder_yellow_inner(stack1, stack2, pix_sig, threshold, invertAxes, nor
             res.append(list(p))
     return res
 
-def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize, median_thresholds, median_radius):
+def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize, median_thresholds, median_radius, return_pair=False):
     # detect blobs via Laplacian-of-Gaussian (only blobs brighter than threshold)
     sig = pix_sig / np.sqrt(2)
     dets1 = detect_blobs(stack1, [sig, sig, sig], threshold[0], normalize, median_thresholds[0], median_radius)
@@ -197,8 +203,8 @@ def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize,
 
     # for every remaining spot in image1, return a candidate pair if there is a spot in channel 2 that is closer than 5 pixels to it
     res = []
-    for p in find_pairs(kd2, dets1, dets2, 5, invertAxes):
-        res.append(list(p))
+    for p in find_pairs(kd2, dets1, dets2, 5, invertAxes, return_pair):
+        res.append(list(p) if not return_pair else p)
     return res
 
 

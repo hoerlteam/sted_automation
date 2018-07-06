@@ -359,6 +359,35 @@ class DefaultScanOffsetsSettingsGenerator():
             return [reduce(add, res)]
 
 
+class PairedDefaultScanOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
+    def __init__(self, locationGenerator, asMeasurements=True, fun=None, repeat_channel=1):
+        self.repeat_channel = repeat_channel
+        super().__init__(locationGenerator, asMeasurements, fun)
+
+    def __call__(self):
+        locs = self.fun()
+
+        res = []
+        for loc1, loc2 in locs:
+            resD1 = {}
+            resD2 = {}
+            path = cycle(self._paths)
+            for l1, l2 in zip(loc1, loc2):
+                p = next(path)
+
+                # components of loc may be noe, e.g. if we only want to update z
+                if l1 is None or l2 is None:
+                    continue
+                resD1 = update_dicts(resD1, gen_json(l1, p))
+                resD2 = update_dicts(resD2, gen_json(l2, p))
+            res.extend([(resD1, {})] * self.repeat_channel + [(resD2, {})] * self.repeat_channel)
+        if self.asMeasurements:
+            return res
+        else:
+            return [reduce(add, res)]
+
+
+
 class DefaultScanFieldSettingsGenerator():
 
     _paths_off = ['ExpControl/scan/range/x/off',

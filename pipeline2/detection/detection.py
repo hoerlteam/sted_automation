@@ -204,7 +204,7 @@ class LegacySpotPairFinder():
     of scan coordinates (stage coordinates are ignored)
     """
 
-    def __init__(self, dataSource, sigma, thresholds, medianThresholds=[3, 3], medianRadius=5):
+    def __init__(self, dataSource, sigma, thresholds, medianThresholds=[3, 3], medianRadius=5, channels=(0,1)):
         self.dataSource = dataSource
         self.sigma = sigma
         self.thresholds = thresholds
@@ -212,6 +212,7 @@ class LegacySpotPairFinder():
         self.medianRadius = medianRadius
         self.plotDetections = False
         self.verbose = False
+        self.channels = channels
 
     def withPlotDetections(self, plotDetections=True):
         self.plotDetections = plotDetections
@@ -245,8 +246,8 @@ class LegacySpotPairFinder():
         if (data.numConfigurations < 1) or (data.numImages(0) < 2):
             raise ValueError(
                 'too few images for LegacySpotPairFinder. The RichData provided needs to have two images in the first configuration.')
-        stack1 = data.data[0][0][0, :, :, :]
-        stack2 = data.data[0][1][0, :, :, :]
+        stack1 = data.data[0][self.channels[0]][0, :, :, :]
+        stack2 = data.data[0][self.channels[1]][0, :, :, :]
 
         # make float
         stack1 = np.array(stack1, np.float)
@@ -276,6 +277,48 @@ class LegacySpotPairFinder():
 
         return corrected
 
+
+class PairedLegacySpotPairFinder(LegacySpotPairFinder):
+
+    def get_locations(self):
+        data = self.dataSource.get_data()
+        if (data.numConfigurations < 1) or (data.numImages(0) < 2):
+            raise ValueError(
+                'too few images for LegacySpotPairFinder. The RichData provided needs to have two images in the first configuration.')
+        stack1 = data.data[0][self.channels[0]][0, :, :, :]
+        stack2 = data.data[0][self.channels[1]][0, :, :, :]
+
+        # make float
+        stack1 = np.array(stack1, np.float)
+        stack2 = np.array(stack2, np.float)
+
+        setts = data.measurementSettings[0]
+
+        pairsRaw = pair_finder_inner(stack1, stack2, self.sigma, self.thresholds, True, False, self.medianThresholds,
+                                     self.medianRadius, True)
+
+        if self.verbose:
+            print(self.__class__.__name__ + ': found {} spot pairs. pixel coordinates:'.format(len(pairsRaw)))
+            for pr in pairsRaw:
+                print(pr)
+
+        # plot
+        if self.plotDetections:
+            self.doPlot([list((np.array(p[0]) + np.array(p[2]))/2) for p in pairsRaw], stack1, stack2)
+
+        ignore_dim = np.array([d for d in stack1.shape][-1::-1]) == 1
+
+        corrected_1 = self.correctForOffset([p[0] for p in pairsRaw], setts, ignore_dim)
+        corrected_2 = self.correctForOffset([p[1] for p in pairsRaw], setts, ignore_dim)
+
+        corrected = list(zip(corrected_1, corrected_2))
+
+        if self.verbose:
+            print(self.__class__.__name__ + ': found {} spot pairs. offsets:'.format(len(pairsRaw)))
+            for pc in corrected:
+                print(pc)
+
+        return corrected
 
 class ZDCSpotPairFinder(LegacySpotPairFinder):
 
