@@ -203,7 +203,7 @@ def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize,
 
     # for every remaining spot in image1, return a candidate pair if there is a spot in channel 2 that is closer than 5 pixels to it
     res = []
-    for p in find_pairs(kd2, dets1, dets2, 5, invertAxes, return_pair):
+    for p in find_pairs(kd2, dets1, dets2, 5, invertAxes, return_pair=return_pair):
         res.append(list(p) if not return_pair else p)
     return res
 

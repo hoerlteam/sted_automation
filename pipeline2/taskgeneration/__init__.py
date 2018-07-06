@@ -11,7 +11,8 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              BoundingBoxLocationGrouper,
                              DefaultFOVSettingsGenerator,
                              DefaultScanModeSettingsGenerator,
-                             DefaultScanFieldSettingsGenerator)
+                             DefaultScanFieldSettingsGenerator,
+                             PairedDefaultScanOffsetsSettingsGenerator)
 
 from .stitched_data_generation import StitchedNewestDataSelector
 

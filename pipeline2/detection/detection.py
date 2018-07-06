@@ -238,7 +238,7 @@ class LegacySpotPairFinder():
         res = []
         for pair in pairsPixel:
             pairT = np.array(pair, dtype=float)
-            res.append(_correct_offset(pairT, offsOld, lensOld, ignore_dim))
+            res.append(_correct_offset(pairT, offsOld, lensOld, pszOld, ignore_dim))
         return res
 
     def get_locations(self):
@@ -304,7 +304,7 @@ class PairedLegacySpotPairFinder(LegacySpotPairFinder):
 
         # plot
         if self.plotDetections:
-            self.doPlot([list((np.array(p[0]) + np.array(p[2]))/2) for p in pairsRaw], stack1, stack2)
+            self.doPlot([list((np.array(p[0]) + np.array(p[1]))/2) for p in pairsRaw], stack1, stack2)
 
         ignore_dim = np.array([d for d in stack1.shape][-1::-1]) == 1
 

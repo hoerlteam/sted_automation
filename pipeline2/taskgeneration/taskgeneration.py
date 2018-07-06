@@ -380,7 +380,7 @@ class PairedDefaultScanOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenera
                     continue
                 resD1 = update_dicts(resD1, gen_json(l1, p))
                 resD2 = update_dicts(resD2, gen_json(l2, p))
-            res.extend([(resD1, {})] * self.repeat_channel + [(resD2, {})] * self.repeat_channel)
+            res.append([(resD1, {})] * self.repeat_channel + [(resD2, {})] * self.repeat_channel)
         if self.asMeasurements:
             return res
         else:
