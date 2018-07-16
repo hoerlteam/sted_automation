@@ -41,7 +41,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
                             len(idx) == len_of_idx and idx != latestMeasurementIdx]
 
         
-        print('Virtual BBOX ref: {}, {}'.format(min_r, len_r))
+        #print('Virtual BBOX ref: {}, {}'.format(min_r, len_r))
         # get all overlapping data
         data_other = []
         for idx in idxes_same_level:
@@ -50,7 +50,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
             # virtual bbox of image
             setts_i = data_other_i.measurementSettings[self.configuration]
             (min_i, len_i) = _virtual_bbox_from_settings(setts_i)
-            print('Virtual BBOX test: {}, {}'.format(min_i, len_i))
+            #print('Virtual BBOX test: {}, {}'.format(min_i, len_i))
 
             # check overlap
             overlap = (_get_overlaps(len_r, len_i, min_r, min_i)) is not None
@@ -77,7 +77,9 @@ class StitchedNewestDataSelector(NewestDataSelector):
         off = [0] * len(img.shape)
 
         # stitch
-        stitched, shift, min = stitch(img, imgs_other, off, offs_other)
+        stitched, shift, min, corrs = stitch(img, imgs_other, off, offs_other)
+        
+        print('corrs: {}'.format(corrs))
 
         min_rev = np.array(list(reversed(min)), dtype=float)
         len_orig_half = np.array(list(reversed(img.shape)), dtype=float)/2
