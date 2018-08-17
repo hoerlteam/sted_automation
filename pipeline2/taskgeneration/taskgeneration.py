@@ -580,7 +580,8 @@ class JSONFileConfigLoader():
                 raise ValueError('length of settings and measurement configs dont match')
             for sFile in settingsConfigFileNames:
                 with open(sFile, 'r') as fd:
-                    self.settingsConfigs.append(json.load(fd))
+                    d = json.load(fd)
+                    self.settingsConfigs.append(d)
     
     def __call__(self):
         res = []

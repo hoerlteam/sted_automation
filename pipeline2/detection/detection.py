@@ -1,6 +1,7 @@
 from spot_util import pair_finder_inner, detect_blobs, focus_in_stack
 import numpy as np
 import collections
+from itertools import cycle
 from matplotlib import pyplot as plt
 
 from ..util import filter_dict
@@ -22,6 +23,39 @@ class SimpleLocationRepeater():
                 res.append(loc)
         
         return res
+    
+    
+class SimpleManualOffset():
+    
+    def __init__(self, locationProvider, offset):
+        self.locationProvider = locationProvider
+        self.offset = np.array(offset, dtype=np.float)
+        
+    def get_locations(self):
+        locs = self.locationProvider.get_locations()
+        res = []
+        
+        offset_cycler = cycle(self.offset)
+        for loc in locs:
+            
+            if isinstance(loc, tuple):
+                ri_tup = []
+                for li in loc:
+                    ri = []
+                    for coord in li:
+                        off_i = next(offset_cycler)
+                        ri.append(None if coord is None else coord + off_i)
+                    ri_tup.append(ri)
+                res.append(tuple(ri_tup))
+            
+            else:
+                ri = []
+                for coord in loc:
+                    off_i = next(offset_cycler)
+                    ri.append(None if coord is None else coord + off_i)
+                res.append(ri)
+        return res
+        
         
     
 

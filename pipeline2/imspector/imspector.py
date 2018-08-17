@@ -1,3 +1,6 @@
+import json
+import re
+
 from ..util import update_dicts, filter_dict
 import numpy as np
 import time
@@ -10,6 +13,46 @@ try:
 except ImportError:
     Imspector = MagicMock()
 
+
+class ParameterSanitizer:
+    
+    def __init__(self):
+        self.paths_to_drop = []
+        self.pattern_parent = re.compile("Invalid argument for (?:device|parameter) '(.*?)'")
+        self.pattern_last = re.compile("No parameter '(.*?)'")
+        
+    def parse_runtime_error(self, e):        
+        lines = e.args[0].split('\n')
+        print(lines)
+        pars = [self.pattern_parent.match(l).groups()[0] for l in lines[:-1]]
+        m = self.pattern_last.match(lines[-1])
+        if m:
+            pars.append(m.groups()[0])
+            
+        self.paths_to_drop.append(pars)
+        print('WARNING: parameter {} cannot be set, ignoring from here on'.format(pars))
+        
+    def sanitize(self, p):
+        for par in self.paths_to_drop:
+            ParameterSanitizer.del_recursive(p, par)
+
+    @staticmethod
+    def del_recursive(d, params):
+        for i in range(len(params) - 1):
+            d = d[params[i]]
+        if params[-1] in d:
+            del d[params[-1]]
+            
+            
+def set_parameters_nofail(target, sanitizer, pars):
+    done = False
+    while not done:
+        try:
+            sanitizer.sanitize(pars)
+            target.set_parameters('', pars)
+            done = True
+        except RuntimeError as e:
+            sanitizer.parse_runtime_error(e) 
 
 
 class MockImspectorConnection():
@@ -25,6 +68,8 @@ class ImspectorConnection():
     def __init__(self, im):
         self.im = im
         self.verbose = False
+        self.sanitizer_im = ParameterSanitizer()
+        self.sanitizer_ms = ParameterSanitizer()
 
     def withVerbose(self, verbose=True):
         self.verbose = verbose
@@ -47,14 +92,14 @@ class ImspectorConnection():
         confUpdates = update_dicts(*confUpdates)
 
         # we do the update twice to also set grayed-out values
-        ms.set_parameters('', measUpdates)
+        set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         time.sleep(halfDelay)
-        self.im.set_parameters('', confUpdates)
+        set_parameters_nofail(im, self.sanitizer_im, confUpdates)
         # wait if requested
         time.sleep(halfDelay)
-        ms.set_parameters('', measUpdates)
+        set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         time.sleep(halfDelay)
-        self.im.set_parameters('', confUpdates)
+        set_parameters_nofail(im, self.sanitizer_im, confUpdates)
         # wait again if requested
         time.sleep(halfDelay)
 
@@ -76,12 +121,14 @@ class ImspectorConnection():
         confUpdates = update_dicts(*confUpdates)
 
         # we do the update twice to also set grayed-out values
-        ms.set_parameters('', measUpdates)
-        self.im.set_parameters('', confUpdates)
+        set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        time.sleep(halfDelay)
+        set_parameters_nofail(im, self.sanitizer_im, confUpdates)
         # wait if requested
         time.sleep(halfDelay)
-        ms.set_parameters('', measUpdates)
-        self.im.set_parameters('', confUpdates)
+        set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        time.sleep(halfDelay)
+        set_parameters_nofail(im, self.sanitizer_im, confUpdates)
         # wait again if requested
         time.sleep(halfDelay)
 
