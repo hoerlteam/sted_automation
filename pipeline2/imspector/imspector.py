@@ -39,7 +39,10 @@ class ParameterSanitizer:
     @staticmethod
     def del_recursive(d, params):
         for i in range(len(params) - 1):
-            d = d[params[i]]
+            if params[i] in d:
+                d = d[params[i]]
+            else:
+                break
         if params[-1] in d:
             del d[params[-1]]
             
@@ -94,12 +97,12 @@ class ImspectorConnection():
         # we do the update twice to also set grayed-out values
         set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         time.sleep(halfDelay)
-        set_parameters_nofail(im, self.sanitizer_im, confUpdates)
+        set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
         # wait if requested
         time.sleep(halfDelay)
         set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         time.sleep(halfDelay)
-        set_parameters_nofail(im, self.sanitizer_im, confUpdates)
+        set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
         # wait again if requested
         time.sleep(halfDelay)
 
@@ -123,12 +126,12 @@ class ImspectorConnection():
         # we do the update twice to also set grayed-out values
         set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         time.sleep(halfDelay)
-        set_parameters_nofail(im, self.sanitizer_im, confUpdates)
+        set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
         # wait if requested
         time.sleep(halfDelay)
         set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         time.sleep(halfDelay)
-        set_parameters_nofail(im, self.sanitizer_im, confUpdates)
+        set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
         # wait again if requested
         time.sleep(halfDelay)
 
