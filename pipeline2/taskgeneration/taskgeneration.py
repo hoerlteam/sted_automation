@@ -38,7 +38,10 @@ class AcquisitionTaskGenerator():
     def __init__(self, level, *updateGens):
 
         self.level = level
-        self.updateGens = updateGens
+        # ignore update generators that are None
+        # that way, we can safely pass None to constructor
+        # e.g. when no parameter change is desired by the user
+        self.updateGens = [u for u in updateGens if u is not None]
         self.delay = 0
         self.taskFilters = []
 
