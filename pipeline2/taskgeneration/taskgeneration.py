@@ -238,13 +238,28 @@ class DefaultFOVSettingsGenerator():
     def __call__(self):
 
         res = []
-        for l, psz in zip(self.lengths, self.pixelSizes ):
+
+        if (self.lengths is None) and (self.pixelSizes is None):
+            return [[({},{})]]
+
+        _lengths = self.lengths
+        _pixelSizes = self.pixelSizes
+
+        if self.lengths is None:
+            _lengths = [None] * len(self.pixelSizes)
+
+        if self.pixelSizes is None:
+            _pixelSizes = [None] * len(self.lengths)
+
+        for l, psz in zip(_lengths, _pixelSizes ):
             resD = {}
             paths = cycle(zip(self._paths_len, self._paths_psz))
-            for l_i, psz_i in zip(l, psz):
+            for l_i, psz_i in zip(l if l is not None else [None] * len(psz), psz if psz is not None else [None] * len(l)):
                 path_l, path_psz = next(paths)
-                resD = update_dicts(resD, gen_json(l_i, path_l))
-                resD = update_dicts(resD, gen_json(psz_i, path_psz))
+                if l_i is not None:
+                    resD = update_dicts(resD, gen_json(l_i, path_l))
+                if psz_i is not None:
+                    resD = update_dicts(resD, gen_json(psz_i, path_psz))
             res.append([(resD, {})])
         if self.asMeasurements:
             return res
