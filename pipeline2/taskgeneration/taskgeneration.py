@@ -251,6 +251,41 @@ class DefaultFOVSettingsGenerator():
         else:
             return [reduce(add, res)]
 
+        
+class DifferentFirstFOVSettingsGenerator(DefaultFOVSettingsGenerator):
+    """
+    SettingsGenerator to set field of view (FOV) to defined length and pixel size.
+    A separate length can be set for the first FOV (e.g. to scan a larger z stack
+    after moving a large distance)
+    
+    Parameters
+    ----------
+    lengths : iterable of 3d-vectors
+        lengths of the FOVs to image
+    pixelSizes : iterable of 3d-vectors
+        pixel sizes of FOVs to image
+    firstLengths: iterable of 3d-vectors, optional
+        lengths of the first FOV
+    asMeasurements: boolean
+        if more than one FOV is specified: whether to create multiple `measurements` or
+        multiple `configurations` in one measurement
+    """
+    
+    def __init__(self, lengths, pixelSizes, firstLengths=None, asMeasurements=True):
+        self.first_measurement = True
+        super().__init__(lengths, pixelSizes, asMeasurements)
+        self.first_lengths = self.lengths if firstLengths is None else firstLengths
+        
+    def __call__(self):
+        if self.first_measurement:
+            lens_temp = self.lengths
+            self.lengths = self.first_lengths
+        res = super().__call__()
+        if self.first_measurement:
+            self.lengths = lens_temp
+            self.first_measurement = False
+        return res    
+    
 class DefaultScanModeSettingsGenerator():
     """
     SettingsGenerator to set the scan mode (e.g xy, xyz, xy,...)
