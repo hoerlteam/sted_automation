@@ -457,7 +457,7 @@ class DefaultScanFieldSettingsGenerator():
                   'ExpControl/scan/range/z/psz'
                   ]
 
-    def __init__(self, fieldGenerator, pszs, asMeasurements=True, fun=None):
+    def __init__(self, fieldGenerator, pszs=None, asMeasurements=True, fun=None):
 
         self.fieldGenerator = fieldGenerator
         self.asMeasurements = asMeasurements
@@ -479,9 +479,12 @@ class DefaultScanFieldSettingsGenerator():
 
         res = []
         for loc, fov in fields:
+
+            pszs_t = [None] * len(loc) if self.pszs is None else self.pszs
+
             resD = {}
             path = cycle(zip(self._paths_off, self._paths_psz, self._paths_len))
-            for off, psz, fov_len in zip(loc, self.pszs, fov):
+            for off, psz, fov_len in zip(loc, pszs_t, fov):
                 po, ppsz, pl =  next(path)
 
                 # components of loc may be None, e.g. if we only want to update z
