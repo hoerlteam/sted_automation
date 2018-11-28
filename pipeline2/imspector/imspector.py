@@ -18,7 +18,7 @@ class ParameterSanitizer:
     
     def __init__(self):
         self.paths_to_drop = []
-        self.pattern_parent = re.compile("Invalid argument for (?:device|parameter) '(.*?)'")
+        self.pattern_parent = re.compile("(?:Internal error: )?Invalid argument for (?:device|parameter) '(.*?)'")
         self.pattern_last = re.compile("No parameter '(.*?)'")
         
     def parse_runtime_error(self, e):        

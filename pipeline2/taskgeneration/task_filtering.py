@@ -6,10 +6,11 @@ from ..taskgeneration.stitched_data_generation import _virtual_bbox_from_setting
 
 class AlreadyImagedFOVFilter():
 
-    def __init__(self, pipeline, level, iou_thresh):
+    def __init__(self, pipeline, level, iou_thresh, z_ignore=False):
         self.iou_thresh = iou_thresh
         self.pipeline = pipeline
         self.lvl = level
+        self.z_ignore = z_ignore
 
         # init old BBox list
         self.old_bboxes = []
@@ -28,7 +29,8 @@ class AlreadyImagedFOVFilter():
         # if any overlap > IOU threshold: return False, else True
         for bbox in bboxes_new:
             for bbox_old in self.old_bboxes:
-                if self.get_iou(bbox, bbox_old) > self.iou_thresh:
+                #print('check against old BBOX IOU: {}'.format(self.get_iou(bbox, bbox_old, self.ignore_z)))
+                if self.get_iou(bbox, bbox_old, self.z_ignore) > self.iou_thresh:
                     return False
         return True
 
@@ -36,7 +38,6 @@ class AlreadyImagedFOVFilter():
         """
         get BBoxes for all existing acquisitions
         """
-
         # rest list
         self.old_bboxes.clear()
 
@@ -51,11 +52,15 @@ class AlreadyImagedFOVFilter():
                 (min_i, len_i) = _virtual_bbox_from_settings(setts_i)
                 self.old_bboxes.append((min_i, len_i))
 
+                
     @staticmethod
-    def get_iou(bbox1, bbox2):
+    def get_iou(bbox1, bbox2, z_ignore=False):
         (min1, len1) = bbox1
         (min2, len2) = bbox2
 
+        #print(bbox1)
+        #print(bbox2)
+            
         overlap = _get_overlaps(len1, len2, min1, min2)
 
         # no overlap
@@ -63,6 +68,14 @@ class AlreadyImagedFOVFilter():
             return 0
 
         r_min, r_max = overlap
+        
+        # if user decided to ignore z, use only x & y
+        if z_ignore:
+            r_min = r_min[:-1]
+            r_max = r_max[:-1]
+            len1 = len1[:-1]
+            len2 = len2[:-1]
+            
         len_ol = np.array(r_max, dtype=float) - np.array(r_min, dtype=float)
         area_o = np.prod(len_ol)
         area_u = np.prod(len1) + np.prod(len2) - area_o
