@@ -1,5 +1,6 @@
 import json
 import re
+from warnings import warn
 
 from ..util import update_dicts, filter_dict
 import numpy as np
@@ -13,6 +14,8 @@ try:
 except ImportError:
     Imspector = MagicMock()
 
+# new error message that appeared with the addition of 'Powerswitch'
+_unknown_device_error = re.compile("Internal error: Unknown device or parameter '(.*?)'")
 
 class ParameterSanitizer:
     
@@ -24,6 +27,18 @@ class ParameterSanitizer:
     def parse_runtime_error(self, e):        
         lines = e.args[0].split('\n')
         print(lines)
+
+        # check for unknown device error
+        m_unknown_device = _unknown_device_error.match(lines[0])
+        if m_unknown_device:
+            # add device to ignored list
+            par_dev_unknown = [m_unknown_device.groups()[0]]
+            self.paths_to_drop.append(par_dev_unknown)
+
+            # notify user and quit further parsing of this error
+            print('WARNING: parameter {} cannot be set, ignoring from here on'.format(par_dev_unknown))
+            return
+
         pars = [self.pattern_parent.match(l).groups()[0] for l in lines[:-1]]
         m = self.pattern_last.match(lines[-1])
         if m:
@@ -38,6 +53,12 @@ class ParameterSanitizer:
 
     @staticmethod
     def del_recursive(d, params):
+
+        # ignore empty, but warn
+        if len(params)==0:
+            warn('WARNING: tried to remove empty parameter (this is probably okay, but should not happen - look into it!)')
+            return
+
         for i in range(len(params) - 1):
             if params[i] in d:
                 d = d[params[i]]
