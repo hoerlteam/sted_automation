@@ -207,6 +207,42 @@ class BoundingBoxLocationGrouper():
         return res
 
 
+class LocalizationNumberFilter():
+    """
+    Wrapper for a locationGenerator that will discard all localizations, if there are too few or too many
+
+    Parameters
+    ----------
+    locationGenerator : object implementing `get_locations`
+        generator of locations
+    min: int, optional
+        minimum number of localizations
+    max: int, optional
+        maximum number of localizations
+    """
+    def __init__(self, locationGenerator, min=None, max=None):
+        self.locationGenerator = locationGenerator
+        self.min = min
+        self.max = max
+        self.verbose = False
+
+    def withVerbos(self, verbose=True):
+        self.verbose = verbose
+        return self
+
+    def get_locations(self):
+        locs = self.locationGenerator.get_locations()
+        n_locs = len(locs)
+
+        # return all or nothing, depending on number of locs
+        if self.min is not None and n_locs < self.min:
+            return []
+        elif self.max is not None and n_locs > self.max:
+            return []
+        else:
+            return locs
+
+
 class DefaultFOVSettingsGenerator():
     """
     SettingsGenerator to set field of view (FOV) to defined length and pixel size. 
