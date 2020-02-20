@@ -503,9 +503,9 @@ class DefaultScanFieldSettingsGenerator():
 
 
 class DefaultStageOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    _paths = ['ExpControl/scan/range/offsets/coarse/x/g_off',
-              'ExpControl/scan/range/offsets/coarse/y/g_off',
-              'ExpControl/scan/range/offsets/coarse/z/g_off']
+    _paths = ['ExpControl/scan/range/coarse_x/g_off',
+              'ExpControl/scan/range/coarse_y/g_off',
+              'ExpControl/scan/range/coarse_z/g_off']
 
 class ZDCOffsetSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
     _paths = ['ExpControl/scan/range/x/off',
@@ -520,7 +520,12 @@ class DefaultLocationKeeper():
     output of a settings generator.
     """
 
-    _filtersToKeep = ['ExpControl/scan/range/offsets',
+    _filtersToKeep = [  'ExpControl/scan/range/coarse_x/off',
+                        'ExpControl/scan/range/coarse_x/g_off',
+                        'ExpControl/scan/range/coarse_y/off',
+                        'ExpControl/scan/range/coarse_y/g_off',
+                        'ExpControl/scan/range/coarse_z/off',
+                        'ExpControl/scan/range/coarse_z/g_off',
                         'ExpControl/scan/range/x/off',
                         'ExpControl/scan/range/x/g_off',
                         'ExpControl/scan/range/y/off',
@@ -553,7 +558,12 @@ class DefaultLocationRemover():
     and leave the rest as-is.
     """
 
-    _filtersToRemove = ['ExpControl/scan/range/offsets',
+    _filtersToRemove = ['ExpControl/scan/range/coarse_x/off',
+                        'ExpControl/scan/range/coarse_x/g_off',
+                        'ExpControl/scan/range/coarse_y/off',
+                        'ExpControl/scan/range/coarse_y/g_off',
+                        'ExpControl/scan/range/coarse_z/off',
+                        'ExpControl/scan/range/coarse_z/g_off',
                         'ExpControl/scan/range/x/off',
                         'ExpControl/scan/range/x/g_off',
                         'ExpControl/scan/range/y/off',

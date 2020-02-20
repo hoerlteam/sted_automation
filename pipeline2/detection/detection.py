@@ -89,7 +89,7 @@ class SimpleLegacyFocusHold():
         setts = data.measurementSettings[self.configuration]
 
         offsOld = np.array([filter_dict(
-            setts, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+            setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         pszOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
@@ -148,7 +148,7 @@ class SimpleSingleChannelSpotDetector():
     def correctForOffset(self, locs, setts, ignore_dim):
         if self.generateStageOffsets:
             offsOld = np.array([filter_dict(
-            setts, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+            setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
         else:
             offsOld = np.array([filter_dict(
                 setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
@@ -362,7 +362,7 @@ class ZDCSpotPairFinder(LegacySpotPairFinder):
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         # we use the coarse offset here
-        offsOld[2] = filter_dict(setts, 'ExpControl/scan/range/offsets/coarse/z/g_off', False)
+        offsOld[2] = filter_dict(setts, 'ExpControl/scan/range/coarse_z/g_off', False)
 
         print(offsOld)
         lensOld = np.array([filter_dict(

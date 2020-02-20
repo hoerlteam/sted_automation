@@ -124,7 +124,7 @@ def _virtual_bbox_from_settings(setts):
         that way, two bounding boxes can be checked for overlap, bot the virtual origin does not correspond to the real location
     """
     offs_stage = np.array([filter_dict(
-        setts, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
+        setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
         dtype=float)
     offs_scan = np.array([filter_dict(
         setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
@@ -146,10 +146,10 @@ def _approx_offset_from_settings(setts_ref, setts2):
     Get the approximate pixel offset of image with Imspector settings setts2 from reference image with setts_ref
     """
     offs_stage_r = np.array([filter_dict(
-        setts_ref, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
+        setts_ref, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
         dtype=float)
     offs_stage_i = np.array([filter_dict(
-        setts2, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
+        setts2, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
         dtype=float)
     offs_stage = (offs_stage_i - offs_stage_r) * STAGE_DIRECTIONS
 

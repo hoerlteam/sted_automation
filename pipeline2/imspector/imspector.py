@@ -1,6 +1,7 @@
 import json
 import re
 from warnings import warn
+from threading import Semaphore
 
 from ..util import update_dicts, filter_dict
 import numpy as np
@@ -184,7 +185,7 @@ class ImspectorConnection():
         if self.verbose:
             par = ms.parameters('')
             offsStage = np.array([filter_dict(
-                par, 'ExpControl/scan/range/offsets/coarse/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+                par, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
             offsScan = np.array([filter_dict(
                 par, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
             offsGlobal = np.array([filter_dict(
@@ -195,7 +196,34 @@ class ImspectorConnection():
             print('scan offsets: {}'.format(offsScan))
             print('scan offsets global: {}'.format(offsGlobal))
             
-        self.im.run(ms)
+        ImspectorConnection.blocking_imspector_run(self.im, ms)
+
+    @staticmethod
+    def blocking_imspector_run(imspector, measurement):
+        '''
+        since imspector.run(measurement) seems buggy a.t.m. and does not block,
+        this wrapps it into a blocking call.
+
+        also catches the 'bad cast' exception that seems to always happen
+        '''
+
+        sem = Semaphore()
+        sem.acquire()
+        imspector.connect_end(sem.release, 0)
+
+        try:
+            imspector.run(measurement)
+        except RuntimeError as e:
+            # bad cast error is always thrown, but measurement seems to work nonetheless
+            # in that specific case, we ignore the error
+            if str(e) == 'bad cast':
+                pass
+            else:
+                raise
+
+        sem.acquire()
+        imspector.disconnect_end(sem.release, 0)
+
 
     def saveCurrentMeasurement(self, path):
         ms = self.im.active_measurement()
@@ -213,7 +241,7 @@ def get_current_stage_coords(im=None):
     im.create_measurement()
     ms = im.active_measurement()
 
-    coords = [ms.parameters('ExpControl/scan/range/offsets/coarse/' + c + '/g_off') for c in 'xyz']
+    coords = [ms.parameters('ExpControl/scan/range/coarse_' + c + '/g_off') for c in 'xyz']
 
     im.close(ms)
 
