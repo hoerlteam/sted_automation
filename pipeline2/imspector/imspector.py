@@ -4,6 +4,7 @@ from warnings import warn
 from threading import Semaphore
 
 from ..util import update_dicts, filter_dict
+from ..ressources import dummy_measurements
 import numpy as np
 import time
 from unittest.mock import MagicMock
@@ -108,13 +109,31 @@ class ImspectorConnection():
             data.append(np.copy(self.im.active_measurement().stack(name).data()))
         return globalParams, measParameters, data
 
+    @staticmethod
+    def get_n_channels(parameters):
+        return len(filter_dict(parameters, 'ExpControl/measurement/channels', False))
+    
     def makeMeasurementFromTask(self, task, halfDelay=0.0):
         # FIXME: check if all the delays are really necessary
-        ms = self.im.create_measurement()
+        
+        # TODO: hacky fix for various channel numbers
+        #ms = self.im.create_measurement()
         time.sleep(halfDelay)
         measUpdates, confUpdates = task
         measUpdates = update_dicts(*measUpdates)
         confUpdates = update_dicts(*confUpdates)
+        
+        n_channels = ImspectorConnection.get_n_channels(measUpdates)
+        print('DEBUG: n_channels', n_channels)
+        
+        ms = self.im.open(dummy_measurements[n_channels])
+        self.im.activate(ms)
+        
+        # remove old stacks?
+        ac = ms.active_configuration()
+        ac2 = ms.clone(ac)
+        ms.activate(ac2)
+        ms.remove(ac)
 
         # we do the update twice to also set grayed-out values
         set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
@@ -138,12 +157,26 @@ class ImspectorConnection():
     def makeConfigurationFromTask(self, task, halfDelay = 0.0):
         ms = self.im.active_measurement()
         ac = ms.active_configuration()
-        ac = ms.clone(ac)
-        ms.activate(ac)
-
+        n_channels_existing = ImspectorConnection(ac.parameters(''))
+                
         measUpdates, confUpdates = task
         measUpdates = update_dicts(*measUpdates)
         confUpdates = update_dicts(*confUpdates)
+        
+        n_channels = ImspectorConnection.get_n_channels(measUpdates)
+        
+        if (n_channels_existing == n_channels):
+            ac = ms.clone(ac)
+            ms.activate(ac)
+        else:
+            warn('Number of channels in configurations differs. Only the last configurations will be saved as MSR')
+            ms = self.im.open(dummy_measurements[n_channels])
+            self.im.activate(ms)
+            # remove old stacks?
+            ac = ms.active_configuration()
+            ac2 = ms.clone(ac)
+            ms.activate(ac2)
+            ms.remove(ac)
 
         # we do the update twice to also set grayed-out values
         set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
