@@ -16,7 +16,7 @@ from ..util import filter_dict
 from .detection import _correct_offset
 
 
-def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
+def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None, n_classes=2):
     """
     Detect midplanes of nuclei in image stack
 
@@ -63,7 +63,7 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
     if bg_val is None:
         feat = np.dstack([mip, blur, edge])
         feat = feat.reshape((np.prod(feat.shape[:-1]), feat.shape[-1]))
-        km = KMeans(2)
+        km = KMeans(n_classes)
         seg = km.fit_predict(feat).reshape(mip.shape)
     else:
         mip2 = np.apply_along_axis(np.max, axis, img)
@@ -72,14 +72,16 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
         feat = np.dstack([mip[mip2 != bg_val], blur[mip2 != bg_val], edge[mip2 != bg_val]])
         print(feat.shape)
         feat = feat.reshape((-1,3))
-        km = KMeans(2)
+        km = KMeans(n_classes)
         seg_tmp = km.fit_predict(feat)
         seg = np.zeros_like(mip)
         seg[mip2 != bg_val] = seg_tmp
 
     # k-Means might call backround 0 and foreground 1
-    if (np.mean(mip[seg == 0]) > np.mean(mip[seg == 1])):
-        seg = (seg - 1) * -1
+    max_class = np.argmax([np.mean(mip[seg==i]) for i in range(n_classes)])
+    seg = (seg == max_class ) * 1
+   # if (cz > np.mean(mip[seg == 1])):
+    #    seg = (seg - 1) * -1
 
     # ignore objects touching the border
     if ignore_border:
@@ -137,7 +139,7 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
 
 class SimpleNucleusMidplaneDetector():
 
-    def __init__(self, dataSource, configuration=0, channel=0):
+    def __init__(self, dataSource, configuration=0, channel=0, n_classes=2):
         self.dataSource = dataSource
         self.configuration = configuration
         self.channel = channel
@@ -145,6 +147,7 @@ class SimpleNucleusMidplaneDetector():
         self.do_plot = False
         self.filt = {}
         self.expand = 1.2
+        self.n_classes = n_classes
 
     def withVerbose(self, verbose=True):
         self.verbose = verbose
@@ -200,7 +203,7 @@ class SimpleNucleusMidplaneDetector():
             print('old len: {}'.format(lensOld))
             print('old psz: {}'.format(pszOld))
             
-        midplanes = nucleus_midplane_detection(img, 0, self.filt, self.do_plot, True, -1)
+        midplanes = nucleus_midplane_detection(img, 0, self.filt, self.do_plot, True, -1, self.n_classes)
 
         res = []
 
