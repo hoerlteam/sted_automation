@@ -171,6 +171,9 @@ class AcquisitionPipeline():
                 if not (path is None):
                     self.im.saveCurrentMeasurement(path)
                 self.im.closeCurrentMeasurement()
+                
+                # NB: give Imspector time to close measurement
+                #sleep(3.0)
 
                 # do the callbacks (this should do analysis and re-fill the queue)
                 callbacks_ = self.callbacks.get(lvl, None)

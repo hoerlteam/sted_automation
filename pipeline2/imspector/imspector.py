@@ -153,18 +153,18 @@ class ImspectorConnection():
         # we do the update twice to also set grayed-out values
         #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
-        time.sleep(halfDelay)
+        #time.sleep(halfDelay)
         #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
         self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
         # wait if requested
-        time.sleep(halfDelay)
+        #time.sleep(halfDelay)
         #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
-        time.sleep(halfDelay)
+        #time.sleep(halfDelay)
         #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
         self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
         # wait again if requested
-        time.sleep(halfDelay)
+        #time.sleep(halfDelay)
 
         # NB: sync axis seems to jump back to frame after setting
         # if we want lines, we manually re-set just that one parameter
@@ -200,18 +200,19 @@ class ImspectorConnection():
         # we do the update twice to also set grayed-out values
         #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
-        time.sleep(halfDelay)
+        # NB: removed delay, keep an eye out for problems resulting from this
+        #time.sleep(halfDelay)
         #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
         self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
         # wait if requested
-        time.sleep(halfDelay)
+        #time.sleep(halfDelay)
         #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
         self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
-        time.sleep(halfDelay)
+        #time.sleep(halfDelay)
         #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
         self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
         # wait again if requested
-        time.sleep(halfDelay)
+        #time.sleep(halfDelay)
 
         # NB: sync axis seems to jump back to frame after setting
         # if we want lines, we manually re-set just that one parameter
