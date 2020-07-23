@@ -1,6 +1,7 @@
 import json
 import re
 from warnings import warn
+import logging
 from threading import Semaphore
 
 from ..util import update_dicts, filter_dict
@@ -13,6 +14,7 @@ from ..data import RichData
 # TODO: remove in production?
 try:
     from specpy import Imspector
+    import specpy
 except ImportError:
     Imspector = MagicMock()
 
@@ -96,13 +98,26 @@ class ImspectorConnection():
         self.verbose = False
         self.sanitizer_im = ParameterSanitizer()
         self.sanitizer_ms = ParameterSanitizer()
+        self.dropped_parameters = set()
+
+    def set_parameters_recursive(self, where, params, value_type):
+        if not isinstance(params, dict):
+            try:
+                self.im.value_at(where, value_type).set(params)
+            except RuntimeError as e:
+                if where not in self.dropped_parameters:
+                    logging.debug('WARNING: parameter {} cannot be set, ignoring from here on'.format(where))
+                    self.dropped_parameters.add(where)
+        else:
+            for k,v in params.items():
+                self.set_parameters_recursive(k if where == '' else where + '/' + k, v, value_type)
 
     def withVerbose(self, verbose=True):
         self.verbose = verbose
         return self
         
     def getCurrentData(self):
-        globalParams = self.im.parameters('')
+        globalParams = self.im.value_at('').get()
         measParameters = self.im.active_measurement().parameters('')
         data = []
         for name in self.im.active_measurement().stack_names():
@@ -117,33 +132,37 @@ class ImspectorConnection():
         # FIXME: check if all the delays are really necessary
         
         # TODO: hacky fix for various channel numbers
-        #ms = self.im.create_measurement()
-        time.sleep(halfDelay)
+        ms = self.im.create_measurement()
+        #time.sleep(halfDelay)
         measUpdates, confUpdates = task
         measUpdates = update_dicts(*measUpdates)
         confUpdates = update_dicts(*confUpdates)
         
-        n_channels = ImspectorConnection.get_n_channels(measUpdates)
-        print('DEBUG: n_channels', n_channels)
+        #n_channels = ImspectorConnection.get_n_channels(measUpdates)
+        #print('DEBUG: n_channels', n_channels)
         
-        ms = self.im.open(dummy_measurements[n_channels])
-        self.im.activate(ms)
+        #ms = self.im.open(dummy_measurements[n_channels])
+        #self.im.activate(ms)
         
         # remove old stacks?
-        ac = ms.active_configuration()
-        ac2 = ms.clone(ac)
-        ms.activate(ac2)
-        ms.remove(ac)
+        #ac = ms.active_configuration()
+        #ac2 = ms.clone(ac)
+        #ms.activate(ac2)
+        #ms.remove(ac)
 
         # we do the update twice to also set grayed-out values
-        set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
         time.sleep(halfDelay)
-        set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
+        #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
+        self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
         # wait if requested
         time.sleep(halfDelay)
-        set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
         time.sleep(halfDelay)
-        set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
+        #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
+        self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
         # wait again if requested
         time.sleep(halfDelay)
 
@@ -157,36 +176,40 @@ class ImspectorConnection():
     def makeConfigurationFromTask(self, task, halfDelay = 0.0):
         ms = self.im.active_measurement()
         ac = ms.active_configuration()
-        n_channels_existing = ImspectorConnection(ac.parameters(''))
+        #n_channels_existing = ImspectorConnection(ac.parameters(''))
                 
         measUpdates, confUpdates = task
         measUpdates = update_dicts(*measUpdates)
         confUpdates = update_dicts(*confUpdates)
         
-        n_channels = ImspectorConnection.get_n_channels(measUpdates)
+        _channels = ImspectorConnection.get_n_channels(measUpdates)
         
-        if (n_channels_existing == n_channels):
-            ac = ms.clone(ac)
-            ms.activate(ac)
-        else:
-            warn('Number of channels in configurations differs. Only the last configurations will be saved as MSR')
-            ms = self.im.open(dummy_measurements[n_channels])
-            self.im.activate(ms)
-            # remove old stacks?
-            ac = ms.active_configuration()
-            ac2 = ms.clone(ac)
-            ms.activate(ac2)
-            ms.remove(ac)
+        #if (n_channels_existing == n_channels):
+        ac = ms.clone(ac)
+        ms.activate(ac)
+        # else:
+        #     warn('Number of channels in configurations differs. Only the last configurations will be saved as MSR')
+        #     ms = self.im.open(dummy_measurements[n_channels])
+        #     self.im.activate(ms)
+        #     # remove old stacks?
+        #     ac = ms.active_configuration()
+        #     ac2 = ms.clone(ac)
+        #     ms.activate(ac2)
+        #     ms.remove(ac)
 
         # we do the update twice to also set grayed-out values
-        set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
         time.sleep(halfDelay)
-        set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
+        #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
+        self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
         # wait if requested
         time.sleep(halfDelay)
-        set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
+        self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
         time.sleep(halfDelay)
-        set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
+        #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
+        self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
         # wait again if requested
         time.sleep(halfDelay)
 
@@ -229,16 +252,18 @@ class ImspectorConnection():
             print('scan offsets: {}'.format(offsScan))
             print('scan offsets global: {}'.format(offsGlobal))
             
-        ImspectorConnection.blocking_imspector_run(self.im, ms)
+        self.im.run(ms)
 
     @staticmethod
     def blocking_imspector_run(imspector, measurement):
         '''
-        since imspector.run(measurement) seems buggy a.t.m. and does not block,
+        since imspector.run(measurement) was buggy in 16.3.10599-1948 and did not block,
         this wrapps it into a blocking call.
 
         also catches the 'bad cast' exception that seems to always happen
         '''
+
+        warn('blocking_imspector_run is deprecated and no longer necessary', DeprecationWarning)
 
         sem = Semaphore()
         sem.acquire()
