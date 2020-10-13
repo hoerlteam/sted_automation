@@ -429,6 +429,7 @@ class DefaultScanOffsetsSettingsGenerator():
             parameter updates (global updates == {}) for every configuration in every measurement to acquire.
         '''
         locs = self.fun()
+        #print('DEBUG', locs)
 
         res = []
         for loc in locs:

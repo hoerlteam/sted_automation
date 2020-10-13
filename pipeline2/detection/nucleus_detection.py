@@ -139,7 +139,7 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
 
 class SimpleNucleusMidplaneDetector():
 
-    def __init__(self, dataSource, configuration=0, channel=0, n_classes=2):
+    def __init__(self, dataSource, configuration=0, channel=0, n_classes=2, manual_offset=0):
         self.dataSource = dataSource
         self.configuration = configuration
         self.channel = channel
@@ -148,6 +148,7 @@ class SimpleNucleusMidplaneDetector():
         self.filt = {}
         self.expand = 1.2
         self.n_classes = n_classes
+        self.manual_offset = manual_offset
 
     def withVerbose(self, verbose=True):
         self.verbose = verbose
@@ -220,6 +221,8 @@ class SimpleNucleusMidplaneDetector():
                 
             off = _correct_offset(off, offsOld, lensOld, pszOld, ignore_dim)
             fov = [(xmax - xmin)*pszOld[0]*self.expand, (ymax - ymin)*pszOld[1]*self.expand, None]
+            
+            off[2] += self.manual_offset
 
             if self.verbose:
                 print(self.__class__.__name__ + ': Found Nucleus at {}, FOV: {}'.format(off, fov))
