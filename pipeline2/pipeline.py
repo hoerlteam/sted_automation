@@ -2,7 +2,7 @@ from itertools import count, chain
 
 from queue import PriorityQueue
 from collections import defaultdict
-from time import time, sleep, clock
+from time import time, sleep
 import os
 import hashlib
 
@@ -12,7 +12,6 @@ from .util import DelayedKeyboardInterrupt
 from .stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
 
 #from jsonpath_ng import jsonpath, parse
-
 # from spot_util import pair_finder_inner
 
 class AcquisitionPriorityQueue(PriorityQueue):
