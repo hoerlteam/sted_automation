@@ -238,7 +238,8 @@ class LegacySpotPairFinder():
     of scan coordinates (stage coordinates are ignored)
     """
 
-    def __init__(self, dataSource, sigma, thresholds, medianThresholds=[3, 3], medianRadius=5, channels=(0,1)):
+    def __init__(self, dataSource, sigma, thresholds, medianThresholds=[3, 3], medianRadius=5, channels=(0,1),
+                 in_channel_min_distance=3, between_channel_max_distance=5):
         self.dataSource = dataSource
         self.sigma = sigma
         self.thresholds = thresholds
@@ -247,6 +248,8 @@ class LegacySpotPairFinder():
         self.plotDetections = False
         self.verbose = False
         self.channels = channels
+        self.between_channel_max_distance = between_channel_max_distance
+        self.in_channel_min_distance = in_channel_min_distance
 
     def withPlotDetections(self, plotDetections=True):
         self.plotDetections = plotDetections
@@ -290,7 +293,9 @@ class LegacySpotPairFinder():
         setts = data.measurementSettings[0]
 
         pairsRaw = pair_finder_inner(stack1, stack2, self.sigma, self.thresholds, True, False, self.medianThresholds,
-                                     self.medianRadius)
+                                     self.medianRadius,
+                                     in_channel_min_distance=self.in_channel_min_distance,
+                                     between_channel_max_distance=self.between_channel_max_distance)
 
         if self.verbose:
             print(self.__class__.__name__ + ': found {} spot pairs. pixel coordinates:'.format(len(pairsRaw)))
@@ -329,7 +334,9 @@ class PairedLegacySpotPairFinder(LegacySpotPairFinder):
         setts = data.measurementSettings[0]
 
         pairsRaw = pair_finder_inner(stack1, stack2, self.sigma, self.thresholds, True, False, self.medianThresholds,
-                                     self.medianRadius, True)
+                                     self.medianRadius, True,
+                                     in_channel_min_distance=self.in_channel_min_distance,
+                                     between_channel_max_distance=self.between_channel_max_distance)
 
         if self.verbose:
             print(self.__class__.__name__ + ': found {} spot pairs. pixel coordinates:'.format(len(pairsRaw)))

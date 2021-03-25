@@ -176,7 +176,8 @@ def pair_finder_yellow_inner(stack1, stack2, pix_sig, threshold, invertAxes, nor
             res.append(list(p))
     return res
 
-def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize, median_thresholds, median_radius, return_pair=False):
+def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize, median_thresholds, median_radius,
+                      return_pair=False, in_channel_min_distance=3, between_channel_max_distance=5):
     # detect blobs via Laplacian-of-Gaussian (only blobs brighter than threshold)
     sig = pix_sig / np.sqrt(2)
     dets1 = detect_blobs(stack1, [sig, sig, sig], threshold[0], normalize, median_thresholds[0], median_radius)
@@ -194,16 +195,17 @@ def pair_finder_inner(stack1, stack2, pix_sig, threshold, invertAxes, normalize,
     # put spots in kd-tree for fast nearesr neighbor calculations
     kd1 = spatial.KDTree(dets1)
     kd2 = spatial.KDTree(dets2)
-    # if spots (in one channel) are closer than 3 pixels, pick the brighter of the two
-    cleanup_kdtree(stack1, kd1, dets1, 3)
-    cleanup_kdtree(stack2, kd2, dets2, 3)
+    # if spots (in one channel) are closer than in_channel_min_distance pixels, pick the brighter of the two
+    cleanup_kdtree(stack1, kd1, dets1, in_channel_min_distance)
+    cleanup_kdtree(stack2, kd2, dets2, in_channel_min_distance)
 
     print('remaining after cleanup stack1: {}'.format(len(dets1)))
     print('remaining after cleanup stack2: {}'.format(len(dets2)))
 
-    # for every remaining spot in image1, return a candidate pair if there is a spot in channel 2 that is closer than 5 pixels to it
+    # for every remaining spot in image1, return a candidate pair if there is a spot in channel 2
+    # that is closer than between_channel_max_distance pixels to it
     res = []
-    for p in find_pairs(kd2, dets1, dets2, 5, invertAxes, return_pair=return_pair):
+    for p in find_pairs(kd2, dets1, dets2, between_channel_max_distance, invertAxes, return_pair=return_pair):
         res.append(list(p) if not return_pair else p)
     return res
 

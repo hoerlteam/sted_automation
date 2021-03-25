@@ -13,7 +13,7 @@ from .stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
 
 #from jsonpath_ng import jsonpath, parse
 
-from spot_util import pair_finder_inner
+# from spot_util import pair_finder_inner
 
 class AcquisitionPriorityQueue(PriorityQueue):
     """
