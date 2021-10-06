@@ -139,7 +139,7 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
 
 class SimpleNucleusMidplaneDetector():
 
-    def __init__(self, dataSource, configuration=0, channel=0, n_classes=2, manual_offset=0):
+    def __init__(self, dataSource, configuration=0, channel=0, n_classes=2, manual_offset=0, use_stage=False):
         self.dataSource = dataSource
         self.configuration = configuration
         self.channel = channel
@@ -149,6 +149,7 @@ class SimpleNucleusMidplaneDetector():
         self.expand = 1.2
         self.n_classes = n_classes
         self.manual_offset = manual_offset
+        self.use_stage = use_stage
 
     def withVerbose(self, verbose=True):
         self.verbose = verbose
@@ -188,7 +189,11 @@ class SimpleNucleusMidplaneDetector():
         
         setts = data.measurementSettings[self.configuration]
 
-        offsOld = np.array([filter_dict(
+        if self.use_stage:
+            offsOld = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+        else:
+            offsOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         lensOld = np.array([filter_dict(

@@ -15,10 +15,11 @@ class StitchedNewestDataSelector(NewestDataSelector):
 
     """
 
-    def __init__(self, pipeline, level, channel=0, configuration=0):
+    def __init__(self, pipeline, level, channel=0, configuration=0, generate_stage_offsets=False):
         super().__init__(pipeline, level)
         self.channel = channel
         self.configuration = configuration
+        self.generate_stage_offsets = generate_stage_offsets
 
     def get_data(self):
 
@@ -90,16 +91,22 @@ class StitchedNewestDataSelector(NewestDataSelector):
         # to pixel units
         offs_scan = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+        offs_stage = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
         pixel_sizes = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+
         additional_off *= pixel_sizes
         new_len = len_stitched_half * 2 * pixel_sizes
+
+        # use stage or scan offsets as basis for dummy offsets
+        offs_to_use = offs_stage if self.generate_stage_offsets else offs_scan
 
         # create dummy settings
         stitch_setts = update_dicts(setts)
         for i, d in enumerate(['x', 'y', 'z']):
             stitch_setts = update_dicts(stitch_setts, gen_json(new_len[i], 'ExpControl/scan/range/{}/len'.format(d)))
-            stitch_setts = update_dicts(stitch_setts, gen_json(offs_scan[i] + additional_off[i], 'ExpControl/scan/range/{}/off'.format(d)))
+            stitch_setts = update_dicts(stitch_setts, gen_json(offs_to_use[i] + additional_off[i], 'ExpControl/scan/range/{}/off'.format(d)))
 
         # add singleton (T) dimension
         res_img = stitched.reshape((1, ) + stitched.shape)
