@@ -7,13 +7,77 @@ from skimage.exposure import rescale_intensity, adjust_gamma
 from skimage.measure import regionprops
 from skimage.morphology import erosion, disk, dilation, square
 from skimage.segmentation import relabel_sequential, clear_border
+from skimage.transform import rescale, resize
 from sklearn.cluster import KMeans
+
+try:
+    # try to import StarDist, but do not make hard dependency yet
+    from stardist.models import StarDist2D
+    from csbdeep.utils import normalize
+except ImportError:
+    pass
 
 from calmutils.localization import refine_point
 from calmutils.misc import filter_rprops
 
 from ..util import filter_dict
 from .detection import _correct_offset
+
+def stardist_midplane_detection(img, model, scale_factor=0.5, prob_tresh=0.8, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
+
+    # default: no filter
+    if flt is None:
+        flt = {}
+
+    # do MIP and segment using StarDist
+    mip = img.max(axis=axis)
+
+    # predict on rescaled mip
+    original_shape = mip.shape
+    mip_sc = rescale(mip, scale_factor, clip=False, preserve_range=True)
+    seg, _ = model.predict_instances(normalize(mip_sc), prob_tresh=prob_tresh)
+    seg = resize(seg, original_shape, anti_aliasing=False, order=0, preserve_range=True)
+
+    # ignore objects touching the border
+    if ignore_border:
+        seg = clear_border(seg)
+
+    # remove objects touching the bg_val area
+    if bg_val is not None:
+        # we dilate the bg_val area by one pixel and the get all unique labels in that area
+        bg_dil_mask = dilation(mip==bg_val, square(3))
+        labels_touching_bg = set(list(np.unique(seg[bg_dil_mask])))
+
+        # new mask, setting only objects with labels not in set of background-touching labels
+        for rprop in regionprops(seg):
+            if rprop.label in labels_touching_bg:
+                (min_row, min_col, max_row, max_col) = rprop.bbox
+                seg[min_row:max_row, min_col:max_col][rprop.image]=0
+
+    labels = np.zeros_like(seg, dtype=np.int64)
+    for idx, rprop in enumerate(regionprops(seg)):
+        if filter_rprops(rprop, flt):
+            (min_row, min_col, max_row, max_col) = rprop.bbox
+            labels[min_row:max_row, min_col:max_col][rprop.filled_image] = idx + 1
+
+    if do_plot:
+        plt.figure()
+        plt.imshow(label2rgb(labels, rescale_intensity(mip)))
+        plt.show()
+
+    # cut out objects along z, find brightest plane in (smoothed) z-profile
+    res = []
+    img_reordered = np.transpose(img, [axis] + [ax for ax in range(len(img.shape)) if ax != axis])
+    for rprop in regionprops(labels):
+        (min_row, min_col, max_row, max_col) = rprop.bbox
+        cut = img_reordered[:, min_row:max_row, min_col:max_col][:, rprop.filled_image]
+        sums = np.apply_along_axis(np.sum, 1, cut)
+        max_z = np.argmax(ndi.gaussian_filter(sums, 2, mode='constant'))
+        max_z_refined = refine_point(ndi.gaussian_filter(sums, 2, mode='constant'), [max_z])
+
+        res.append((min_row, min_col, max_row, max_col, max_z_refined[0]))
+
+    return res
 
 
 def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None, n_classes=2):
@@ -139,7 +203,7 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
 
 class SimpleNucleusMidplaneDetector():
 
-    def __init__(self, dataSource, configuration=0, channel=0, n_classes=2, manual_offset=0):
+    def __init__(self, dataSource, configuration=0, channel=0, n_classes=2, manual_offset=0, use_stage=False):
         self.dataSource = dataSource
         self.configuration = configuration
         self.channel = channel
@@ -149,6 +213,7 @@ class SimpleNucleusMidplaneDetector():
         self.expand = 1.2
         self.n_classes = n_classes
         self.manual_offset = manual_offset
+        self.use_stage = use_stage
 
     def withVerbose(self, verbose=True):
         self.verbose = verbose
@@ -165,6 +230,9 @@ class SimpleNucleusMidplaneDetector():
     def withFOVExpansion(self, expand):
         self.expand = expand
         return self
+
+    def midplane_detection_fun(self, img):
+        return nucleus_midplane_detection(img, 0, self.filt, self.do_plot, True, -1, self.n_classes)
 
     def get_fields(self):
 
@@ -188,7 +256,11 @@ class SimpleNucleusMidplaneDetector():
         
         setts = data.measurementSettings[self.configuration]
 
-        offsOld = np.array([filter_dict(
+        if self.use_stage:
+            offsOld = np.array([filter_dict(
+            setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+        else:
+            offsOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         lensOld = np.array([filter_dict(
@@ -197,14 +269,13 @@ class SimpleNucleusMidplaneDetector():
         pszOld = np.array([filter_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
-
         if self.verbose:
             print('Nucleus Detection:')
             print('old offset: {}'.format(offsOld))
             print('old len: {}'.format(lensOld))
             print('old psz: {}'.format(pszOld))
-            
-        midplanes = nucleus_midplane_detection(img, 0, self.filt, self.do_plot, True, -1, self.n_classes)
+
+        midplanes = self.midplane_detection_fun(img)
 
         res = []
 
@@ -230,3 +301,19 @@ class SimpleNucleusMidplaneDetector():
             res.append((list(off), fov))
 
         return res
+
+
+class StarDistNucleusMidplaneDetector(SimpleNucleusMidplaneDetector):
+    def __init__(self, dataSource, scale_factor=0.5, prob_thresh=0.8, configuration=0, channel=0, manual_offset=0, use_stage=False):
+
+        super().__init__(dataSource, configuration, channel, 0, manual_offset, use_stage)
+
+        # TODO: make settable?
+        self.pretrained_model_id = '2D_versatile_fluo'
+
+        self.scale_factor = scale_factor
+        self.prob_tresh = prob_thresh
+        self.model = StarDist2D(self.pretrained_model_id)
+
+    def midplane_detection_fun(self, img):
+        return stardist_midplane_detection(img, self.model, self.scale_factor, self.prob_tresh, 0, self.filt, self.do_plot, True, -1)
