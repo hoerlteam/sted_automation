@@ -6,7 +6,7 @@ from skimage.filters import sobel
 from skimage.exposure import rescale_intensity, adjust_gamma
 from skimage.measure import regionprops
 from skimage.morphology import erosion, disk, dilation, square
-from skimage.segmentation import relabel_sequential, clear_border
+from skimage.segmentation import clear_border
 from skimage.transform import rescale, resize
 from sklearn.cluster import KMeans
 
@@ -14,6 +14,8 @@ try:
     # try to import StarDist, but do not make hard dependency yet
     from stardist.models import StarDist2D
     from csbdeep.utils import normalize
+    # try to import CellPose, but do not make hard dependency yet
+    from cellpose.models import Cellpose
 except ImportError:
     pass
 
@@ -23,8 +25,7 @@ from calmutils.misc import filter_rprops
 from ..util import filter_dict
 from .detection import _correct_offset
 
-def stardist_midplane_detection(img, model, scale_factor=0.5, prob_tresh=0.8, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
-
+def nnet_seg_outer(img, seg_fun, scale_factor=0.5, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
     # default: no filter
     if flt is None:
         flt = {}
@@ -35,7 +36,7 @@ def stardist_midplane_detection(img, model, scale_factor=0.5, prob_tresh=0.8, ax
     # predict on rescaled mip
     original_shape = mip.shape
     mip_sc = rescale(mip, scale_factor, clip=False, preserve_range=True)
-    seg, _ = model.predict_instances(normalize(mip_sc), prob_tresh=prob_tresh)
+    seg = seg_fun(mip_sc)
     seg = resize(seg, original_shape, anti_aliasing=False, order=0, preserve_range=True)
 
     # ignore objects touching the border
@@ -78,6 +79,22 @@ def stardist_midplane_detection(img, model, scale_factor=0.5, prob_tresh=0.8, ax
         res.append((min_row, min_col, max_row, max_col, max_z_refined[0]))
 
     return res
+
+def stardist_midplane_detection(img, model, scale_factor=0.5, prob_tresh=0.8, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
+
+    def stardist_seg_fun(img):
+        seg, _ = model.predict_instances(normalize(img), prob_tresh=prob_tresh)
+        return seg
+
+    return nnet_seg_outer(img, stardist_seg_fun, scale_factor, axis, flt, do_plot, ignore_border, bg_val)
+
+def cellpose_midplane_detection(img, model, scale_factor=0.5, flow_tresh=0.2, diameter=50, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
+
+    def cellpose_seg_fun(img):
+        seg, _ = model.eval(img, flow_threshold=flow_tresh, diameter=diameter, channels=[0,0])
+        return seg
+
+    return nnet_seg_outer(img, cellpose_seg_fun, scale_factor, axis, flt, do_plot, ignore_border, bg_val)
 
 
 def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None, n_classes=2):
@@ -317,3 +334,18 @@ class StarDistNucleusMidplaneDetector(SimpleNucleusMidplaneDetector):
 
     def midplane_detection_fun(self, img):
         return stardist_midplane_detection(img, self.model, self.scale_factor, self.prob_tresh, 0, self.filt, self.do_plot, True, -1)
+
+
+class CellposeNucleusMidplaneDetector(SimpleNucleusMidplaneDetector):
+    def __init__(self, dataSource, scale_factor=0.5, flow_thresh=0.2, diameter=50, configuration=0, channel=0, manual_offset=0, use_stage=False):
+
+        super().__init__(dataSource, configuration, channel, 0, manual_offset, use_stage)
+
+        self.scale_factor = scale_factor
+        self.flow_tresh = flow_thresh
+        self.diameter = diameter
+
+        self.model = Cellpose(gpu=True, model_type='nuclei')
+
+    def midplane_detection_fun(self, img):
+        return cellpose_midplane_detection(img, self.model, self.scale_factor, self.flow_tresh, self.diameter, 0, self.filt, self.do_plot, True, -1)
