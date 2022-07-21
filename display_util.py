@@ -16,7 +16,7 @@ def make_proj(img, axis=0, fun=np.max):
 
 
 def normalize(arr, ran=None):
-    if ran:
+    if ran is not None:
         arr1 = (arr - ran[0]) / (ran[1] - ran[0])
         arr1[arr1 < 0] = 0.0
         arr1[arr1 > 1] = 1.0
@@ -25,7 +25,14 @@ def normalize(arr, ran=None):
         return (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
 
-def make_rgb_maxproj(im1, im2, ran=None, axis=None):
+def make_rgb_maxproj(im1, im2, ran=None, axis=None, percentile_range=False):
+    '''
+    TODO: documentation
+    Parameters:
+    ===========
+    percentile_range: boolean
+        Whether to interpret the display range ran as percentiles or raw min & max intensity to display (default)
+    '''
     if axis != None:
         p_im1 = make_proj(im1, axis)
         p_im2 = make_proj(im2, axis)
@@ -33,13 +40,19 @@ def make_rgb_maxproj(im1, im2, ran=None, axis=None):
         p_im1 = make_proj(im1, len(im1.shape) - 1)
         p_im2 = make_proj(im2, len(im2.shape) - 1)
 
-    return np.dstack((normalize(p_im1, ran), normalize(p_im2, ran), np.zeros(p_im1.shape)))
+    if percentile_range and ran is not None:
+        ran_im1 = np.percentile(p_im1, ran)
+        ran_im2 = np.percentile(p_im2, ran)
+    else:
+        ran_im1, ran_im2 = ran, ran
+
+    return np.dstack((normalize(p_im1, ran_im1), normalize(p_im2, ran_im2), np.zeros(p_im1.shape)))
 
 
-def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
+def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3, percentile_range=False):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    rgb = make_rgb_maxproj(im1, im2, ran, axis)
+    rgb = make_rgb_maxproj(im1, im2, ran, axis, percentile_range)
     plt.imshow(rgb)
     if axis is None:
         axis = len(im1.shape) - 1
@@ -51,11 +64,14 @@ def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3):
     plt.show()
 
 
-def draw_detections_1c(im, dets, ran=None, axis=None, siz=3):
+def draw_detections_1c(im, dets, ran=None, axis=None, siz=3, percentile_range=False):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     im1 = make_proj(im, axis if axis is not None else len(im.shape) - 1)
-    print(im1.shape)
+
+    if percentile_range and ran is not None:
+        ran = np.percentile(im1, ran)
+
     im1 = normalize(im1, ran)
     plt.imshow(im1, cmap='gray')
     if axis == None:
@@ -144,10 +160,11 @@ def main():
     print(im0)
 
     draw_detections_1c(im0, [[20, 12, 12], [40, 40, 12]])
-    draw_detections_2c(im0, im1, [[20, 12, 12], [40, 40, 12]])
+    draw_detections_2c(im0, im1, [[20, 12, 12], [40, 40, 12]], [0.5, 99.99], percentile_range=True)
 
     plt.show()
 
 
 if __name__ == '__main__':
-    print(read_analysis_results('/Users/david/Desktop/AutomatedAcquisitions/out.csv'))
+    # print(read_analysis_results('/Users/david/Desktop/AutomatedAcquisitions/out.csv'))
+    main()

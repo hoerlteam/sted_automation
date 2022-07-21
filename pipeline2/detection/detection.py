@@ -260,7 +260,7 @@ class LegacySpotPairFinder():
         return self
 
     def doPlot(self, pairsPixel, stack1, stack2):
-        draw_detections_2c(stack1, stack2, [s[-1::-1] for s in pairsPixel], [1, 10], 0, 3)
+        draw_detections_2c(stack1, stack2, [s[-1::-1] for s in pairsPixel], [0.5, 99.99], 0, 3, percentile_range=True)
 
     def correctForOffset(self, pairsPixel, setts, ignore_dim):
         offsOld = np.array([filter_dict(
