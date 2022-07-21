@@ -628,6 +628,29 @@ class DefaultLocationRemover():
             res.append(lModified)
         return res
 
+class StagePositionListGenerator():
+    
+    def __init__(self, positions, verbose=False):
+        self.positions = positions
+        self.idx = 0
+        self.verbose = verbose
+        
+    def get_locations(self):
+        
+        # no more positions to image at
+        if self.idx >= len(self.positions):
+            return []
+        
+        # get next position and increment index
+        coords = self.positions[self.idx]
+        self.idx += 1   
+        
+        if self.verbose:
+            print(self.__class__.__name__ + ': new coordinates: ' + str(coords))
+                
+        return [coords]
+        
+
 class SpiralOffsetGenerator():
     def __init__(self):
         self.fov = [5e-5, 5e-5]
