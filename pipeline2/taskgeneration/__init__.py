@@ -13,7 +13,8 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              DefaultScanModeSettingsGenerator,
                              DefaultScanFieldSettingsGenerator,
                              PairedDefaultScanOffsetsSettingsGenerator,
-                             DifferentFirstFOVSettingsGenerator)
+                             DifferentFirstFOVSettingsGenerator,
+                             StagePositionListGenerator)
 
 from .stitched_data_generation import StitchedNewestDataSelector
 
