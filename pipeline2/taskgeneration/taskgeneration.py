@@ -3,7 +3,9 @@ from copy import deepcopy
 from pipeline2.util import remove_filter_from_dict, gen_json, update_dicts, filter_dict
 from operator import add
 from functools import reduce
+from time import time, sleep
 import json
+import warnings
 
 from .fov_util import group_in_bounding_boxes
 
@@ -33,6 +35,57 @@ def _relative_spiral_generator(steps, start=[0,0]):
             bookmark[1] += steps[1]
         n += 1
 
+
+class TimeSeriesDummyAcquisitionTask():
+    def __init__(self, pipeline_level) -> None:
+        self.pipeline_level = pipeline_level
+        self.numAcquisitions = 0
+
+class TimeSeriesCallback():
+
+    def __init__(self, pipeline_level) -> None:
+        self.pipeline_level = pipeline_level
+        self.re_initialized = True
+        self.start_time = 0
+        self.time_points = [0]
+        self.current_time_point_idx = 0
+
+        # seconds to wait before warning about overtime of previous acquisition
+        self.max_wait_before_warn = 5
+
+    def initialize_time_series(self, pipeline):
+        # initialize the time series by putting a dummy acquisition task (for which this should serve as a callback) into the queue
+        # reset timer and pointer to current time point
+        self.re_initialized = False
+        self.start_time = time()
+        self.current_time_point_idx = 0
+
+        pipeline.queue.put(TimeSeriesDummyAcquisitionTask(), self.pipeline_level)
+
+
+    def __call__(self, pipeline) -> None:
+
+        # catch edge cases
+        # normally, no new TimeSeriesDummyAcquisitionTasks should be enqueued after last time point (see below)
+        if self.current_time_point_idx >= len(self.time_points):
+            warnings.warn('time series callback called on already finished time series.')
+            return
+
+        next_tp = self.time_points[self.current_time_point_idx]
+
+        wait_time = next_tp - (time() - self.start_time)
+        if wait_time < (- self.max_wait_before_warn):
+            warnings.warn(f'Next time point in time series was scheduled {-wait_time} seconds ago, but previous acquisition(s) did not finish in time.')
+
+        # wait until next time point is due
+        sleep(max(0, wait_time))
+
+        # increment time point index
+        self.current_time_point_idx += 1
+
+        # only enqueue dummy acquisition task if there is a next time point
+        if self.current_time_point_idx < len(self.time_points):
+            pipeline.queue.put(TimeSeriesDummyAcquisitionTask(), self.pipeline_level)
 
 class AcquisitionTaskGenerator():
     def __init__(self, level, *updateGens):

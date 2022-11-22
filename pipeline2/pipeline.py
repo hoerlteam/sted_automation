@@ -160,16 +160,18 @@ class AcquisitionPipeline():
                     # add data copy (of most recent configuration) to internal storage
                     self.data[currentMeasurementIdx].append(*self.im.getCurrentData())
 
-                # save and close in imspector
-                path = None
-                if self.nameHandler != None:
-                    path = self.nameHandler.get_path(currentMeasurementIdx)
-                print(path)
+                # only save if we actually did any acquisitions
+                if acquisition_task.numAcquisitions > 0:
+                    # save and close in imspector
+                    path = None
+                    if self.nameHandler != None:
+                        path = self.nameHandler.get_path(currentMeasurementIdx)
+                    print(path)
 
-                # TODO: closing without saving might trigger UI dialog in Imspector
-                if not (path is None):
-                    self.im.saveCurrentMeasurement(path)
-                self.im.closeCurrentMeasurement()
+                    # TODO: closing without saving might trigger UI dialog in Imspector
+                    if not (path is None):
+                        self.im.saveCurrentMeasurement(path)
+                    self.im.closeCurrentMeasurement()
                 
                 # NB: give Imspector time to close measurement
                 #sleep(3.0)
@@ -281,3 +283,12 @@ class DefaultNameHandler():
     
     def get_path(self, idxes):
         return os.path.join(self.path, self.get_filename(idxes))
+
+    def to_json(self):
+        return {
+            'class' : str(type(self)),
+            'path' : self.path,
+            'levels' : [l.name for l in self.levels.levels],
+            'ending' : self.ending,
+            'prefix' : self.prefix
+        }
