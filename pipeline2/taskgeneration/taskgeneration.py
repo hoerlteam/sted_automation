@@ -6,6 +6,7 @@ from functools import reduce
 from time import time, sleep
 import json
 import warnings
+from pathlib import Path
 
 from .fov_util import group_in_bounding_boxes
 
@@ -682,27 +683,33 @@ class DefaultLocationRemover():
         return res
 
 class StagePositionListGenerator():
-    
+
+    # TODO: add possibility to reset index during acquisition?
+    #  -> might be necessary to re-image same positions multiple times?
+
     def __init__(self, positions, verbose=False):
         self.positions = positions
         self.idx = 0
         self.verbose = verbose
-        
+
+    def get_all_locations(self):
+        # return copy of all positions
+        return list(self.positions)
+
     def get_locations(self):
-        
+
         # no more positions to image at
         if self.idx >= len(self.positions):
             return []
-        
+
         # get next position and increment index
         coords = self.positions[self.idx]
         self.idx += 1   
-        
+
         if self.verbose:
             print(self.__class__.__name__ + ': new coordinates: ' + str(coords))
-                
+
         return [coords]
-        
 
 class SpiralOffsetGenerator():
     def __init__(self):
@@ -737,30 +744,56 @@ class JSONFileConfigLoader():
     """
     load settings from JSON dump
     """
+
+    # TODO: rename since we now also support using an already loaded config instead of loading from a file
+
+    # parameters to remove from measurement parameter dicts because they caused problems
+    parameters_to_drop = [
+        '/Measurement/LoopMeasurement', '/Measurement/ResumeIdx', # remove, otherwise Imspector complains that those parameters do not exist (yet?)
+        '/Measurement/propset_id', # remove, otherwise we will always use a set propset
+        ]
+
     def __init__(self, measurementConfigFileNames, settingsConfigFileNames=None, asMeasurements=True):
         self.measConfigs = []
         self.asMeasurements = asMeasurements
+
         for mFile in measurementConfigFileNames:
-            with open(mFile, 'r') as fd:
-                d = json.load(fd)
-                # remove, otherwise Imspector complains that those parameters do not exist (yet?)
-                d = remove_filter_from_dict(d, '/Measurement/LoopMeasurement')
-                d = remove_filter_from_dict(d, '/Measurement/ResumeIdx')
-                # remove, otherwise we will always use a set propset
-                d = remove_filter_from_dict(d, '/Measurement/propset_id')
-                self.measConfigs.append(d)
+            if isinstance(mFile, (str, Path)):
+                with open(mFile, 'r') as fd:
+                    d = json.load(fd)
+            elif isinstance(mFile, dict):
+                d = mFile
+            else:
+                raise ValueError('configuration should be either a valid filename or an already loaded dict')
+
+            # remove parameters known to cause problems
+            for parameter_to_drop in JSONFileConfigLoader.parameters_to_drop:
+                d = remove_filter_from_dict(d, parameter_to_drop)
+
+            self.measConfigs.append(d)
         
         self.settingsConfigs = []
+
+        # option 1: no hardware configs provided, leave empty
         if settingsConfigFileNames is None:
             for _ in range(len(self.measConfigs)):
                 self.settingsConfigs.append(dict())
+
+        # option 2: load hardware configs
         else:
             if len(settingsConfigFileNames) != len(self.measConfigs):
                 raise ValueError('length of settings and measurement configs dont match')
+
             for sFile in settingsConfigFileNames:
-                with open(sFile, 'r') as fd:
-                    d = json.load(fd)
-                    self.settingsConfigs.append(d)
+                if isinstance(sFile, (str, Path)):
+                    with open(sFile, 'r') as fd:
+                        d = json.load(fd)
+                elif isinstance(sFile, dict):
+                    d = sFile
+                else:
+                    raise ValueError('configuration should be either a valid filename or an already loaded dict')
+
+                self.settingsConfigs.append(d)
     
     def __call__(self):
         res = []
