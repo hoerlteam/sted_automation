@@ -61,7 +61,7 @@ class TimeSeriesCallback():
         self.start_time = time()
         self.current_time_point_idx = 0
 
-        pipeline.queue.put(TimeSeriesDummyAcquisitionTask(), self.pipeline_level)
+        pipeline.queue.put(TimeSeriesDummyAcquisitionTask(self.pipeline_level), self.pipeline_level)
 
 
     def __call__(self, pipeline) -> None:
@@ -86,7 +86,7 @@ class TimeSeriesCallback():
 
         # only enqueue dummy acquisition task if there is a next time point
         if self.current_time_point_idx < len(self.time_points):
-            pipeline.queue.put(TimeSeriesDummyAcquisitionTask(), self.pipeline_level)
+            pipeline.queue.put(TimeSeriesDummyAcquisitionTask(self.pipeline_level), self.pipeline_level)
 
 class AcquisitionTaskGenerator():
     def __init__(self, level, *updateGens):
