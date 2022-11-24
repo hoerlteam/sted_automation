@@ -16,7 +16,10 @@ from .stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
 
 class AcquisitionPriorityQueue(PriorityQueue):
     """
-    slightly modified PriorityQueue to be able to enqueue non-orderable data
+    Slightly modified PriorityQueue to be able to enqueue non-orderable data
+    
+    In short, instead of (prio, object), we insert (prio, count, object) with a steadily increasing count.
+    This way, object (which may not be comparable) will not be considered when getting the next item from queue.
     """
 
     def __init__(self):
@@ -65,8 +68,9 @@ class PipelineLevels:
     """
     ordered collection of _pipeline_level
     """
-    levels = []
+
     def __init__(self, *args):
+        self.levels = []
         for arg in args:
             lvl = _pipeline_level(self, arg)
             self.levels.append(lvl)
