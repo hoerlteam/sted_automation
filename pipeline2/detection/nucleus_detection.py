@@ -16,7 +16,7 @@ try:
     from csbdeep.utils import normalize
     # try to import CellPose, but do not make hard dependency yet
     from cellpose.models import Cellpose
-except ImportError:
+except:
     pass
 
 from calmutils.localization import refine_point
