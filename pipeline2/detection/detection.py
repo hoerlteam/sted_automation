@@ -120,14 +120,21 @@ class SimpleSingleChannelSpotDetector():
                  generateStageOffsets=False):
         self.dataSource = dataSource
         self.sigmas = sigmas
-        self.threshold = threshold
-        self.channel = channel
+        self.thresholds = threshold
+        self.channels = channel
         self.medianThreshold = medianThreshold
         self.medianRadius = medianRadius
         self.plotDetections = False
         self.verbose = False
         self.withRefinement = withRefinement
         self.generateStageOffsets = generateStageOffsets
+
+        # ensure we have a list of channels / thresholds
+        # NOTE: this way, we can do single channel detection in multiple channels independently
+        if np.isscalar(self.channels):
+            self.channels = [self.channels]
+        if np.isscalar(self.thresholds):
+            self.thresholds = [self.thresholds]
         
         
     def withPlotDetections(self, plotDetections=True):
@@ -177,26 +184,31 @@ class SimpleSingleChannelSpotDetector():
             raise ValueError(
                 'no images present. TODO: fail gracefully/skip here')
         
-        img = data.data[0][self.channel][0, :, :, :]
         
+        locs = []
+        for channel, threshold in zip(self.channels, self.thresholds):
+            img = data.data[0][channel][0, :, :, :]
+            
 
-        # make float
-        img = np.array(img, np.float)
-        setts = data.measurementSettings[0]
-        
-        # check which dimensions are singleton (note: x,y,z here!)
-        ignore_dim = np.array([d for d in img.shape][-1::-1]) == 1
-        
-        # if sigma is scalar: repeat for number of 'valid' dimensions
-        if not isinstance(self.sigmas, (collections.Sequence, np.ndarray)):
-            self.sigmas = [self.sigmas] * int(len(ignore_dim) - np.sum(ignore_dim))
-        
-        # discard singleton dimensions for detection
-        img_ = np.squeeze(img)
-        
-        # do detection
-        locs = detect_blobs(img_, self.sigmas, self.threshold, False, self.medianThreshold,
-                                     self.medianRadius, self.withRefinement)
+            # make float
+            img = np.array(img, np.float)
+            setts = data.measurementSettings[0]
+            
+            # check which dimensions are singleton (note: x,y,z here!)
+            ignore_dim = np.array([d for d in img.shape][-1::-1]) == 1
+            
+            # if sigma is scalar: repeat for number of 'valid' dimensions
+            if not isinstance(self.sigmas, (collections.Sequence, np.ndarray)):
+                self.sigmas = [self.sigmas] * int(len(ignore_dim) - np.sum(ignore_dim))
+            
+            # discard singleton dimensions for detection
+            img_ = np.squeeze(img)
+            
+            # do detection
+            locs_per_channel = detect_blobs(img_, self.sigmas, threshold, False, self.medianThreshold,
+                                        self.medianRadius, self.withRefinement)
+
+            locs += locs_per_channel
 
         # re-introduce zeroes to get back to 3-d (if we dropped dims)
         locs_expanded = []
@@ -218,6 +230,8 @@ class SimpleSingleChannelSpotDetector():
                 print(loc)
 
         # plot
+        # NOTE: this only shows the last channel if we detect in multiple
+        # TODO: plot better
         if self.plotDetections:
             self.doPlot(locs, img)
 
