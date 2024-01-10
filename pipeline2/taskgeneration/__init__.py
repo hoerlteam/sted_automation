@@ -1,6 +1,4 @@
 from .taskgeneration import (AcquisitionTaskGenerator,
-                             DefaultLocationRemover,
-                             DefaultLocationKeeper,
                              DefaultScanOffsetsSettingsGenerator,
                              DefaultStageOffsetsSettingsGenerator,
                              NewestDataSelector,
@@ -15,6 +13,7 @@ from .taskgeneration import (AcquisitionTaskGenerator,
                              PairedDefaultScanOffsetsSettingsGenerator,
                              DifferentFirstFOVSettingsGenerator,
                              StagePositionListGenerator)
+from .parameter_filtering import DefaultLocationKeeper, DefaultLocationRemover
 
 from .stitched_data_generation import StitchedNewestDataSelector
 

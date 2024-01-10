@@ -605,83 +605,6 @@ class ZDCOffsetSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
               ]
 
 
-class DefaultLocationKeeper():
-    """
-    this wrapper can be used to keep just the location-related updates from the
-    output of a settings generator.
-    """
-
-    _filtersToKeep = [  'ExpControl/scan/range/coarse_x/off',
-                        'ExpControl/scan/range/coarse_x/g_off',
-                        'ExpControl/scan/range/coarse_y/off',
-                        'ExpControl/scan/range/coarse_y/g_off',
-                        'ExpControl/scan/range/coarse_z/off',
-                        'ExpControl/scan/range/coarse_z/g_off',
-                        'ExpControl/scan/range/x/off',
-                        'ExpControl/scan/range/x/g_off',
-                        'ExpControl/scan/range/y/off',
-                        'ExpControl/scan/range/y/g_off',
-                        'ExpControl/scan/range/z/off',
-                        'ExpControl/scan/range/z/g_off'
-                      ]
-
-    def __init__(self, coordinateProvider):
-        self.coordinateProvider = coordinateProvider
-
-    def __call__(self):
-        res = []
-        for l in self.coordinateProvider():
-            lModified = []
-            for meas, settings in l:
-                measI = {}
-                for f in DefaultLocationKeeper._filtersToKeep:
-                    mI = filter_dict(meas, f, False)
-                    measI = update_dicts(measI, gen_json(mI, f) if not (mI is None) else {})
-                lModified.append((measI, settings))
-            res.append(lModified)
-        return res
-
-class DefaultLocationRemover():
-    """
-    this wrapper can be used to remove location-related updates from the output
-    of a settings generator.
-    if will remove the corresponding settings from every measurement dict
-    and leave the rest as-is.
-    """
-
-    _filtersToRemove = ['ExpControl/scan/range/coarse_x/off',
-                        'ExpControl/scan/range/coarse_x/g_off',
-                        'ExpControl/scan/range/coarse_y/off',
-                        'ExpControl/scan/range/coarse_y/g_off',
-                        'ExpControl/scan/range/coarse_z/off',
-                        'ExpControl/scan/range/coarse_z/g_off',
-                        'ExpControl/scan/range/x/off',
-                        'ExpControl/scan/range/x/g_off',
-                        'ExpControl/scan/range/y/off',
-                        'ExpControl/scan/range/y/g_off',
-                        'ExpControl/scan/range/z/off',
-                        'ExpControl/scan/range/z/g_off',
-                        'OlympusIX/stage',
-                        'OlympusIX/scanrange']
-
-    def __init__(self, coordinateProvider):
-        self.coordinateProvider = coordinateProvider
-
-    def __call__(self):
-        res = []
-        for l in self.coordinateProvider():
-            lModified = []
-            for meas, settings in l:
-                measI = deepcopy(meas)
-                for f in DefaultLocationRemover._filtersToRemove:
-                    measI = remove_filter_from_dict(measI, f)
-                    if measI is None:
-                        measI = {}
-                lModified.append((measI, settings))
-
-            res.append(lModified)
-        return res
-
 class StagePositionListGenerator():
 
     # TODO: add possibility to reset index during acquisition?
@@ -782,7 +705,7 @@ class JSONFileConfigLoader():
         # option 2: load hardware configs
         else:
             if len(settingsConfigFileNames) != len(self.measConfigs):
-                raise ValueError('length of settings and measurement configs dont match')
+                raise ValueError('length of settings and measurement configs do not match')
 
             for sFile in settingsConfigFileNames:
                 if isinstance(sFile, (str, Path)):
