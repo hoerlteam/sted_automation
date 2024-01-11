@@ -7,7 +7,7 @@ import os
 import hashlib
 
 from .imspector.imspector import MockImspectorConnection
-from .data import RichData
+from .data import MeasurementData
 from .util import DelayedKeyboardInterrupt
 from .stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
 
@@ -97,7 +97,7 @@ class AcquisitionPipeline():
         self.queue = AcquisitionPriorityQueue()
         self.startingTime = None
         self.counters = defaultdict(int)
-        self.data = defaultdict(RichData)
+        self.data = defaultdict(MeasurementData)
         self.callbacks = defaultdict(list)
 
         # hold the Imspector connection

@@ -4,7 +4,7 @@ from calmutils.stitching import stitch
 from calmutils.stitching import stitching
 
 from .taskgeneration import NewestDataSelector
-from ..data import RichData
+from ..data import MeasurementData
 from ..util import filter_dict, update_dicts, gen_json
 
 
@@ -114,7 +114,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         res_data = [None] * self.channel + [res_img] + [None] * (len(data_newest.data[self.configuration]) - (self.channel + 1))
 
         # wrap results, use None for other configs
-        res = RichData()
+        res = MeasurementData()
         for _ in range(self.configuration):
             res.append(None, None, None)
         res.append(data_newest.globalSettings[self.configuration], stitch_setts, res_data)

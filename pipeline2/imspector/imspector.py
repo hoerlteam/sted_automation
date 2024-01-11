@@ -9,7 +9,7 @@ from ..ressources import dummy_measurements
 import numpy as np
 import time
 from unittest.mock import MagicMock
-from ..data import RichData
+from ..data import MeasurementData
 
 # TODO: remove in production?
 try:
@@ -85,7 +85,7 @@ def set_parameters_nofail(target, sanitizer, pars):
 
 class MockImspectorConnection():
     def __init__(self):
-        self.getCurrentData = MagicMock(return_value=RichData())
+        self.getCurrentData = MagicMock(return_value=MeasurementData())
         self.makeMeasurementFromTask = MagicMock(return_value=None)
         self.makeConfigurationFromTask = MagicMock(return_value=None)
         self.runCurrentMeasurement = MagicMock(return_value=None)

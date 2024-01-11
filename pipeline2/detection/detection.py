@@ -80,7 +80,7 @@ class SimpleLegacyFocusHold():
                 print(self.__class__.__name__ + ': No data for Z correction present -> skipping.')
             return [[None, None, None]]
 
-        if (data.numConfigurations <= self.configuration) or (data.numImages(self.configuration) <= self.channel):
+        if (data.num_configurations <= self.configuration) or (data.num_images(self.configuration) <= self.channel):
             raise ValueError('no images present. TODO: fail gracefully/skip here')
 
         img = data.data[self.configuration][self.channel][0, :, :, :]
@@ -180,7 +180,7 @@ class SimpleSingleChannelSpotDetector():
     
     def get_locations(self):
         data = self.dataSource.get_data()
-        if (data.numConfigurations < 1) or (data.numImages(0) < 1):
+        if (data.num_configurations < 1) or (data.num_images(0) < 1):
             raise ValueError(
                 'no images present. TODO: fail gracefully/skip here')
         
@@ -294,7 +294,7 @@ class LegacySpotPairFinder():
 
     def get_locations(self):
         data = self.dataSource.get_data()
-        if (data.numConfigurations < 1) or (data.numImages(0) < 2):
+        if (data.num_configurations < 1) or (data.num_images(0) < 2):
             raise ValueError(
                 'too few images for LegacySpotPairFinder. The RichData provided needs to have two images in the first configuration.')
         stack1 = data.data[0][self.channels[0]][0, :, :, :]
@@ -335,7 +335,7 @@ class PairedLegacySpotPairFinder(LegacySpotPairFinder):
 
     def get_locations(self):
         data = self.dataSource.get_data()
-        if (data.numConfigurations < 1) or (data.numImages(0) < 2):
+        if (data.num_configurations < 1) or (data.num_images(0) < 2):
             raise ValueError(
                 'too few images for LegacySpotPairFinder. The RichData provided needs to have two images in the first configuration.')
         stack1 = data.data[0][self.channels[0]][0, :, :, :]
