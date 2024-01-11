@@ -1,6 +1,7 @@
 import json
 import signal
-import collections
+from math import isclose
+import typing as collections
 import threading
 from copy import deepcopy
 
@@ -165,3 +166,65 @@ def gen_json(data, path, sep='/'):
         return data
     else:
         return {fst_path: gen_json(data, sep.join(paths[1:]))}
+
+
+def diff_dicts(d1, d2, separator='/'):
+    """
+    Helper function to compare two complex dictionaries (e.g. Imspector configurations)
+    Will return lists of flattened element keys only in one of the dicts
+    and keys of differing values.
+    """
+
+    # get sets of keys
+    keys1 = set(d1.keys())
+    keys2 = set(d2.keys())
+
+    # find keys only in one of the two sets
+    only1 = keys1.difference(keys2)
+    only2 = keys2.difference(keys1)
+    diff = set()
+
+    for k in keys1.intersection(keys2):
+
+        # child element with key k is dict in both cases: recurse
+        if isinstance(d1[k], dict) and isinstance(d2[k], dict):
+            only1_inner, only2_inner, diff_inner = diff_dicts(d1[k], d2[k])
+
+            # add flattened keys with separator to difference sets
+            for k_inner in only1_inner:
+                only1.add(k + separator + k_inner)
+            for k_inner in only2_inner:
+                only2.add(k + separator + k_inner)
+            for k_inner in diff_inner:
+                diff.add(k + separator + k_inner)
+
+        # handle both lists, if at least one element is a dict
+        elif (isinstance(d1[k], list) and any((isinstance(v, dict) for v in d1[k])) and
+              isinstance(d2[k], list) and any((isinstance(v, dict) for v in d2[k]))):
+
+            # create dummy dicts with index -> value from the lists
+            dummy_dict_d1 = {str(i): v for i, v in enumerate(d1[k])}
+            dummy_dict_d2 = {str(i): v for i, v in enumerate(d2[k])}
+            only1_inner, only2_inner, diff_inner = diff_dicts(dummy_dict_d1, dummy_dict_d2)
+
+            # add flattened keys with separator to difference sets
+            for k_inner in only1_inner:
+                only1.add(k + separator + k_inner)
+            for k_inner in only2_inner:
+                only2.add(k + separator + k_inner)
+            for k_inner in diff_inner:
+                diff.add(k + separator + k_inner)
+
+        # child elements have different type or are "scalar"
+        # if both values are float, just check approximate equality
+        # NOTE: this will still not catch lists of floats
+        elif isinstance(d1[k], float) and isinstance(d2[k], float):
+            if not isclose(d1[k], d2[k]):
+                diff.add(k)
+
+        # otherwise, just compare
+        elif d1[k] != d2[k]:
+            diff.add(k)
+
+    # return as sorted lists for easier comparison
+    return sorted(only1), sorted(only2), sorted(diff)
