@@ -88,14 +88,15 @@ class TimeSeriesCallback():
         if self.current_time_point_idx < len(self.time_points):
             pipeline.queue.put(TimeSeriesDummyAcquisitionTask(self.pipeline_level), self.pipeline_level)
 
+
 class AcquisitionTaskGenerator():
-    def __init__(self, level, *updateGens):
+    def __init__(self, level, *update_generators):
 
         self.level = level
         # ignore update generators that are None
         # that way, we can safely pass None to constructor
         # e.g. when no parameter change is desired by the user
-        self.updateGens = [u for u in updateGens if u is not None]
+        self.update_generators = [u for u in update_generators if u is not None]
         self.delay = 0
         self.taskFilters = []
 
@@ -113,38 +114,36 @@ class AcquisitionTaskGenerator():
         return self
 
     def __call__(self, pipeline):
-        # broadcast meausurement updates ((u1, u2), (u3) -> ((u1, u3), (u2, u3)))
+        """
+        Run wrapped callbacks and broadcast and combine measurement updates,
+        repeating single updates from one callback to match with multiple from another:
+        e.g.: (u1, u2, u3), (u4) -> (u1 + u4), (u2 + u4), (u3 + u4)
 
-        updates = [updateGenI() for updateGenI in self.updateGens]
+        If multiple callbacks return more than one measurement, they must have the same number:
+        e.g.: (u1, u2), (u3, u4) -> (u1 + u3), (u2 + u4)
 
-        maxMeasurements = max((len(updateI) for updateI in updates))
-        minMeasurements = min((len(updateI) for updateI in updates))
+        If any callback returns an empty list of updates, nothing will be enqueued.
+        """
 
-        cyclesMeas = [cycle(updateI) for updateI in updates]
+        # run all wrapped callbacks, they should each return a list of updates
+        # that should be combined into a list of measurements to enqueue
+        updates = [update_generator() for update_generator in self.update_generators]
 
-        # nothing to do, e.g. no detections
-        if minMeasurements == 0:
-            return
+        # broadcast updates at the measurement level
+        updates_per_measurements_broadcast = broadcast_updates(updates)
 
         # update the filters
+        # TODO: check if this can be simplified/removed?
         for filt in self.taskFilters:
             filt.update()
 
-        for _ in range(maxMeasurements):
+        for measurement_update in updates_per_measurements_broadcast:
 
             # broadcast configurations within measurements
-            # FIXME: why StopIteration here?
-            configs = [next(meas) for meas in cyclesMeas]
-            maxConfigs = max((len(confI) for confI in configs))
-            cyclesConfig = [cycle(confI) for confI in configs]
-
-            finalConfs = []
-
-            for _ in range(maxConfigs):
-                finalConfs.append([next(upd) for upd in cyclesConfig])
+            config_updates = broadcast_updates(measurement_update)
 
             # print(json.dumps(finalConfs, indent=2))
-            task = AcquisitionTask(self.level).withUpdates(finalConfs).withDelay(self.delay)
+            task = AcquisitionTask(self.level).withUpdates(config_updates).withDelay(self.delay)
 
             # reject task if it does not conform to a filter
             skip = False
@@ -154,7 +153,7 @@ class AcquisitionTaskGenerator():
             if skip:
                 continue
 
-
+            # enqueue the task with desired priority level
             pipeline.queue.put(task, self.level)
 
 
@@ -163,18 +162,18 @@ class AcquisitionTask():
     a dummy acquisition task, that will repeat itself every second
     """
 
-    def __init__(self, pipelineLevel):
-        self.pipelineLevel = pipelineLevel
-        self.measurementUpdates = []
-        self.settingsUpdates = []
+    def __init__(self, pipeline_level):
+        self.pipeline_level = pipeline_level
+        self.measurement_updates = []
+        self.hardware_updates = []
         self.delay = 0
 
     def withUpdates(self, updates):
         for u in updates:
             measUpdates = [m for m, s in u]
             settingsUpdates = [s for m, s in u]
-            self.measurementUpdates.append(measUpdates)
-            self.settingsUpdates.append(settingsUpdates)
+            self.measurement_updates.append(measUpdates)
+            self.hardware_updates.append(settingsUpdates)
         return self
 
     def withDelay(self, delay=0):
@@ -183,19 +182,19 @@ class AcquisitionTask():
 
     @property
     def numAcquisitions(self):
-        return len(self.measurementUpdates)
+        return len(self.measurement_updates)
 
     def getUpdates(self, n):
-        return self.measurementUpdates[n], self.settingsUpdates[n]
+        return self.measurement_updates[n], self.hardware_updates[n]
 
     def getAllUpdates(self):
         return [self.getUpdates(n) for n in range(self.numAcquisitions)]
 
     # TODO: move, this should become part of an analysis callback
     def __call__(self, pipeline, *args, **kwargs):
-        print('pipeline {}: do dummy acquisition on level {}'.format(pipeline.name, self.pipelineLevel))
+        print('pipeline {}: do dummy acquisition on level {}'.format(pipeline.name, self.pipeline_level))
         # sleep(1)
-        pipeline.queue.put(AcquisitionTask(self.pipelineLevel).withDelay(self.delay), self.pipelineLevel)
+        pipeline.queue.put(AcquisitionTask(self.pipeline_level).withDelay(self.delay), self.pipeline_level)
 
 
 class NewestDataSelector():
@@ -750,5 +749,47 @@ def ATGTest():
 
     print(locMock.get_locations())
 
+
+from typing import Sequence
+
+
+def broadcast_updates(updates: Sequence[Sequence]):
+
+    # get number of measurements / configurations in each update
+    update_lengths = [len(update_i) for update_i in updates]
+
+    # nothing to do, e.g. no detections
+    if min(update_lengths) == 0:
+        return []
+
+    # run some sanity checks to make sure we can do reasonable broadcasting of updates
+    update_lengths_unique = set(update_lengths)
+    if len(update_lengths_unique) > 2:
+        raise ValueError(f"Can't combine updates with more than two lengths: {update_lengths_unique}")
+    # if we have two different lengths, it is okay only if one of them is 1
+    # then, the single update will be combined with all other updates
+    if len(update_lengths_unique) == 2 and 1 not in update_lengths_unique:
+        raise ValueError(f"Can't combine updates with two different lengths > 1: {update_lengths_unique}")
+
+    # get combined updates: cycle so ones with len < maximum len will be repeated
+    result = []
+    cycle_updates = [cycle(update_i) for update_i in updates]
+    for _ in range(max(update_lengths_unique)):
+        result.append(tuple(next(cycle_i) for cycle_i in cycle_updates))
+
+    # return as tuple
+    return tuple(result)
+
+
 if __name__ == '__main__':
-    ATGTest()
+    test_updates = [('u1', 'u2', 'u3'), ['v1', 'v2', 'v3']]
+    print(broadcast_updates(test_updates))
+
+    u1 = ['coords1', 'coords1-1']
+    u2 = ['coords2', 'coords2-1']
+    u3 = ['coords3', 'coords3-1']
+    v1 = ['settings1', 'settings2',]
+    test_updates = ((u1, u2, u3), (v1,))
+
+    for meas_updates in broadcast_updates(test_updates):
+        print(broadcast_updates(meas_updates))
