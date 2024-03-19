@@ -1,21 +1,7 @@
 from copy import deepcopy
 
 from pipeline2.util import filter_dict, update_dicts, gen_json, remove_filter_from_dict
-
-LOCATION_PARAMETERS = ('ExpControl/scan/range/coarse_x/off',
-                        'ExpControl/scan/range/coarse_x/g_off',
-                        'ExpControl/scan/range/coarse_y/off',
-                        'ExpControl/scan/range/coarse_y/g_off',
-                        'ExpControl/scan/range/coarse_z/off',
-                        'ExpControl/scan/range/coarse_z/g_off',
-                        'ExpControl/scan/range/x/off',
-                        'ExpControl/scan/range/x/g_off',
-                        'ExpControl/scan/range/y/off',
-                        'ExpControl/scan/range/y/g_off',
-                        'ExpControl/scan/range/z/off',
-                        'ExpControl/scan/range/z/g_off',
-                        'OlympusIX/stage',
-                        'OlympusIX/scanrange')
+from pipeline2.utils.parameter_constants import LOCATION_PARAMETERS
 
 
 class ParameterFilter:
