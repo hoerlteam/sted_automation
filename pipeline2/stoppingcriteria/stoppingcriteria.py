@@ -9,7 +9,7 @@ class TimedStoppingCriterion():
         self.maxtime = maxtime
 
     def check(self, pipeline):
-        return time() > (pipeline.startingTime + self.maxtime)
+        return time() > (pipeline.starting_time + self.maxtime)
 
     def desc(self, pipeline):
         return 'STOPPING PIPELINE {}: maximum time exceeded'.format(pipeline.name)

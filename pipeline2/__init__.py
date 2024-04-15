@@ -1,5 +1,5 @@
 from .data import MeasurementData, HDF5MeasurementData, HDF5DataStore, HDF5DataReader
-from .pipeline import AcquisitionPipeline, AcquisitionPriorityQueue, PipelineLevels, DefaultNameHandler
+from .pipeline import AcquisitionPipeline, AcquisitionPriorityQueue, PipelineLevels, FilenameHandler
 
 # from . import detection
 # from . import imspector

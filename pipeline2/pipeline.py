@@ -79,12 +79,13 @@ class PipelineLevels:
     def reversedLevels(self):
         return list(reversed(self.levels))
 
-class AcquisitionPipeline():
+
+class AcquisitionPipeline:
     """
-    the main class
+    the main class of an acquisition pipeline run
     """
 
-    def __init__(self, name):
+    def __init__(self, name, path):
         """
         construct with name
         """
@@ -92,10 +93,10 @@ class AcquisitionPipeline():
 
         self.pipelineLevels = None
 
-        # we habe an InterruptedStoppingCriterion by default
-        self.stoppingConditions = [InterruptedStoppingCriterion()]
+        # we have an InterruptedStoppingCriterion by default
+        self.stopping_conditions = [InterruptedStoppingCriterion()]
         self.queue = AcquisitionPriorityQueue()
-        self.startingTime = None
+        self.starting_time = None
         self.counters = defaultdict(int)
         self.data = defaultdict(MeasurementData)
         self.callbacks = defaultdict(list)
@@ -104,9 +105,14 @@ class AcquisitionPipeline():
         self.im = MockImspectorConnection()
 
         self.logger = None
-        self.nameHandler = None
 
-        # the DelayedKeyboardInterrupt will indicate a received SIGINT here
+        self.base_path = path
+        self.filename_handler = FilenameHandler(self.base_path, self.pipelineLevels)
+        # make directory if it does not exist yet
+        if not os.path.exists(self.base_path):
+            os.makedirs(self.base_path)
+
+        # boolean flag member, the DelayedKeyboardInterrupt will indicate a received SIGINT here
         self.interrupted = False
 
     def run(self):
@@ -119,7 +125,7 @@ class AcquisitionPipeline():
         with DelayedKeyboardInterrupt(self):
 
             # record starting time, so we can check wether a StoppingCondition is met
-            self.startingTime = time()
+            self.starting_time = time()
 
             lvl = None
 
@@ -168,8 +174,8 @@ class AcquisitionPipeline():
                 if acquisition_task.numAcquisitions > 0:
                     # save and close in imspector
                     path = None
-                    if self.nameHandler != None:
-                        path = self.nameHandler.get_path(currentMeasurementIdx)
+                    if self.filename_handler != None:
+                        path = self.filename_handler.get_path(currentMeasurementIdx)
                     print(path)
 
                     # TODO: closing without saving might trigger UI dialog in Imspector
@@ -187,7 +193,7 @@ class AcquisitionPipeline():
                         callback_(self)
 
                 # go through stopping conditions
-                for sc in self.stoppingConditions:
+                for sc in self.stopping_conditions:
                     if sc.check(self) == True:
                         # reset interrupt flag if necessary
                         if isinstance(sc, InterruptedStoppingCriterion):
@@ -217,8 +223,8 @@ class AcquisitionPipeline():
         self.pipelineLevels = lvls
         return self
 
-    def withNameHandler(self, nh):
-        self.nameHandler = nh
+    def _withNameHandler(self, nh):
+        self.filename_handler = nh
         return self
 
     def withImspectorConnection(self, im):
@@ -238,16 +244,16 @@ class AcquisitionPipeline():
         """
         reset the StoppingConditions, can be chained
         """
-        self.stoppingConditions.clear()
+        self.stopping_conditions.clear()
         for condI in conds:
-            self.stoppingConditions.append(condI)
+            self.stopping_conditions.append(condI)
         return self
 
     def withAddedStoppingCondition(self, cond):
         """
         add a StoppingCondition, can be chained
         """
-        self.stoppingConditions.append(cond)
+        self.stopping_conditions.append(cond)
         return self
 
     def withInitialTask(self, task, lvl):
@@ -257,42 +263,47 @@ class AcquisitionPipeline():
         self.queue = AcquisitionPriorityQueue()
         self.queue.put(task, lvl)
         return self
-    
-class DefaultNameHandler():
+
+
+class FilenameHandler:
     """
-    file name handler
+    helper class to generate systematic filenames to save data to.
     """
-    
-    def __init__(self, path, levels, prefix=None, ending = '.msr'):
+
+    # TODO: add zero-padding of indices in filenames?
+
+    def __init__(self, path, levels, prefix=None, default_ending ='.msr'):
         self.path = path
+
         self.levels = levels
-        self.ending = ending
+        # extract level names if we have a legacy PipelineLevels object
+        if isinstance(self.levels, PipelineLevels):
+            self.levels = [level.name for level in self.levels.levels]
+
+        self.default_ending = default_ending
+
+        # if no prefix for filenames is given, use a random hash
         if prefix is None:
             hash_object = hashlib.md5(bytes(str(time()), "utf-8"))
             hex_dig = hash_object.hexdigest()
             self.prefix = str(hex_dig)
         else:
             self.prefix = prefix
-            
-        if not os.path.exists(path):
-            os.makedirs(path)
-            
-    def _mkdir_if_necessary(self):
-        pass
-            
-    def get_filename(self, idxes):
-        insert = chain.from_iterable(zip([l.name for l in self.levels.levels[0:len(idxes)]], idxes))
-        insert = list(insert)
-        return ((self.prefix + '_{}_{}' * len(idxes)).format(*insert) + self.ending)
-    
-    def get_path(self, idxes):
-        return os.path.join(self.path, self.get_filename(idxes))
 
-    def to_json(self):
-        return {
-            'class' : str(type(self)),
-            'path' : self.path,
-            'levels' : [l.name for l in self.levels.levels],
-            'ending' : self.ending,
-            'prefix' : self.prefix
-        }
+        # format string used for each (level, index)-pair in filename generation
+        self.insert_fstring = '_{}_{}'
+
+            
+    def get_filename(self, idxes=None, ending=None):
+
+        # make chained inserts [level1, idx1, level2, idx2, ...]
+        insert = chain.from_iterable(zip(self.levels[0:len(idxes)], idxes))
+        insert = list(insert)
+
+        # if no ending was specified, use default one
+        ending = ending or self.default_ending
+
+        return (self.prefix + self.insert_fstring * len(idxes)).format(*insert) + ending
+    
+    def get_path(self, idxes=None, ending=None):
+        return os.path.join(self.path, self.get_filename(idxes, ending))
