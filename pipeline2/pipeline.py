@@ -1,121 +1,65 @@
-from itertools import count, chain
-
-from queue import PriorityQueue
+from itertools import chain
+import heapq
 from collections import defaultdict
-from time import time, sleep
+from time import time
 import os
 import hashlib
 
-from .imspector.imspector import MockImspectorConnection
-from .data import MeasurementData
-from .util import DelayedKeyboardInterrupt
-from .stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
-
-#from jsonpath_ng import jsonpath, parse
-# from spot_util import pair_finder_inner
-
-class AcquisitionPriorityQueue(PriorityQueue):
-    """
-    Slightly modified PriorityQueue to be able to enqueue non-orderable data
-    
-    In short, instead of (prio, object), we insert (prio, count, object) with a steadily increasing count.
-    This way, object (which may not be comparable) will not be considered when getting the next item from queue.
-    """
-
-    def __init__(self):
-        PriorityQueue.__init__(self)
-        self.ctr = count()
-
-    def put(self, item, prio):
-        PriorityQueue.put(self, (prio, next(self.ctr), item))
-
-    def get(self, *args, **kwargs):
-        lvl, _, item = PriorityQueue.get(self, *args, **kwargs)
-        return (lvl, item)
-
-
-class _pipeline_level:
-    """
-    named level in an acquisition pipeline
-    should not be used outside of a PipelineLevels object
-    """
-
-    def __init__(self, parent, name):
-        self.parent = parent
-        self.name = name
-
-    def __eq__(self, other):
-        if type(self) != type(other):
-            return False
-        return self.name == other.name
-
-    def __le__(self, other):
-        return self.parent.reversedLevels.index(self) <= self.parent.reversedLevels.index(other)
-
-    def __lt__(self, other):
-        return self.parent.reversedLevels.index(self) < self.parent.reversedLevels.index(other)
-
-    def __str__(self):
-        return self.name
-
-    def __hash__(self):
-        return str.__hash__(self.name)
-
-    def __repr__(self):
-        return self.name
-
-class PipelineLevels:
-    """
-    ordered collection of _pipeline_level
-    """
-
-    def __init__(self, *args):
-        self.levels = []
-        for arg in args:
-            lvl = _pipeline_level(self, arg)
-            self.levels.append(lvl)
-            setattr(self, arg, lvl)
-    @property
-    def reversedLevels(self):
-        return list(reversed(self.levels))
+from pipeline2.imspector.imspector import MockImspectorConnection
+from pipeline2.data import MeasurementData, HDF5DataStore
+from pipeline2.util import DelayedKeyboardInterrupt
+from pipeline2.stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
 
 
 class AcquisitionPipeline:
     """
     the main class of an acquisition pipeline run
     """
+    def __init__(self, name, path, hierarchy_levels, imspector=None, save_combined_hdf5=True, level_priorities=None):
 
-    def __init__(self, name, path):
-        """
-        construct with name
-        """
         self.name = name
 
-        self.pipelineLevels = None
+        self.hierarchy_levels = hierarchy_levels
+
+        # by default, priorities are the inverse of the order of hierarchy_levels
+        # e.g., details have higher priority than overviews
+        self.level_priorities = level_priorities or dict(zip(reversed(self.hierarchy_levels), range(len(self.hierarchy_levels))))
 
         # we have an InterruptedStoppingCriterion by default
         self.stopping_conditions = [InterruptedStoppingCriterion()]
-        self.queue = AcquisitionPriorityQueue()
-        self.starting_time = None
-        self.counters = defaultdict(int)
-        self.data = defaultdict(MeasurementData)
-        self.callbacks = defaultdict(list)
 
-        # hold the Imspector connection
-        self.im = MockImspectorConnection()
+        # the queue is just a list, but should only be modified via the heapq module
+        self.queue = []
+
+        # keep track of starting time, so
+        self.starting_time = None
+
+        # hold the Imspector connection, or use Mock for debug (default)
+        # TODO: remove debug, instantiate ImspectorConnection here?
+        self.imspector = imspector or MockImspectorConnection()
 
         self.logger = None
 
+        # set up file name handling and create output directory
         self.base_path = path
-        self.filename_handler = FilenameHandler(self.base_path, self.pipelineLevels)
+        self.filename_handler = FilenameHandler(self.base_path, self.hierarchy_levels)
         # make directory if it does not exist yet
         if not os.path.exists(self.base_path):
             os.makedirs(self.base_path)
 
+        # set up data storage, can be hdf5 or just an in-memory defaultdict
+        if save_combined_hdf5:
+            self.data = HDF5DataStore(self.filename_handler.get_path((), '.h5'), self.hierarchy_levels)
+        else:
+            self.data = defaultdict(MeasurementData)
+
+        # callbacks are stored in a dict level_name -> list of callbacks
+        self.callbacks = defaultdict(list)
+
         # boolean flag member, the DelayedKeyboardInterrupt will indicate a received SIGINT here
         self.interrupted = False
 
-    def run(self):
+    def run(self, initial_callback=None):
         """
         run the pipeline
         """
@@ -124,145 +68,120 @@ class AcquisitionPipeline:
         # to acquisition we are in before stopping
         with DelayedKeyboardInterrupt(self):
 
-            # record starting time, so we can check wether a StoppingCondition is met
+            # record starting time, so we can check whether a StoppingCondition is met
             self.starting_time = time()
 
-            lvl = None
+            # run initial callback to populate queue
+            if initial_callback is not None:
+                new_level, new_tasks = initial_callback(self)
+                for task in new_tasks:
+                    self.enqueue_task(new_level, task, ())
 
-            while not self.queue.empty():
+            # main acquisition loop
+            while len(self.queue) > 0:
 
-                # get next task and its level
-                oldlvl = lvl
-                lvl, acquisition_task = self.queue.get()
-
-                if oldlvl is None:
-                    self.counters[lvl] = -1
-
-                # reset or increment indices
-                if (oldlvl != lvl):
-                    for l in self.pipelineLevels.levels:
-                        if l < lvl:
-                            self.counters[l] = -1
-
-                self.counters[lvl] += 1
-
-                # create index of measurement (indices of all levels until lvl)
-                currentMeasurementIdx = tuple([self.counters[l] for l in self.pipelineLevels.levels[
-                                                                         0:self.pipelineLevels.levels.index(lvl) + 1]])
+                # pop next task from queue
+                priority, index, acquisition_task = heapq.heappop(self.queue)
 
                 # go through updates sequentially (we might have multiple configurations per measurement)
-                for updatesI in range(acquisition_task.numAcquisitions):
+                for update_index in range(acquisition_task.numAcquisitions):
 
-                    # update imspector
-                    if updatesI == 0:
-                        self.im.makeMeasurementFromTask(acquisition_task.getUpdates(updatesI), acquisition_task.delay)
+                    # make measurement (for first update) or configuration (for subsequent) in Imspector
+                    if update_index == 0:
+                        self.imspector.makeMeasurementFromTask(acquisition_task.getUpdates(update_index), acquisition_task.delay)
                     else:
-                        self.im.makeConfigurationFromTask(acquisition_task.getUpdates(updatesI), acquisition_task.delay)
+                        self.imspector.makeConfigurationFromTask(acquisition_task.getUpdates(update_index), acquisition_task.delay)
 
-                    meas_startime = time()
+                    # run in Imspector
+                    self.imspector.runCurrentMeasurement(acquisition_task.getUpdates(update_index))
 
-                    # run in imspector
-                    self.im.runCurrentMeasurement(acquisition_task.getUpdates(updatesI))
+                    # add data copy (of most recent configuration) to data storage
+                    self.data[index].append(*self.imspector.getCurrentData())
 
-                    meas_endtime = time()
-
-
-                    # add data copy (of most recent configuration) to internal storage
-                    self.data[currentMeasurementIdx].append(*self.im.getCurrentData())
-
+                # save and close in Imspector
                 # only save if we actually did any acquisitions
                 if acquisition_task.numAcquisitions > 0:
-                    # save and close in imspector
-                    path = None
-                    if self.filename_handler != None:
-                        path = self.filename_handler.get_path(currentMeasurementIdx)
-                    print(path)
+                    path = self.filename_handler.get_path(index)
+                    self.imspector.saveCurrentMeasurement(path)
+                    self.imspector.closeCurrentMeasurement()
 
-                    # TODO: closing without saving might trigger UI dialog in Imspector
-                    if not (path is None):
-                        self.im.saveCurrentMeasurement(path)
-                    self.im.closeCurrentMeasurement()
-                
-                # NB: give Imspector time to close measurement
-                #sleep(3.0)
+                # get level of current task
+                current_level = next(hierarchy_level for hierarchy_level, priority_i in self.level_priorities.items() if priority_i == priority)
 
-                # do the callbacks (this should do analysis and re-fill the queue)
-                callbacks_ = self.callbacks.get(lvl, None)
-                if not (callbacks_ is None):
-                    for callback_ in callbacks_:
-                        callback_(self)
+                # do the callbacks (this should do analysis and return tasks to re-fill the queue)
+                callbacks_for_current_level = self.callbacks.get(current_level, None)
+                if not (callbacks_for_current_level is None):
+                    for callback in callbacks_for_current_level:
+                        new_level, new_tasks = callback(self)
+                        for task in new_tasks:
+                            self.enqueue_task(new_level, task, index)
 
                 # go through stopping conditions
+                stopping_condition_met = False
                 for sc in self.stopping_conditions:
-                    if sc.check(self) == True:
+                    if sc.check(self):
                         # reset interrupt flag if necessary
                         if isinstance(sc, InterruptedStoppingCriterion):
                             sc.resetInterrupt(self)
                         print(sc.desc(self))
+                        stopping_condition_met = True
                         break
-                # we went through all the loop iterations (no break)
-                else:
-                    continue
-                break
+
+                # break from main loop
+                if stopping_condition_met:
+                    break
 
             print('PIPELINE {} FINISHED'.format(self.name))
 
-    def withDataStorage(self, data):
+    def get_next_free_index(self, hierarchy_level, parent_index=()):
         """
-        set a custom Data storage
-        :param data: data storage object, must act like defaultdict(RichData)
-        :return: self
+        get the next free index for a task to be added to the queue
+        checks already imaged idxs from data and idxs currently in queue to prevent re-use of the same index
         """
-        self.data = data
-        return self
 
-    def withPipelineLevels(self, lvls):
-        """
-        set pipeline levels, can be chained
-        """
-        self.pipelineLevels = lvls
-        return self
+        # quick sanity check to ensure we have a long enough parent index to generate a new one
+        if len(parent_index) < hierarchy_level:
+            raise ValueError("length of parent index must be at least equal to hierarchy level")
 
-    def _withNameHandler(self, nh):
-        self.filename_handler = nh
-        return self
+        # get all indices with same hierarchy level from data (already imaged and thus taken)
+        # and from queue (not yet imaged but already enqueued, so also taken)
+        indices_in_queue = {idx for prio, idx, task in self.queue if len(idx) == hierarchy_level + 1}
+        indices_in_data = {idx for idx in self.data.keys() if len(idx) == hierarchy_level + 1}
+        indices = indices_in_queue.union(indices_in_data)
 
-    def withImspectorConnection(self, im):
-        self.im = im
-        return self
+        # get all that start with parent index
+        # NOTE: only parts of the parent index up to hierarchy level are considered
+        # e.g., when an overview is inserted after a callback by the previous overview
+        # it should still get a new index
+        indices = [idx for idx in indices if idx[:hierarchy_level] == parent_index[:hierarchy_level]]
 
-    def withCallbackAtLevel(self, callback, lvl):
-        """
-        set the callback for a level, can be chained
-        """
-        if not (lvl in self.pipelineLevels.levels):
-            raise ValueError('{} is not a registered pipeline level'.format(lvl))
-        self.callbacks[lvl].append(callback)
-        return self
+        # get the indices of the last hierarchy level
+        index_at_level = [idx[hierarchy_level] for idx in indices]
 
-    def _withStoppingConditions(self, conds):
-        """
-        reset the StoppingConditions, can be chained
-        """
-        self.stopping_conditions.clear()
-        for condI in conds:
-            self.stopping_conditions.append(condI)
-        return self
+        # next index is either the maximum found + 1 or 0 if nothing yet at this level
+        next_index = max(index_at_level) + 1 if len(index_at_level) > 0 else 0
 
-    def withAddedStoppingCondition(self, cond):
+        # return as index tuple
+        return parent_index[:hierarchy_level] + (next_index,)
+
+    def enqueue_task(self, level, task, parent_index):
+        new_priority = next(priority for hierarchy_level, priority in self.level_priorities.items() if hierarchy_level == level)
+        new_hierarchy_index = self.hierarchy_levels.index(level)
+        heapq.heappush(self.queue, (new_priority, self.get_next_free_index(new_hierarchy_index, parent_index), task))
+
+    def add_callback(self, callback, level):
         """
-        add a StoppingCondition, can be chained
+        add a callback for a hierarchy level
+        """
+        if level not in self.hierarchy_levels:
+            raise ValueError('{} is not a registered pipeline level'.format(level))
+        self.callbacks[level].append(callback)
+
+    def add_stopping_condition(self, cond):
+        """
+        add a StoppingCondition
         """
         self.stopping_conditions.append(cond)
-        return self
-
-    def withInitialTask(self, task, lvl):
-        """
-        initialize the queue with the given task at the given level, can be chained
-        """
-        self.queue = AcquisitionPriorityQueue()
-        self.queue.put(task, lvl)
-        return self
 
 
 class FilenameHandler:
@@ -274,12 +193,7 @@ class FilenameHandler:
 
     def __init__(self, path, levels, prefix=None, default_ending ='.msr'):
         self.path = path
-
         self.levels = levels
-        # extract level names if we have a legacy PipelineLevels object
-        if isinstance(self.levels, PipelineLevels):
-            self.levels = [level.name for level in self.levels.levels]
-
         self.default_ending = default_ending
 
         # if no prefix for filenames is given, use a random hash
@@ -293,7 +207,6 @@ class FilenameHandler:
         # format string used for each (level, index)-pair in filename generation
         self.insert_fstring = '_{}_{}'
 
-            
     def get_filename(self, idxes=None, ending=None):
 
         # make chained inserts [level1, idx1, level2, idx2, ...]
@@ -307,3 +220,7 @@ class FilenameHandler:
     
     def get_path(self, idxes=None, ending=None):
         return os.path.join(self.path, self.get_filename(idxes, ending))
+
+
+if __name__ == '__main__':
+    pass

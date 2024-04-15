@@ -1,4 +1,3 @@
-import pipeline2
 import h5py
 import json
 import re
@@ -61,7 +60,7 @@ class HDF5DataStore(defaultdict):
         attrs = h5py.AttributeManager(fd[root_path])
 
         if 'levels' in attrs:
-            levels_from_file = pipeline2.PipelineLevels(*attrs['levels'].split(','))
+            levels_from_file = attrs['levels'].split(',')
         else:
             levels_from_file = None
 
@@ -72,7 +71,7 @@ class HDF5DataStore(defaultdict):
             if levels_from_file is not None:
                 # TODO: clean warning/logging
                 print('WARNING: overwriting existing levels')
-            attrs['levels'] = ','.join([str(lvl) for lvl in self.pipeline_levels.levels])
+            attrs['levels'] = ','.join(self.pipeline_levels)
 
         # if we have opened a new file object, close it again
         # otherwise (we are using a provided object), leave it
@@ -91,7 +90,7 @@ class HDF5DataStore(defaultdict):
         :return: list if index tuples
         """
 
-        p = re.compile('(\\d*)(?:_){,1}'.join(map(lambda l : '(?:{}){{,1}}'.format(l), [str(lvl) for lvl in self.pipeline_levels.levels])) + '(\\d*)')
+        p = re.compile('(\\d*)(?:_){,1}'.join(map(lambda l : '(?:{}){{,1}}'.format(l), self.pipeline_levels)) + '(\\d*)')
         idxes = []
 
         # get file handle for write: if member h5_file is already a File object, use as-is
@@ -232,14 +231,14 @@ class HDF5DataReader(HDF5DataStore):
 
 def _hdf5_group_path(pll, idxes, root_name='experiment'):
     path = root_name + '/'
-    for i, z in enumerate(zip(pll.levels, idxes)):
+    for i, z in enumerate(zip(pll, idxes)):
         lvl, idx = z
         path = path + '{}{}{}'.format('_' if i != 0 else '', lvl, idx)
     return path
 
 
 def _path_test():
-    pll = pipeline2.PipelineLevels('ov', 'det', 'det2')
+    pll = ('ov', 'det', 'det2')
     idxes = (1,2)
     print(_hdf5_group_path(pll, idxes))
 
@@ -249,4 +248,4 @@ def main():
     print(r[(0,22)].measurement_settings)
 
 if __name__ == '__main__':
-    main()
+    _path_test()

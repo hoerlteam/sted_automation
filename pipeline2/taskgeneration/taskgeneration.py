@@ -15,12 +15,16 @@ from unittest.mock import MagicMock
 
 def _relative_spiral_generator(steps, start=[0,0]):
     """
-    generator for regular spiral coordinates around a starting point
+    generator for two-dimensional regular spiral coordinates around a starting point
     with given step sizes
     """
-    n = 0
+
+    # single tile in center
     yield start[0:2].copy()
+
+    n = 1
     while True:
+        # move n rows "left & down"
         bookmark = [- n * steps[0] + start[0], n * steps[1] + start[1]]
         for _ in range(2*n):
             yield bookmark.copy()
@@ -134,9 +138,10 @@ class AcquisitionTaskGenerator():
 
         # update the filters
         # TODO: check if this can be simplified/removed?
-        for filt in self.taskFilters:
-            filt.update()
+        for task_filter in self.taskFilters:
+            task_filter.update()
 
+        tasks = []
         for measurement_update in updates_per_measurements_broadcast:
 
             # broadcast configurations within measurements
@@ -145,16 +150,17 @@ class AcquisitionTaskGenerator():
             # print(json.dumps(finalConfs, indent=2))
             task = AcquisitionTask(self.level).withUpdates(config_updates).withDelay(self.delay)
 
-            # reject task if it does not conform to a filter
+            # reject task if it does not conform to a task_filter
             skip = False
-            for filt in self.taskFilters:
-                if not filt.conforms(task):
+            for task_filter in self.taskFilters:
+                if not task_filter.conforms(task):
                     skip = True
             if skip:
                 continue
 
-            # enqueue the task with desired priority level
-            pipeline.queue.put(task, self.level)
+            tasks.append(task)
+
+        return self.level, tasks
 
 
 class AcquisitionTask():
@@ -208,8 +214,8 @@ class NewestDataSelector():
 
     def get_data(self):
         # create index of measurement (indices of all levels until lvl)
-        latestMeasurementIdx = tuple([self.pipeline.counters[l] for l in self.pipeline.pipelineLevels.levels[
-                                                                         0:self.pipeline.pipelineLevels.levels.index(
+        latestMeasurementIdx = tuple([self.pipeline.counters[l] for l in self.pipeline.hierarchy_levels.levels[
+                                                                         0:self.pipeline.hierarchy_levels.levels.index(
                                                                              self.lvl) + 1]])
         return self.pipeline.data.get(latestMeasurementIdx, None)
 
@@ -221,8 +227,8 @@ class NewestSettingsSelector():
 
     def __call__(self):
         pipeline = self.pipeline
-        latestMeasurementIdx = tuple([pipeline.counters[l] for l in pipeline.pipelineLevels.levels[
-                                                                    0:pipeline.pipelineLevels.levels.index(
+        latestMeasurementIdx = tuple([pipeline.counters[l] for l in pipeline.hierarchy_levels.levels[
+                                                                    0:pipeline.hierarchy_levels.levels.index(
                                                                         self.level) + 1]])
         data = pipeline.data.get(latestMeasurementIdx, None)
         return [list(zip(data.measurementSettings, data.globalSettings))]
