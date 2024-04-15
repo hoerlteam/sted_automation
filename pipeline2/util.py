@@ -31,15 +31,20 @@ class DelayedKeyboardInterrupt():
             signal.signal(signal.SIGINT, self.old_handler)
 
 
-def dump_JSON(d, path):
+def dump_json_to_file(d, path):
     """
-    helper function to dump a dict to a file given by path as JSON
+    helper function to save a dict in JSON-format to a file given by path
     """
     with open(path, 'w') as fd:
         json.dump(d, fd, indent=2)
 
 
 def update_dicts(*dicts):
+    """
+    update / merge multiple dicts
+    this will work in a reduce-like fashion, merging the first two, then the result with the third, ...
+    later updates will overwrite values in earlier dicts
+    """
     if len(dicts) == 0:
         return {}
 
@@ -51,121 +56,154 @@ def update_dicts(*dicts):
         return update_dicts(update_dict_pair(first, second), *dicts[2:])
 
 
-def update_dict_pair(d1, d2):
-    res = deepcopy(d1)
-    for k, v in d2.items():
-        if (isinstance(v, collections.Mapping)):
+def update_dict_pair(dict_old, dict_new):
+    """
+    update / merge two dicts
+    the resulting dict will be the union of the existing dicts, but in case of overlapping keys
+    the second (new) dict's values will overwrite the values from the first (old) dict
+    """
+    res = deepcopy(dict_old)
+    for k, v in dict_new.items():
+        if isinstance(v, collections.Mapping):
             res[k] = update_dict_pair(res.get(k) if isinstance(res.get(k, None), collections.Mapping) else {}, v)
         else:
             res[k] = v
     return res
 
 
-def remove_filter_from_dict(d, flt, sep='/'):
-    flt_strp = flt.strip(sep)
-    flts = flt_strp.split(sep)
-    fst_flt = flts[0]
+def remove_path_from_dict(d, path, sep='/'):
+    """
+    delete elements from a nested dict based on a XPath-like path
+    can handle both nested dicts/mappings and nested lists/sequences
+    """
 
-    if fst_flt == '':
+    filter_paths = path.strip(sep).split(sep)
+    first_filter = filter_paths[0]
+
+    # we have reached the end of the path, return None -> will be discarded in outer recursive calls
+    if first_filter == '':
         return None
 
-    if len(flts) == 1:
-        if (isinstance(d, collections.Sequence) and fst_flt.isdigit()):
+    # end of recursion at sequence / dict: make copy and remove key if lowest level is a dict or index if lowest level is a sequence
+    if len(filter_paths) == 1:
+        if isinstance(d, collections.Sequence) and first_filter.isdigit():
             try:
                 cpy = deepcopy(d)
-                cpy.pop(int(fst_flt))
+                cpy.pop(int(first_filter))
                 return cpy if len(cpy) > 0 else None
             except IndexError:
                 return deepcopy(d)
-        elif (isinstance(d, collections.Mapping)):
+        elif isinstance(d, collections.Mapping):
             try:
                 cpy = deepcopy(d)
-                del cpy[fst_flt]
+                del cpy[first_filter]
                 return cpy if len(cpy) > 0 else None
             except KeyError:
                 return deepcopy(d)
         else:
             return deepcopy(d)
 
-    if (isinstance(d, collections.Sequence) and fst_flt.isdigit()):
+    # more than one layer remaining, currently at a sequence
+    # replace with result of a recursive call
+    if isinstance(d, collections.Sequence) and first_filter.isdigit():
         try:
-            res = remove_filter_from_dict(d[int(fst_flt)], sep.join(flts[1:]))
+            res = remove_path_from_dict(d[int(first_filter)], sep.join(filter_paths[1:]))
             cpy = deepcopy(d)
             if res is None:
-                del cpy[int(fst_flt)]
+                del cpy[int(first_filter)]
             else:
-                cpy[int(fst_flt)] = res
+                cpy[int(first_filter)] = res
             return cpy if len(cpy) > 0 else None
         except IndexError:
             return deepcopy(d)
 
-    elif (isinstance(d, collections.Mapping)):
+    # more than one layer remaining, currently at a mapping / dict
+    # replace with result of a recursive call
+    elif isinstance(d, collections.Mapping):
         try:
-            res = remove_filter_from_dict(d[fst_flt], sep.join(flts[1:]))
+            res = remove_path_from_dict(d[first_filter], sep.join(filter_paths[1:]))
             cpy = deepcopy(d)
             if res is None:
-                del cpy[fst_flt]
+                del cpy[first_filter]
             else:
-                cpy[fst_flt] = res
+                cpy[first_filter] = res
             return cpy if len(cpy) > 0 else None
         except KeyError:
             return deepcopy(d)
+
+    # intermediate element is neither sequence nor mapping, just discard
     else:
         return None
 
 
-def filter_dict(d, flt, keepStructure=True, sep='/'):
-    flt_strp = flt.strip(sep)
-    flts = flt_strp.split(sep)
+def get_path_from_dict(d, path, keep_structure=True, sep='/'):
+    """
+    get elements from a nested dict based on a XPath-like path
+    can handle both nested dicts/mappings and nested lists/sequences
+    can return either the value or a nested datastructure like d, but containing only the value at the path
+    """
 
-    fst_flt = flts[0]
+    filter_paths = path.strip(sep).split(sep)
+    first_filter = filter_paths[0]
 
-    if fst_flt == '':
+    # end of recursion at element, return
+    if first_filter == '':
         return d
 
-    if len(flts) == 1:
-        if (isinstance(d, collections.Sequence) and fst_flt.isdigit()):
+    # end of recursion at list or dict, return value at index (optionally wrap again if keep_structure)
+    if len(filter_paths) == 1:
+        if isinstance(d, collections.Sequence) and first_filter.isdigit():
             try:
-                return [d[int(fst_flt)]] if keepStructure else d[int(fst_flt)]
+                return [d[int(first_filter)]] if keep_structure else d[int(first_filter)]
             except IndexError:
                 return None
-        elif (isinstance(d, collections.Mapping)):
+        elif isinstance(d, collections.Mapping):
             try:
-                return {fst_flt: d[fst_flt]} if keepStructure else d[fst_flt]
+                return {first_filter: d[first_filter]} if keep_structure else d[first_filter]
             except KeyError:
                 return None
         else:
             return None
 
-    if (isinstance(d, collections.Sequence) and fst_flt.isdigit()):
+    # intermediate nesting: return result of recursive call, optionally wrapped
+    if isinstance(d, collections.Sequence) and first_filter.isdigit():
         try:
-            res = filter_dict(d[int(fst_flt)], sep.join(flts[1:]), keepStructure)
+            res = get_path_from_dict(d[int(first_filter)], sep.join(filter_paths[1:]), keep_structure)
             if res is None:
                 return None
-            return [res] if keepStructure else res
+            return [res] if keep_structure else res
         except IndexError:
             return None
-    elif (isinstance(d, collections.Mapping)):
+    elif isinstance(d, collections.Mapping):
         try:
-            res = filter_dict(d[fst_flt], sep.join(flts[1:]), keepStructure)
+            res = get_path_from_dict(d[first_filter], sep.join(filter_paths[1:]), keep_structure)
             if res is None:
                 return None
-            return {fst_flt: res} if keepStructure else res
+            return {first_filter: res} if keep_structure else res
         except KeyError:
             return None
+
+    # path not finished but no more nested levels
     else:
         return None
 
 
-def gen_json(data, path, sep='/'):
-    path_strp = path.strip(sep)
-    paths = path_strp.split(sep)
-    fst_path = paths[0]
+def generate_recursive_dict(data, path, sep='/'):
+    """
+    generate a recursive dict in which a data value is wrapped in multiple layers of dicts,
+    given by an XPath-style path
+    """
 
-    if fst_path == '':
+    # list of path levels
+    paths = path.strip(sep).split(sep)
+    first_path = paths[0]
+
+    # end of recursion, return the value
+    if first_path == '':
         return data
     else:
-        return {fst_path: gen_json(data, sep.join(paths[1:]))}
+        # add one level to result, then recurse
+        return {first_path: generate_recursive_dict(data, sep.join(paths[1:]))}
 
 
 def diff_dicts(d1, d2, separator='/'):
