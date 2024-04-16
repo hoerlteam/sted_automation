@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from pipeline2.util import filter_dict, update_dicts, gen_json, remove_filter_from_dict
+from pipeline2.utils.dict_utils import update_dicts, remove_path_from_dict, get_path_from_dict, generate_recursive_dict
 from pipeline2.utils.parameter_constants import LOCATION_PARAMETERS
 
 
@@ -37,19 +37,19 @@ class ParameterFilter:
                 # and add them (with value from wrapped update) to new updates
                 if self.acquisition_parameters is not None:
                     for acquisition_update_key in self.acquisition_parameters:
-                        old_value = filter_dict(acquisition_updates_old, acquisition_update_key, False)
+                        old_value = get_path_from_dict(acquisition_updates_old, acquisition_update_key, False)
                         acquisition_updates_new = update_dicts(
                             acquisition_updates_new,
-                            gen_json(old_value, acquisition_update_key) if old_value is not None else {}
+                            generate_recursive_dict(old_value, acquisition_update_key) if old_value is not None else {}
                         )
                 # if we need to update hardware parameters, go over parameters to keep
                 # and add them (with value from wrapped update) to new updates
                 if self.hardware_parameters is not None:
                     for hardware_update_key in self.hardware_parameters:
-                        old_value = filter_dict(hardware_updates_old, hardware_update_key, False)
+                        old_value = get_path_from_dict(hardware_updates_old, hardware_update_key, False)
                         hardware_updates_new = update_dicts(
                             hardware_updates_new,
-                            gen_json(old_value, hardware_update_key) if old_value is not None else {}
+                            generate_recursive_dict(old_value, hardware_update_key) if old_value is not None else {}
                         )
                 measurement_parameters_new.append((acquisition_updates_new, hardware_updates_new))
             new_updates.append(measurement_parameters_new)
@@ -69,13 +69,13 @@ class ParameterFilter:
                 # if we need to remove parameters from acquisition updates, drop them from new update dict
                 if self.acquisition_parameters is not None:
                     for acquisition_update_key in self.acquisition_parameters:
-                        acquisition_updates_new = remove_filter_from_dict(acquisition_updates_new, acquisition_update_key)
+                        acquisition_updates_new = remove_path_from_dict(acquisition_updates_new, acquisition_update_key)
                         if acquisition_updates_new is None:
                             acquisition_updates_new = {}
                 # if we need to remove parameters from hardware updates, drop them from new update dict
                 if self.hardware_parameters is not None:
                     for hardware_update_key in self.hardware_parameters:
-                        hardware_updates_new = remove_filter_from_dict(hardware_updates_new, hardware_update_key)
+                        hardware_updates_new = remove_path_from_dict(hardware_updates_new, hardware_update_key)
                         if hardware_updates_new is None:
                             hardware_updates_new = {}
                 measurement_parameters_new.append((acquisition_updates_new, hardware_updates_new))

@@ -7,7 +7,7 @@ import hashlib
 
 from pipeline2.imspector.imspector import MockImspectorConnection
 from pipeline2.data import MeasurementData, HDF5DataStore
-from pipeline2.util import DelayedKeyboardInterrupt
+from pipeline2.utils.delayed_interrupt import DelayedKeyboardInterrupt
 from pipeline2.stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
 
 

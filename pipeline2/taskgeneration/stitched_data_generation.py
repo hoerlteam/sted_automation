@@ -5,8 +5,7 @@ from calmutils.stitching import stitching
 
 from .taskgeneration import NewestDataSelector
 from ..data import MeasurementData
-from ..util import filter_dict, update_dicts, gen_json
-
+from ..utils.dict_utils import update_dicts, get_path_from_dict, generate_recursive_dict
 
 STAGE_DIRECTIONS = np.array([1,1,-1], dtype=float)
 
@@ -24,8 +23,8 @@ class StitchedNewestDataSelector(NewestDataSelector):
     def get_data(self):
 
         # create index of measurement (indices of all levels until lvl)
-        latestMeasurementIdx = tuple([self.pipeline.counters[l] for l in self.pipeline.pipelineLevels.levels[
-                                                                         0:self.pipeline.pipelineLevels.levels.index(
+        latestMeasurementIdx = tuple([self.pipeline.counters[l] for l in self.pipeline.hierarchy_levels.levels[
+                                                                         0:self.pipeline.hierarchy_levels.levels.index(
                                                                              self.lvl) + 1]])
         # get newest data, return None if not present
         data_newest = self.pipeline.data.get(latestMeasurementIdx, None)
@@ -37,7 +36,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         (min_r, len_r) =_virtual_bbox_from_settings(setts)
 
         # get all other indices of same level
-        len_of_idx = self.pipeline.pipelineLevels.levels.index(self.lvl) + 1
+        len_of_idx = self.pipeline.hierarchy_levels.levels.index(self.lvl) + 1
         idxes_same_level = [idx for idx in self.pipeline.data.keys() if
                             len(idx) == len_of_idx and idx != latestMeasurementIdx]
 
@@ -89,11 +88,11 @@ class StitchedNewestDataSelector(NewestDataSelector):
         additional_off = len_stitched_half - (len_orig_half - min_rev)
 
         # to pixel units
-        offs_scan = np.array([filter_dict(
+        offs_scan = np.array([get_path_from_dict(
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-        offs_stage = np.array([filter_dict(
+        offs_stage = np.array([get_path_from_dict(
             setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-        pixel_sizes = np.array([filter_dict(
+        pixel_sizes = np.array([get_path_from_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         additional_off *= pixel_sizes
@@ -105,8 +104,8 @@ class StitchedNewestDataSelector(NewestDataSelector):
         # create dummy settings
         stitch_setts = update_dicts(setts)
         for i, d in enumerate(['x', 'y', 'z']):
-            stitch_setts = update_dicts(stitch_setts, gen_json(new_len[i], 'ExpControl/scan/range/{}/len'.format(d)))
-            stitch_setts = update_dicts(stitch_setts, gen_json(offs_to_use[i] + additional_off[i], 'ExpControl/scan/range/{}/off'.format(d)))
+            stitch_setts = update_dicts(stitch_setts, generate_recursive_dict(new_len[i], 'ExpControl/scan/range/{}/len'.format(d)))
+            stitch_setts = update_dicts(stitch_setts, generate_recursive_dict(offs_to_use[i] + additional_off[i], 'ExpControl/scan/range/{}/off'.format(d)))
 
         # add singleton (T) dimension
         res_img = stitched.reshape((1, ) + stitched.shape)
@@ -130,16 +129,16 @@ def _virtual_bbox_from_settings(setts):
     NB: since we move `down` in stack, we calculate a virtual origin here
         that way, two bounding boxes can be checked for overlap, bot the virtual origin does not correspond to the real location
     """
-    offs_stage = np.array([filter_dict(
+    offs_stage = np.array([get_path_from_dict(
         setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
         dtype=float)
-    offs_scan = np.array([filter_dict(
+    offs_scan = np.array([get_path_from_dict(
         setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    offs_global = np.array([filter_dict(
+    offs_global = np.array([get_path_from_dict(
         setts, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    fov_len = np.array([filter_dict(
+    fov_len = np.array([get_path_from_dict(
         setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    pixel_sizes = np.array([filter_dict(
+    pixel_sizes = np.array([get_path_from_dict(
         setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
     offs = offs_stage * STAGE_DIRECTIONS + offs_global + offs_scan
@@ -152,28 +151,28 @@ def _approx_offset_from_settings(setts_ref, setts2):
     """
     Get the approximate pixel offset of image with Imspector settings setts2 from reference image with setts_ref
     """
-    offs_stage_r = np.array([filter_dict(
+    offs_stage_r = np.array([get_path_from_dict(
         setts_ref, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
         dtype=float)
-    offs_stage_i = np.array([filter_dict(
+    offs_stage_i = np.array([get_path_from_dict(
         setts2, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
         dtype=float)
     offs_stage = (offs_stage_i - offs_stage_r) * STAGE_DIRECTIONS
 
-    offs_scan_r = np.array([filter_dict(
+    offs_scan_r = np.array([get_path_from_dict(
         setts_ref, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    offs_scan_i = np.array([filter_dict(
+    offs_scan_i = np.array([get_path_from_dict(
         setts2, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
     offs_scan = offs_scan_i - offs_scan_r
 
 
-    offs_global_r = np.array([filter_dict(
+    offs_global_r = np.array([get_path_from_dict(
         setts_ref, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    offs_global_i = np.array([filter_dict(
+    offs_global_i = np.array([get_path_from_dict(
         setts2, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
     offs_global = offs_global_i - offs_global_r
 
-    pixel_sizes = np.array([filter_dict(
+    pixel_sizes = np.array([get_path_from_dict(
         setts_ref, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
     pixel_off = ((offs_scan + offs_stage + offs_global) / pixel_sizes).astype(int)

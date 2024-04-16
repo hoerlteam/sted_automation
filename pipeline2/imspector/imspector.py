@@ -4,8 +4,8 @@ from warnings import warn
 import logging
 from threading import Semaphore
 
-from ..util import update_dicts, filter_dict
-from ..ressources import dummy_measurements
+from ..utils.dict_utils import update_dicts, get_path_from_dict
+from ..resources import dummy_measurements
 import numpy as np
 import time
 from unittest.mock import MagicMock
@@ -20,6 +20,7 @@ except ImportError:
 
 # new error message that appeared with the addition of 'Powerswitch'
 _unknown_device_error = re.compile("Internal error: Unknown device or parameter '(.*?)'")
+
 
 class ParameterSanitizer:
     
@@ -126,7 +127,7 @@ class ImspectorConnection():
 
     @staticmethod
     def get_n_channels(parameters):
-        return len(filter_dict(parameters, 'ExpControl/measurement/channels', False))
+        return len(get_path_from_dict(parameters, 'ExpControl/measurement/channels', False))
     
     def makeMeasurementFromTask(self, task, halfDelay=0.0):
         # FIXME: check if all the delays are really necessary
@@ -170,7 +171,7 @@ class ImspectorConnection():
         # if we want lines, we manually re-set just that one parameter
         # FIXME: this causes weird problems in xz cut followed by any other image
 
-        if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
+        if get_path_from_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
             ms.set_parameters('Measurement/axes/num_synced', 1)
 
     def makeConfigurationFromTask(self, task, halfDelay = 0.0):
@@ -218,7 +219,7 @@ class ImspectorConnection():
         # if we want lines, we manually re-set just that one parameter
         # FIXME: this causes weird problems in xz cut followed by any other image
 
-        if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
+        if get_path_from_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
             ms.set_parameters('Measurement/axes/num_synced', 1)
 
     def runCurrentMeasurement(self, task=None):
@@ -241,11 +242,11 @@ class ImspectorConnection():
         
         if self.verbose:
             par = ms.parameters('')
-            offsStage = np.array([filter_dict(
+            offsStage = np.array([get_path_from_dict(
                 par, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-            offsScan = np.array([filter_dict(
+            offsScan = np.array([get_path_from_dict(
                 par, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-            offsGlobal = np.array([filter_dict(
+            offsGlobal = np.array([get_path_from_dict(
                 par, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
             
             print('running acquisition:')

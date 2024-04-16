@@ -1,18 +1,15 @@
 from .taskgeneration import (AcquisitionTaskGenerator,
-                             DefaultScanOffsetsSettingsGenerator,
-                             DefaultStageOffsetsSettingsGenerator,
                              NewestDataSelector,
                              NewestSettingsSelector,
                              SpiralOffsetGenerator,
-                             ZDCOffsetSettingsGenerator,
                              JSONFileConfigLoader,
                              BoundingBoxLocationGrouper,
                              DefaultFOVSettingsGenerator,
                              DefaultScanModeSettingsGenerator,
-                             DefaultScanFieldSettingsGenerator,
-                             PairedDefaultScanOffsetsSettingsGenerator,
                              DifferentFirstFOVSettingsGenerator,
                              StagePositionListGenerator)
+from .coordinate_building_blocks import DefaultScanOffsetsSettingsGenerator, PairedDefaultScanOffsetsSettingsGenerator, \
+    DefaultStageOffsetsSettingsGenerator, ZDCOffsetSettingsGenerator, DefaultScanFieldSettingsGenerator
 from .parameter_filtering import DefaultLocationKeeper, DefaultLocationRemover
 
 from .stitched_data_generation import StitchedNewestDataSelector

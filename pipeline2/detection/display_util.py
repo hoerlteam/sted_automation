@@ -3,11 +3,9 @@ from scipy import ndimage, spatial, stats
 import numpy as np
 import skimage
 from matplotlib import pyplot as plt
-from Util.sift.util import read_image_stack
 import re
 import os
 from collections import defaultdict
-from spot_util import *
 from csv import DictReader
 
 

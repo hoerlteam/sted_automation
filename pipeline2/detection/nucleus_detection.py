@@ -22,8 +22,8 @@ except:
 from calmutils.localization import refine_point
 from calmutils.misc import filter_rprops
 
-from ..util import filter_dict
-from .detection import _correct_offset
+from ..utils.dict_utils import get_path_from_dict
+from .detection import pixel_to_physical_coordinates
 
 def nnet_seg_outer(img, seg_fun, scale_factor=0.5, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
     # default: no filter
@@ -274,16 +274,16 @@ class SimpleNucleusMidplaneDetector():
         setts = data.measurementSettings[self.configuration]
 
         if self.use_stage:
-            offsOld = np.array([filter_dict(
+            offsOld = np.array([get_path_from_dict(
             setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
         else:
-            offsOld = np.array([filter_dict(
+            offsOld = np.array([get_path_from_dict(
             setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
-        lensOld = np.array([filter_dict(
+        lensOld = np.array([get_path_from_dict(
             setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
-        pszOld = np.array([filter_dict(
+        pszOld = np.array([get_path_from_dict(
             setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
 
         if self.verbose:
@@ -307,7 +307,7 @@ class SimpleNucleusMidplaneDetector():
             if self.verbose:
                 print('pixel off: {}'.format(off))
                 
-            off = _correct_offset(off, offsOld, lensOld, pszOld, ignore_dim)
+            off = pixel_to_physical_coordinates(off, offsOld, lensOld, pszOld, ignore_dim)
             fov = [(xmax - xmin)*pszOld[0]*self.expand, (ymax - ymin)*pszOld[1]*self.expand, None]
             
             off[2] += self.manual_offset
