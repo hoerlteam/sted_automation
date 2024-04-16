@@ -1,5 +1,5 @@
 # coding UTF-8
-from Util.tile_util import middle2corner, corner2spot
+from archive.Util.tile_util import middle2corner, corner2spot
 import re
 # start Fiji script for coordinate detection
 # path =  path to Fiji hard coded?

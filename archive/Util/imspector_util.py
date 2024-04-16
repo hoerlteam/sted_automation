@@ -12,10 +12,8 @@ params = ms.parameters()
 import skimage
 import skimage.data
 import numpy as np
-import matplotlib.pyplot as plt
-from Util.tile_util import generate_grid_snake
 import time
-from Util.datastructures import Settings
+from archive.Util.datastructures import Settings
 
 
 def get_fov_dimensions(ms):
