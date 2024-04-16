@@ -4,9 +4,10 @@
 import sys, os
 
 sys.path.append(os.getcwd())
-import ij_io
+from archive import ij_io
 
-from ij.io import DirectoryChooser, OpenDialog
+from ij.io import DirectoryChooser
+
 
 def main():
     if path == None:

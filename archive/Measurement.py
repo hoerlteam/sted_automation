@@ -1,7 +1,5 @@
 #! coding:UTF-8
-from Util.tile_util import generate_grid_snake
-from Util.imspector_util import *
-from Util.dot_detection.Fiji_coordinate_detection import find_hssites
+from archive.Util.dot_detection.Fiji_coordinate_detection import find_hssites
 fiji_path = 'C:\\Users\\RESOLFT\\Desktop\\Fiji.app\\ImageJ-win64.exe' #Fiji path on STED commputer
 
 

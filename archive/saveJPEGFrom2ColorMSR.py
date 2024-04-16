@@ -4,7 +4,8 @@
 import sys, os
 
 sys.path.append(os.getcwd())
-import ij_io
+from archive import ij_io
+
 
 def main():
     if path == None:
