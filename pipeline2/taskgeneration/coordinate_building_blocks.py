@@ -1,15 +1,92 @@
+import pprint
 from operator import add
 from functools import reduce
 from itertools import cycle
 
-from ..utils.dict_utils import update_dicts, generate_recursive_dict
+from pipeline2.utils.dict_utils import update_dicts, generate_recursive_dict
+from pipeline2.utils.parameter_constants import OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS
 
 
-class DefaultScanOffsetsSettingsGenerator():
-    _paths = ['ExpControl/scan/range/x/off',
-              'ExpControl/scan/range/y/off',
-              'ExpControl/scan/range/z/off'
-              ]
+class ValuesToSettingsDictCallback:
+
+    """
+    General callback to wrap other callbacks that return parameter values / collections of values
+    and create microscope-/Imspector-compatible nested dicts of settings
+    """
+    def __init__(self, value_generator_callback, settings_paths, as_measurements=True, nested_generator_callback=False, hardware_settings=False):
+
+        if len(settings_paths) == 0:
+            raise ValueError("No settings path provided")
+
+        self.settings_paths = settings_paths
+        self.value_generator_callback = value_generator_callback
+
+        # check if we have multiple lists/tuples of settings (instead of just one list of str)
+        self.nested_settings = isinstance(settings_paths[0], (tuple, list))
+
+        self.nested_generator_callback = nested_generator_callback
+        self.hardware_settings = hardware_settings
+        self.as_measurements = as_measurements
+
+    @staticmethod
+    def values_to_settings_dict(values, settings_paths, nested_settings=False):
+        """
+        combine a sequence of values and a sequence of setting paths into a nested settings dict
+        (or optionally nested sequences of sequences of values and setting paths)
+        """
+
+        # even if we have just one set of values and settings, fake multiple "groups" of values and settings
+        if not nested_settings:
+            values = [values]
+            settings_paths = [settings_paths]
+
+        print(values)
+
+        result_dict = {}
+        # go through two layers: groups of settings, paths and the individual value, path in them
+        for values_group, settings_paths_group in zip(values, settings_paths):
+            for value, settings_path in zip(values_group, settings_paths_group):
+                # components of value may be None, e.g. if we only want to update xy/z coordinates
+                # and give the others as None: [None, None, z_coordinate]
+                if value is None:
+                    continue
+                # merge into result dict
+                result_dict = update_dicts(result_dict, generate_recursive_dict(value, settings_path))
+        return result_dict
+
+    def __call__(self):
+
+        values = self.value_generator_callback()
+
+        # we DON'T have a callback that returns multiple "configurations"
+        # e.g., just a collection of coordinates (list of vectors) or ROIs (list of (coord, size) pairs)
+        # wrap everything in a tuple so we can treat it the same as a collection of collections of parameter values
+        if not self.nested_generator_callback:
+            values = [(value,) for value in values]
+
+        print(values)
+        settings_for_measurement = []
+        for values_measurement in values:
+            settings_for_configuration = []
+            for values_configuration in values_measurement:
+                settings_dict = self.values_to_settings_dict(values_configuration, self.settings_paths, self.nested_settings)
+                # settings for one configuration are tuple (measurement settings, hardware settings)
+                # pick one, leave the other as empty dict
+                settings_for_configuration.append(({}, settings_dict) if self.hardware_settings else (settings_dict, {}))
+            settings_for_measurement.append(settings_for_configuration)
+
+        # return list of measurements (default)
+        if self.as_measurements:
+            return settings_for_measurement
+        # flatten into one measurement with many configurations
+        else:
+            return [reduce(add, settings_for_measurement)]
+
+
+
+
+class DefaultScanOffsetsSettingsGenerator:
+    offset_settings_paths = OFFSET_SCAN_PARAMETERS
 
     def __init__(self, locationGenerator, asMeasurements=True, fun=None):
         self.locationGenerator = locationGenerator
@@ -32,7 +109,7 @@ class DefaultScanOffsetsSettingsGenerator():
         res = []
         for loc in locs:
             resD = {}
-            path = cycle(self._paths)
+            path = cycle(self.offset_settings_paths)
             for l in loc:
                 p =  next(path)
 
@@ -41,6 +118,8 @@ class DefaultScanOffsetsSettingsGenerator():
                     continue
                 resD = update_dicts(resD, generate_recursive_dict(l, p))
             res.append([(resD, {})])
+
+        # return updates as separate measurements -> list of size-1 lists (each containing )
         if self.asMeasurements:
             return res
         else:
@@ -59,7 +138,7 @@ class PairedDefaultScanOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenera
         for loc1, loc2 in locs:
             resD1 = {}
             resD2 = {}
-            path = cycle(self._paths)
+            path = cycle(self.offset_settings_paths)
             for l1, l2 in zip(loc1, loc2):
                 p = next(path)
 
@@ -76,16 +155,17 @@ class PairedDefaultScanOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenera
 
 
 class DefaultStageOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    _paths = ['ExpControl/scan/range/coarse_x/g_off',
+    offset_settings_paths = ['ExpControl/scan/range/coarse_x/g_off',
               'ExpControl/scan/range/coarse_y/g_off',
               'ExpControl/scan/range/coarse_z/g_off']
 
 
 class ZDCOffsetSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    _paths = ['ExpControl/scan/range/x/off',
+    # TODO: check if this is still the correct path
+    offset_settings_paths = ['ExpControl/scan/range/x/off',
               'ExpControl/scan/range/y/off',
               'ExpControl/scan/range/offsets/coarse/z/g_off'
-              ]
+                             ]
 
 
 class DefaultScanFieldSettingsGenerator():
@@ -99,16 +179,11 @@ class DefaultScanFieldSettingsGenerator():
                   'ExpControl/scan/range/y/len',
                   'ExpControl/scan/range/z/len'
                   ]
-    _paths_psz = ['ExpControl/scan/range/x/psz',
-                  'ExpControl/scan/range/y/psz',
-                  'ExpControl/scan/range/z/psz'
-                  ]
 
-    def __init__(self, fieldGenerator, pszs=None, asMeasurements=True, fun=None):
+    def __init__(self, fieldGenerator, asMeasurements=True, fun=None):
 
         self.fieldGenerator = fieldGenerator
         self.asMeasurements = asMeasurements
-        self.pszs = pszs
 
         if fun is None:
             self.fun = fieldGenerator.get_fields
@@ -127,18 +202,15 @@ class DefaultScanFieldSettingsGenerator():
         res = []
         for loc, fov in fields:
 
-            pszs_t = [None] * len(loc) if self.pszs is None else self.pszs
 
             resD = {}
-            path = cycle(zip(self._paths_off, self._paths_psz, self._paths_len))
-            for off, psz, fov_len in zip(loc, pszs_t, fov):
-                po, ppsz, pl =  next(path)
+            path = cycle(zip(self._paths_off, self._paths_len))
+            for off, fov_len in zip(loc, fov):
+                po, pl =  next(path)
 
                 # components of loc may be None, e.g. if we only want to update z
                 if off is not None:
                     resD = update_dicts(resD, generate_recursive_dict(off, po))
-                if psz is not None:
-                    resD = update_dicts(resD, generate_recursive_dict(psz, ppsz))
                 if fov_len is not None:
                     resD = update_dicts(resD, generate_recursive_dict(fov_len, pl))
             res.append([(resD, {})])
@@ -147,3 +219,11 @@ class DefaultScanFieldSettingsGenerator():
             return res
         else:
             return [reduce(add, res)]
+
+
+if __name__ == '__main__':
+    values = [[[1,2,3], [3,4,5]], [[1,2,3], [3,4,5]]]
+    value_callback = lambda: values
+    gen = ValuesToSettingsDictCallback(value_callback, (OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS), nested_generator_callback=False, as_measurements=False, hardware_settings=True)
+    res = gen()
+    pprint.pprint(res)
