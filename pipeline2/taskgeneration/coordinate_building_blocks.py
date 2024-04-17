@@ -4,7 +4,7 @@ from functools import reduce
 from itertools import cycle
 
 from pipeline2.utils.dict_utils import update_dicts, generate_recursive_dict
-from pipeline2.utils.parameter_constants import OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS
+from pipeline2.utils.parameter_constants import OFFSET_SCAN_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS, FOV_LENGTH_PARAMETERS
 
 
 class ValuesToSettingsDictCallback:
@@ -14,6 +14,19 @@ class ValuesToSettingsDictCallback:
     and create microscope-/Imspector-compatible nested dicts of settings
     """
     def __init__(self, value_generator_callback, settings_paths, as_measurements=True, nested_generator_callback=False, hardware_settings=False):
+        """
+        Parameters
+        ----------
+        value_generator_callback : callable that should return a sequence of
+                                   a) parameter values (sequence) of the same length as settings_paths
+                                   b) tuple of parameter value sequences if settings_paths as a nested sequence
+                                   c) sequences of a) or b) if nested_generator_callback is True
+        settings_paths: sequence of str or sequence of sequence of str
+        as_measurements: bool, whether to return list of individual measurement settings
+            (that may have multiple configurations if nested_generator_callback==True) or flatten everything into configurations of one measurement
+        nested_generator_callback: bool, whether to expect nested results from value_generator_callback
+        hardware_settings: bool, whether to make results hardware or measurement settings
+        """
 
         if len(settings_paths) == 0:
             raise ValueError("No settings path provided")
@@ -40,8 +53,6 @@ class ValuesToSettingsDictCallback:
             values = [values]
             settings_paths = [settings_paths]
 
-        print(values)
-
         result_dict = {}
         # go through two layers: groups of settings, paths and the individual value, path in them
         for values_group, settings_paths_group in zip(values, settings_paths):
@@ -64,7 +75,6 @@ class ValuesToSettingsDictCallback:
         if not self.nested_generator_callback:
             values = [(value,) for value in values]
 
-        print(values)
         settings_for_measurement = []
         for values_measurement in values:
             settings_for_configuration = []
@@ -83,147 +93,61 @@ class ValuesToSettingsDictCallback:
             return [reduce(add, settings_for_measurement)]
 
 
+class ScanOffsetsSettingsGenerator(ValuesToSettingsDictCallback):
+    def __init__(self, location_generator, as_measurements=True):
+        super().__init__(location_generator, OFFSET_SCAN_PARAMETERS, as_measurements)
 
 
-class DefaultScanOffsetsSettingsGenerator:
-    offset_settings_paths = OFFSET_SCAN_PARAMETERS
-
-    def __init__(self, locationGenerator, asMeasurements=True, fun=None):
-        self.locationGenerator = locationGenerator
-        self.asMeasurements = asMeasurements
-        if fun is None:
-            self.fun = locationGenerator.get_locations
-        else:
-            self.fun = fun
-
-    def __call__(self):
-        '''
-        Returns
-        -------
-        settings: list of list of (measurement_parameters, global_parameters) tuples
-            parameter updates (global updates == {}) for every configuration in every measurement to acquire.
-        '''
-        locs = self.fun()
-        #print('DEBUG', locs)
-
-        res = []
-        for loc in locs:
-            resD = {}
-            path = cycle(self.offset_settings_paths)
-            for l in loc:
-                p =  next(path)
-
-                # components of loc may be None, e.g. if we only want to update z
-                if l is None:
-                    continue
-                resD = update_dicts(resD, generate_recursive_dict(l, p))
-            res.append([(resD, {})])
-
-        # return updates as separate measurements -> list of size-1 lists (each containing )
-        if self.asMeasurements:
-            return res
-        else:
-            return [reduce(add, res)]
+class StageOffsetsSettingsGenerator(ValuesToSettingsDictCallback):
+    def __init__(self, location_generator, as_measurements=True):
+        super().__init__(location_generator, OFFSET_STAGE_GLOBAL_PARAMETERS, as_measurements)
 
 
-class PairedDefaultScanOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    def __init__(self, locationGenerator, asMeasurements=True, fun=None, repeat_channel=1):
-        self.repeat_channel = repeat_channel
-        super().__init__(locationGenerator, asMeasurements, fun)
-
-    def __call__(self):
-        locs = self.fun()
-
-        res = []
-        for loc1, loc2 in locs:
-            resD1 = {}
-            resD2 = {}
-            path = cycle(self.offset_settings_paths)
-            for l1, l2 in zip(loc1, loc2):
-                p = next(path)
-
-                # components of loc may be None, e.g. if we only want to update z
-                if l1 is None or l2 is None:
-                    continue
-                resD1 = update_dicts(resD1, generate_recursive_dict(l1, p))
-                resD2 = update_dicts(resD2, generate_recursive_dict(l2, p))
-            res.append([(resD1, {})] * self.repeat_channel + [(resD2, {})] * self.repeat_channel)
-        if self.asMeasurements:
-            return res
-        else:
-            return [reduce(add, res)]
-
-
-class DefaultStageOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    offset_settings_paths = ['ExpControl/scan/range/coarse_x/g_off',
-              'ExpControl/scan/range/coarse_y/g_off',
-              'ExpControl/scan/range/coarse_z/g_off']
-
-
-class ZDCOffsetSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    # TODO: check if this is still the correct path
+class ZDCOffsetSettingsGenerator(ValuesToSettingsDictCallback):
+    # mixed offsets when using Z-drift-controller (ZDC) -> use stage coords instead of piezo
+    # TODO: check if this is still the correct path, esp. z
     offset_settings_paths = ['ExpControl/scan/range/x/off',
-              'ExpControl/scan/range/y/off',
-              'ExpControl/scan/range/offsets/coarse/z/g_off'
-                             ]
+                             'ExpControl/scan/range/y/off',
+                             'ExpControl/scan/range/offsets/coarse/z/g_off']
+
+    def __init__(self, location_generator, as_measurements=True):
+        super().__init__(location_generator, self.offset_settings_paths, as_measurements)
 
 
-class DefaultScanFieldSettingsGenerator():
-
-    _paths_off = ['ExpControl/scan/range/x/off',
-                  'ExpControl/scan/range/y/off',
-                  'ExpControl/scan/range/z/off'
-                  ]
-
-    _paths_len = ['ExpControl/scan/range/x/len',
-                  'ExpControl/scan/range/y/len',
-                  'ExpControl/scan/range/z/len'
-                  ]
-
-    def __init__(self, fieldGenerator, asMeasurements=True, fun=None):
-
-        self.fieldGenerator = fieldGenerator
-        self.asMeasurements = asMeasurements
-
-        if fun is None:
-            self.fun = fieldGenerator.get_fields
-        else:
-            self.fun = fun
-
-    def __call__(self):
-        '''
-        Returns
-        -------
-        settings: list of list of (measurement_parameters, global_parameters) tuples
-            parameter updates (global updates == {}) for every configuration in every measurement to acquire.
-        '''
-        fields = self.fun()
-
-        res = []
-        for loc, fov in fields:
+class MultipleScanOffsetsSettingsGenerator(ValuesToSettingsDictCallback):
+    def __init__(self, location_generator, as_measurements=True):
+        super().__init__(location_generator, OFFSET_SCAN_PARAMETERS, as_measurements, nested_generator_callback=True)
 
 
-            resD = {}
-            path = cycle(zip(self._paths_off, self._paths_len))
-            for off, fov_len in zip(loc, fov):
-                po, pl =  next(path)
+class ScanFieldSettingsGenerator(ValuesToSettingsDictCallback):
 
-                # components of loc may be None, e.g. if we only want to update z
-                if off is not None:
-                    resD = update_dicts(resD, generate_recursive_dict(off, po))
-                if fov_len is not None:
-                    resD = update_dicts(resD, generate_recursive_dict(fov_len, pl))
-            res.append([(resD, {})])
-
-        if self.asMeasurements:
-            return res
-        else:
-            return [reduce(add, res)]
+    def __init__(self, location_generator, as_measurements=True):
+        super().__init__(location_generator, (OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS), as_measurements)
 
 
 if __name__ == '__main__':
-    values = [[[1,2,3], [3,4,5]], [[1,2,3], [3,4,5]]]
-    value_callback = lambda: values
-    gen = ValuesToSettingsDictCallback(value_callback, (OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS), nested_generator_callback=False, as_measurements=False, hardware_settings=True)
+
+    # dummy callback returning list of 3D coordinates
+    positions = [[1,2,3], [4,5,6]]
+    position_callback = lambda: positions
+
+    # test ScanOffsetsSettingsGenerator / Stage... / ZDC...
+    gen = ZDCOffsetSettingsGenerator(position_callback, False)
+    res = gen()
+    pprint.pprint(res)
+
+    # dummy callback returning pairs of 3D coordinates
+    # -> can be interpreted as offset, size for ScanFieldSettingsGenerator
+    # or as pairs of offsets from MultipleScanOffsetsSettingsGenerator
+    coord_pairs = [((1, 2, 3), (1, 2, 3)), ((2, 3, 4), (5, 6, 7))]
+    coord_pairs_callback = lambda: coord_pairs
+
+    # test field/ROI settings generator
+    gen = ScanFieldSettingsGenerator(coord_pairs_callback, True)
+    res = gen()
+    pprint.pprint(res)
+
+    # test multiple offsets generator
+    gen = MultipleScanOffsetsSettingsGenerator(coord_pairs_callback, True)
     res = gen()
     pprint.pprint(res)
