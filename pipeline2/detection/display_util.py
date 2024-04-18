@@ -1,7 +1,5 @@
-from skimage.feature import blob_dog, blob_log, blob_doh
-from scipy import ndimage, spatial, stats
+
 import numpy as np
-import skimage
 from matplotlib import pyplot as plt
 import re
 import os
@@ -9,21 +7,21 @@ from collections import defaultdict
 from csv import DictReader
 
 
-def make_proj(img, axis=0, fun=np.max):
+def make_projection(img, axis=0, fun=np.max):
     return np.apply_along_axis(fun, axis, img)
 
 
-def normalize(arr, ran=None):
-    if ran is not None:
-        arr1 = (arr - ran[0]) / (ran[1] - ran[0])
-        arr1[arr1 < 0] = 0.0
-        arr1[arr1 > 1] = 1.0
-        return arr1
+def normalize(arr, intensity_range=None):
+    if intensity_range is not None:
+        intensity_range_min = intensity_range[0]
+        intensity_range_max = intensity_range[1]
+        arr1 = (arr - intensity_range_min) / (intensity_range_max - intensity_range_min)
+        return np.clip(arr1, 0.0, 1.0)
     else:
         return (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
 
 
-def make_rgb_maxproj(im1, im2, ran=None, axis=None, percentile_range=False):
+def make_rgb_maxproj(im1, im2, ran=None, axis=0, percentile_range=False):
     '''
     TODO: documentation
     Parameters:
@@ -31,12 +29,8 @@ def make_rgb_maxproj(im1, im2, ran=None, axis=None, percentile_range=False):
     percentile_range: boolean
         Whether to interpret the display range ran as percentiles or raw min & max intensity to display (default)
     '''
-    if axis != None:
-        p_im1 = make_proj(im1, axis)
-        p_im2 = make_proj(im2, axis)
-    else:
-        p_im1 = make_proj(im1, len(im1.shape) - 1)
-        p_im2 = make_proj(im2, len(im2.shape) - 1)
+    p_im1 = make_projection(im1, axis)
+    p_im2 = make_projection(im2, axis)
 
     if percentile_range and ran is not None:
         ran_im1 = np.percentile(p_im1, ran)
@@ -62,20 +56,19 @@ def draw_detections_2c(im1, im2, dets, ran=None, axis=None, siz=3, percentile_ra
     plt.show()
 
 
-def draw_detections_1c(im, dets, ran=None, axis=None, siz=3, percentile_range=False):
+def draw_detections_1c(im, detections, ran=None, projection_axis=0, siz=3, percentile_range=False):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    im1 = make_proj(im, axis if axis is not None else len(im.shape) - 1)
+    im1 = make_projection(im, projection_axis)
 
     if percentile_range and ran is not None:
         ran = np.percentile(im1, ran)
 
     im1 = normalize(im1, ran)
     plt.imshow(im1, cmap='gray')
-    if axis == None:
-        axis = len(im.shape) - 1
-    for d in dets:
-        d1 = np.array(d)[np.arange(3) != axis]
+
+    for d in detections:
+        d1 = np.array(d)[np.arange(3) != projection_axis]
         c = plt.Circle((d1[1], d1[0]), siz, color='red', linewidth=1.5, fill=False)
         ax.add_patch(c)
     plt.draw()

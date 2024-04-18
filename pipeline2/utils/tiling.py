@@ -2,6 +2,7 @@ from itertools import repeat
 
 import numpy as np
 
+
 def centered_tiles_1d(center_position, length, n_tiles, overlap):
 
     # integer steps
@@ -27,6 +28,7 @@ def minmax_tiles_1d(min_position, max_position, length, overlap):
 
     return centered_tiles_1d(center_position, length, n_tiles, overlap)
 
+
 def alternate_axes(arr, alternate_along_axis, axes_to_alternate, offset=1):
 
     # wrap single axis to alternate
@@ -48,6 +50,7 @@ def alternate_axes(arr, alternate_along_axis, axes_to_alternate, offset=1):
 
     return arr
 
+
 def centered_tiles(center_position, length, n_tiles, overlap, snake_rows=True):
 
     # repeat length, n_tiles, overlap if only scalar value is provided
@@ -67,6 +70,7 @@ def centered_tiles(center_position, length, n_tiles, overlap, snake_rows=True):
 
     return grid.reshape((-1, len(center_position)))
 
+
 def minmax_tiles(min_position, max_position, length, overlap, snake_rows=True):
 
     # repeat length, overlap if only scalar value is provided
@@ -83,3 +87,31 @@ def minmax_tiles(min_position, max_position, length, overlap, snake_rows=True):
         grid = alternate_axes(grid, 0, 1)
 
     return grid.reshape((-1, len(min_position)))
+
+
+def relative_spiral_generator(steps, start=[0, 0]):
+    """
+    generator for two-dimensional regular spiral coordinates around a starting point
+    with given step sizes
+    """
+
+    # single tile in center
+    yield start[0:2].copy()
+
+    n = 1
+    while True:
+        # move n rows "left & down"
+        bookmark = [- n * steps[0] + start[0], n * steps[1] + start[1]]
+        for _ in range(2*n):
+            yield bookmark.copy()
+            bookmark[0] += steps[0]
+        for _ in range(2*n):
+            yield bookmark.copy()
+            bookmark[1] -= steps[1]
+        for _ in range(2*n):
+            yield bookmark.copy()
+            bookmark[0] -= steps[0]
+        for _ in range(2*n):
+            yield bookmark.copy()
+            bookmark[1] += steps[1]
+        n += 1

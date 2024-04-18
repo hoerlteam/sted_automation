@@ -11,10 +11,10 @@ from skimage.transform import rescale, resize
 from sklearn.cluster import KMeans
 
 try:
-    # try to import StarDist, but do not make hard dependency yet
+    # try to import StarDist, but do not make hard dependency
     from stardist.models import StarDist2D
     from csbdeep.utils import normalize
-    # try to import CellPose, but do not make hard dependency yet
+    # try to import CellPose, but do not make hard dependency
     from cellpose.models import Cellpose
 except:
     pass
@@ -25,10 +25,12 @@ from calmutils.misc import filter_rprops
 from ..utils.dict_utils import get_path_from_dict
 from .detection import pixel_to_physical_coordinates
 
-def nnet_seg_outer(img, seg_fun, scale_factor=0.5, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
-    # default: no filter
-    if flt is None:
-        flt = {}
+
+def nnet_seg_outer(img, seg_fun, scale_factor=0.5, axis=0, regionprops_filters=None, do_plot=False, ignore_border=True, bg_val=None):
+
+    # default: no regionprops filter
+    if regionprops_filters is None:
+        regionprops_filters = {}
 
     # do MIP and segment using StarDist
     mip = img.max(axis=axis)
@@ -57,7 +59,7 @@ def nnet_seg_outer(img, seg_fun, scale_factor=0.5, axis=0, flt=None, do_plot=Fal
 
     labels = np.zeros_like(seg, dtype=np.int64)
     for idx, rprop in enumerate(regionprops(seg)):
-        if filter_rprops(rprop, flt):
+        if filter_rprops(rprop, regionprops_filters):
             (min_row, min_col, max_row, max_col) = rprop.bbox
             labels[min_row:max_row, min_col:max_col][rprop.filled_image] = idx + 1
 

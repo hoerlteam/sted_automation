@@ -7,15 +7,6 @@ import skimage
 from calmutils.localization import refine_point
 
 
-def mean_along_axis(img, axis):
-    '''
-    calculate mean of every hyper-slice in image along axis
-    '''
-    axes = tuple([ax for ax in range(len(img.shape)) if ax != axis])
-    #print(axes)
-    profile = np.mean(img, axes)
-    return profile
-
 # TODO: better debug of upstream, then remove this
 def refine_point_(img, guess, maxiter=10):
     ones = tuple([1 for _ in guess])
@@ -59,16 +50,6 @@ def refine_point_(img, guess, maxiter=10):
                 return guess + res
 
     return guess + res
-
-
-def focus_in_stack(img, pixsize_z, axis=1):
-    # get mean profile, smooth it via a Gaussian blur
-    profile = mean_along_axis(img, axis)
-    smoothprofile = ndimage.gaussian_filter1d(profile, 3, mode='constant')
-    tmax = np.argmax(smoothprofile)
-    # calculate offset of maximum in comparison to middle
-    pix_d = tmax - ((len(profile) - 1) / 2)
-    return pix_d * pixsize_z
 
 
 def cleanup_kdtree(img, kdt, dets, dist):

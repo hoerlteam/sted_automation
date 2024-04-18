@@ -1,49 +1,22 @@
 from itertools import cycle
-from copy import deepcopy
-from pipeline2.util import remove_filter_from_dict, gen_json, update_dicts, filter_dict
 from operator import add
 from functools import reduce
 from time import time, sleep
 import json
 import warnings
 from pathlib import Path
-
-from .fov_util import group_in_bounding_boxes
-
 from unittest.mock import MagicMock
+from typing import Sequence
 
-
-def _relative_spiral_generator(steps, start=[0,0]):
-    """
-    generator for two-dimensional regular spiral coordinates around a starting point
-    with given step sizes
-    """
-
-    # single tile in center
-    yield start[0:2].copy()
-
-    n = 1
-    while True:
-        # move n rows "left & down"
-        bookmark = [- n * steps[0] + start[0], n * steps[1] + start[1]]
-        for _ in range(2*n):
-            yield bookmark.copy()
-            bookmark[0] += steps[0]
-        for _ in range(2*n):
-            yield bookmark.copy()
-            bookmark[1] -= steps[1]
-        for _ in range(2*n):
-            yield bookmark.copy()
-            bookmark[0] -= steps[0]
-        for _ in range(2*n):
-            yield bookmark.copy()
-            bookmark[1] += steps[1]
-        n += 1
+from pipeline2.utils.dict_utils import update_dicts, remove_path_from_dict, generate_recursive_dict
+from pipeline2.taskgeneration.fov_util import group_in_bounding_boxes
+from pipeline2.utils.tiling import relative_spiral_generator
 
 
 class TimeSeriesDummyAcquisitionTask():
     def __init__(self, pipeline_level) -> None:
         self.pipeline_level = pipeline_level
+        # setting this to 0 will prevent Pipeline from querying for settings
         self.numAcquisitions = 0
 
 class TimeSeriesCallback():
@@ -93,26 +66,18 @@ class TimeSeriesCallback():
             pipeline.queue.put(TimeSeriesDummyAcquisitionTask(self.pipeline_level), self.pipeline_level)
 
 
-class AcquisitionTaskGenerator():
-    def __init__(self, level, *update_generators):
+class AcquisitionTaskGenerator:
+    def __init__(self, level, *update_generators, delay=0):
 
         self.level = level
         # ignore update generators that are None
         # that way, we can safely pass None to constructor
         # e.g. when no parameter change is desired by the user
         self.update_generators = [u for u in update_generators if u is not None]
-        self.delay = 0
+        self.delay = delay
         self.taskFilters = []
 
-    def withDelay(self, delay):
-        """
-        a delay that will be added to every generated task
-        (e.g. to wait for the stage to move)
-        """
-        self.delay = delay
-        return self
-
-    def withFilters(self, *filters):
+    def add_task_filters(self, *filters):
         for filter in filters:
             self.taskFilters.append(filter)
         return self
@@ -214,6 +179,7 @@ class NewestDataSelector():
 
     def get_data(self):
         # create index of measurement (indices of all levels until lvl)
+        # FIXME: changed!
         latestMeasurementIdx = tuple([self.pipeline.counters[l] for l in self.pipeline.hierarchy_levels.levels[
                                                                          0:self.pipeline.hierarchy_levels.levels.index(
                                                                              self.lvl) + 1]])
@@ -227,6 +193,7 @@ class NewestSettingsSelector():
 
     def __call__(self):
         pipeline = self.pipeline
+        # FIXME: changed!
         latestMeasurementIdx = tuple([pipeline.counters[l] for l in pipeline.hierarchy_levels.levels[
                                                                     0:pipeline.hierarchy_levels.levels.index(
                                                                         self.level) + 1]])
@@ -244,7 +211,7 @@ class BoundingBoxLocationGrouper():
     locationGenerator : object implementing `get_locations` (returning iterable of 3d location vectors)
         generator of locations
     boundingBoxSize : 3d vector (array-like)
-        size of the bounding boxes to group in (same unit as vecors returned by locationGenerator)
+        size of the bounding boxes to group in (same unit as vectors returned by locationGenerator)
     """
     def __init__(self, locationGenerator, boundingBoxSize):
         self.locationGenerator = locationGenerator
@@ -352,9 +319,9 @@ class DefaultFOVSettingsGenerator():
             for l_i, psz_i in zip(l if l is not None else [None] * len(psz), psz if psz is not None else [None] * len(l)):
                 path_l, path_psz = next(paths)
                 if l_i is not None:
-                    resD = update_dicts(resD, gen_json(l_i, path_l))
+                    resD = update_dicts(resD, generate_recursive_dict(l_i, path_l))
                 if psz_i is not None:
-                    resD = update_dicts(resD, gen_json(psz_i, path_psz))
+                    resD = update_dicts(resD, generate_recursive_dict(psz_i, path_psz))
             res.append([(resD, {})])
         if self.asMeasurements:
             return res
@@ -390,12 +357,13 @@ class DifferentFirstFOVSettingsGenerator(DefaultFOVSettingsGenerator):
         if self.first_measurement:
             lens_temp = self.lengths
             self.lengths = self.first_lengths
-        res = super().__call__()
+        res = super()()
         if self.first_measurement:
             self.lengths = lens_temp
             self.first_measurement = False
         return res    
-    
+
+
 class DefaultScanModeSettingsGenerator():
     """
     SettingsGenerator to set the scan mode (e.g xy, xyz, xy,...)
@@ -419,12 +387,12 @@ class DefaultScanModeSettingsGenerator():
         
         for mode in self.modes:
             resD = {}
-            resD = update_dicts(resD, gen_json(DefaultScanModeSettingsGenerator.gen_mode_flag(mode), self._path))
+            resD = update_dicts(resD, generate_recursive_dict(DefaultScanModeSettingsGenerator.gen_mode_flag(mode), self._path))
             
             resD = update_dicts(
                 resD,
-                gen_json(['ExpControl {}'.format(mode[i].upper()) if i < len(mode) else "None" for i in range(4)],
-                self._path_axes))
+                generate_recursive_dict(['ExpControl {}'.format(mode[i].upper()) if i < len(mode) else "None" for i in range(4)],
+                                        self._path_axes))
             
             # z-cut -> sync line
             # FIXME: this causes weird problems in xz cut followed by any other image
@@ -447,10 +415,10 @@ class DefaultScanModeSettingsGenerator():
     def gen_mode_flag(mode_str):
 
         _mode_vals = {
-        'x' : 0,
-        'y' : 1,
-        'z' : 2,
-        't' : 3
+            'x': 0,
+            'y': 1,
+            'z': 2,
+            't': 3
         }
 
         if len(mode_str) > 4:
@@ -466,151 +434,8 @@ class DefaultScanModeSettingsGenerator():
                 res = res << 2
         return res
 
-class DefaultScanOffsetsSettingsGenerator():
-    _paths = ['ExpControl/scan/range/x/off',
-              'ExpControl/scan/range/y/off',
-              'ExpControl/scan/range/z/off'
-              ]
 
-    def __init__(self, locationGenerator, asMeasurements=True, fun=None):
-        self.locationGenerator = locationGenerator
-        self.asMeasurements = asMeasurements
-        if fun is None:
-            self.fun = locationGenerator.get_locations
-        else:
-            self.fun = fun
-
-    def __call__(self):
-        '''
-        Returns
-        -------
-        settings: list of list of (measurement_parameters, global_parameters) tuples
-            parameter updates (global updates == {}) for every configuration in every measurement to acquire.
-        '''
-        locs = self.fun()
-        #print('DEBUG', locs)
-
-        res = []
-        for loc in locs:
-            resD = {}
-            path = cycle(self._paths)
-            for l in loc:
-                p =  next(path)
-
-                # components of loc may be noe, e.g. if we only want to update z
-                if l is None:
-                    continue
-                resD = update_dicts(resD, gen_json(l, p))
-            res.append([(resD, {})])
-        if self.asMeasurements:
-            return res
-        else:
-            return [reduce(add, res)]
-
-
-class PairedDefaultScanOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    def __init__(self, locationGenerator, asMeasurements=True, fun=None, repeat_channel=1):
-        self.repeat_channel = repeat_channel
-        super().__init__(locationGenerator, asMeasurements, fun)
-
-    def __call__(self):
-        locs = self.fun()
-
-        res = []
-        for loc1, loc2 in locs:
-            resD1 = {}
-            resD2 = {}
-            path = cycle(self._paths)
-            for l1, l2 in zip(loc1, loc2):
-                p = next(path)
-
-                # components of loc may be noe, e.g. if we only want to update z
-                if l1 is None or l2 is None:
-                    continue
-                resD1 = update_dicts(resD1, gen_json(l1, p))
-                resD2 = update_dicts(resD2, gen_json(l2, p))
-            res.append([(resD1, {})] * self.repeat_channel + [(resD2, {})] * self.repeat_channel)
-        if self.asMeasurements:
-            return res
-        else:
-            return [reduce(add, res)]
-
-
-
-class DefaultScanFieldSettingsGenerator():
-
-    _paths_off = ['ExpControl/scan/range/x/off',
-                  'ExpControl/scan/range/y/off',
-                  'ExpControl/scan/range/z/off'
-                  ]
-
-    _paths_len = ['ExpControl/scan/range/x/len',
-                  'ExpControl/scan/range/y/len',
-                  'ExpControl/scan/range/z/len'
-                  ]
-    _paths_psz = ['ExpControl/scan/range/x/psz',
-                  'ExpControl/scan/range/y/psz',
-                  'ExpControl/scan/range/z/psz'
-                  ]
-
-    def __init__(self, fieldGenerator, pszs=None, asMeasurements=True, fun=None):
-
-        self.fieldGenerator = fieldGenerator
-        self.asMeasurements = asMeasurements
-        self.pszs = pszs
-
-        if fun is None:
-            self.fun = fieldGenerator.get_fields
-        else:
-            self.fun = fun
-
-    def __call__(self):
-        '''
-        Returns
-        -------
-        settings: list of list of (measurement_parameters, global_parameters) tuples
-            parameter updates (global updates == {}) for every configuration in every measurement to acquire.
-        '''
-        fields = self.fun()
-
-        res = []
-        for loc, fov in fields:
-
-            pszs_t = [None] * len(loc) if self.pszs is None else self.pszs
-
-            resD = {}
-            path = cycle(zip(self._paths_off, self._paths_psz, self._paths_len))
-            for off, psz, fov_len in zip(loc, pszs_t, fov):
-                po, ppsz, pl =  next(path)
-
-                # components of loc may be None, e.g. if we only want to update z
-                if off is not None:
-                    resD = update_dicts(resD, gen_json(off, po))
-                if psz is not None:
-                    resD = update_dicts(resD, gen_json(psz, ppsz))
-                if fov_len is not None:
-                    resD = update_dicts(resD, gen_json(fov_len, pl))
-            res.append([(resD, {})])
-
-        if self.asMeasurements:
-            return res
-        else:
-            return [reduce(add, res)]
-
-
-class DefaultStageOffsetsSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    _paths = ['ExpControl/scan/range/coarse_x/g_off',
-              'ExpControl/scan/range/coarse_y/g_off',
-              'ExpControl/scan/range/coarse_z/g_off']
-
-class ZDCOffsetSettingsGenerator(DefaultScanOffsetsSettingsGenerator):
-    _paths = ['ExpControl/scan/range/x/off',
-              'ExpControl/scan/range/y/off',
-              'ExpControl/scan/range/offsets/coarse/z/g_off'
-              ]
-
-
-class StagePositionListGenerator():
+class StagePositionListGenerator:
 
     # TODO: add possibility to reset index during acquisition?
     #  -> might be necessary to re-image same positions multiple times?
@@ -639,20 +464,21 @@ class StagePositionListGenerator():
 
         return [coords]
 
+
 class SpiralOffsetGenerator():
     def __init__(self):
         self.fov = [5e-5, 5e-5]
         self.start = [0, 0]
         self.zOff = None
-        self.gen = _relative_spiral_generator(self.fov, self.start)
+        self.gen = relative_spiral_generator(self.fov, self.start)
         self.verbose = False
     def withFOV(self, fov):
         self.fov = fov
-        self.gen = _relative_spiral_generator(self.fov, self.start)
+        self.gen = relative_spiral_generator(self.fov, self.start)
         return self
     def withStart(self, start):
         self.start = start
-        self.gen = _relative_spiral_generator(self.fov, self.start)
+        self.gen = relative_spiral_generator(self.fov, self.start)
         return self
 
     def withZOffset(self, zOff):
@@ -696,7 +522,7 @@ class JSONFileConfigLoader():
 
             # remove parameters known to cause problems
             for parameter_to_drop in JSONFileConfigLoader.parameters_to_drop:
-                d = remove_filter_from_dict(d, parameter_to_drop)
+                d = remove_path_from_dict(d, parameter_to_drop)
 
             self.measConfigs.append(d)
         
@@ -734,29 +560,6 @@ class JSONFileConfigLoader():
                 resInner.append((self.measConfigs[i], self.settingsConfigs[i]))
             res.append(resInner)
         return res
-    
-def main():
-
-    from pipeline2.taskgeneration import SpiralOffsetGenerator
-    spiralGen = SpiralOffsetGenerator().withStart([0,0]).withFOV([5,5]).withZOffset(1)
-    for _ in range(5):
-        print(spiralGen.get_locations())
-
-
-def ATGTest():
-    locMock = MagicMock(return_value = [])
-    locMock.get_locations = MagicMock(return_value = [])
-    og = ZDCOffsetSettingsGenerator(locMock)
-
-    pipelineMock = MagicMock()
-    atg = AcquisitionTaskGenerator(0, og)
-    atg(pipelineMock)
-
-
-    print(locMock.get_locations())
-
-
-from typing import Sequence
 
 
 def broadcast_updates(updates: Sequence[Sequence]):
@@ -785,6 +588,30 @@ def broadcast_updates(updates: Sequence[Sequence]):
 
     # return as tuple
     return tuple(result)
+
+
+def main():
+
+    from pipeline2.taskgeneration import SpiralOffsetGenerator
+    spiralGen = SpiralOffsetGenerator().withStart([0,0]).withFOV([5,5]).withZOffset(1)
+    for _ in range(5):
+        print(spiralGen.get_locations())
+
+
+def ATGTest():
+
+    from pipeline2.taskgeneration.coordinate_building_blocks import ZDCOffsetSettingsGenerator
+
+    locMock = MagicMock(return_value = [])
+    locMock.get_locations = MagicMock(return_value = [])
+    og = ZDCOffsetSettingsGenerator(locMock)
+
+    pipelineMock = MagicMock()
+    atg = AcquisitionTaskGenerator(0, og)
+    atg(pipelineMock)
+
+
+    print(locMock.get_locations())
 
 
 if __name__ == '__main__':
