@@ -1,5 +1,11 @@
 from time import time
 
+
+class MaximumAcquisitionsStoppingCriterion:
+    # TODO: max images per level or in total? offer both options?
+    pass
+
+
 class TimedStoppingCriterion():
     """
     stopping criterion to stop after a set amount of time

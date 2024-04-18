@@ -4,7 +4,7 @@ from ..utils.dict_utils import update_dicts
 from ..taskgeneration.stitched_data_generation import _virtual_bbox_from_settings, _get_overlaps
 
 
-class AlreadyImagedFOVFilter():
+class AlreadyImagedFOVFilter:
 
     def __init__(self, pipeline, level, iou_thresh, z_ignore=False):
         self.iou_thresh = iou_thresh
@@ -52,7 +52,6 @@ class AlreadyImagedFOVFilter():
                 (min_i, len_i) = _virtual_bbox_from_settings(setts_i)
                 self.old_bboxes.append((min_i, len_i))
 
-                
     @staticmethod
     def get_iou(bbox1, bbox2, z_ignore=False):
         (min1, len1) = bbox1

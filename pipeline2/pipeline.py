@@ -23,7 +23,9 @@ class AcquisitionPipeline:
 
         # by default, priorities are the inverse of the order of hierarchy_levels
         # e.g., details have higher priority than overviews
-        self.level_priorities = level_priorities or dict(zip(reversed(self.hierarchy_levels), range(len(self.hierarchy_levels))))
+        if level_priorities is None:
+            level_priorities = dict(zip(reversed(self.hierarchy_levels), range(len(self.hierarchy_levels))))
+        self.level_priorities = level_priorities
 
         # we have an InterruptedStoppingCriterion by default
         self.stopping_conditions = [InterruptedStoppingCriterion()]
@@ -36,7 +38,9 @@ class AcquisitionPipeline:
 
         # hold the Imspector connection, or use Mock for debug (default)
         # TODO: remove debug, instantiate ImspectorConnection here?
-        self.imspector = imspector or MockImspectorConnection()
+        if imspector is None:
+            imspector = MockImspectorConnection()
+        self.imspector = imspector
 
         self.logger = None
 
@@ -188,8 +192,9 @@ class FilenameHandler:
     """
     helper class to generate systematic filenames to save data to.
     """
-
     # TODO: add zero-padding of indices in filenames?
+
+    random_prefix_length = 8
 
     def __init__(self, path, levels, prefix=None, default_ending ='.msr'):
         self.path = path
@@ -200,27 +205,29 @@ class FilenameHandler:
         if prefix is None:
             hash_object = hashlib.md5(bytes(str(time()), "utf-8"))
             hex_dig = hash_object.hexdigest()
-            self.prefix = str(hex_dig)
+            self.prefix = str(hex_dig)[:self.random_prefix_length]
         else:
             self.prefix = prefix
 
         # format string used for each (level, index)-pair in filename generation
         self.insert_fstring = '_{}_{}'
 
-    def get_filename(self, idxes=None, ending=None):
+    def get_filename(self, idxes=(), ending=None):
 
         # make chained inserts [level1, idx1, level2, idx2, ...]
         insert = chain.from_iterable(zip(self.levels[0:len(idxes)], idxes))
         insert = list(insert)
 
         # if no ending was specified, use default one
-        ending = ending or self.default_ending
+        if ending is None:
+            ending = ending or self.default_ending
 
         return (self.prefix + self.insert_fstring * len(idxes)).format(*insert) + ending
     
-    def get_path(self, idxes=None, ending=None):
+    def get_path(self, idxes=(), ending=None):
         return os.path.join(self.path, self.get_filename(idxes, ending))
 
 
 if __name__ == '__main__':
-    pass
+    file_handler = FilenameHandler('/path/to/file', ['overview', 'detail'])
+    print(file_handler.get_path((2,3), ending='.h5'))
