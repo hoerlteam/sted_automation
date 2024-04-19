@@ -11,7 +11,8 @@ STAGE_DIRECTIONS = np.array([1,1,-1], dtype=float)
 
 class StitchedNewestDataSelector(NewestDataSelector):
     """
-
+    Callback that will select the newest MeasurementData of a given level and
+    return virtually stitched data with all neighboring images of the same level 
     """
 
     def __init__(self, pipeline, level, channel=0, configuration=0, generate_stage_offsets=False):
@@ -23,12 +24,12 @@ class StitchedNewestDataSelector(NewestDataSelector):
     def __call__(self):
 
         # get newest data, return None if not present
-        data_newest = super().__call__()
+        data_newest: MeasurementData = super().__call__()
         if data_newest is None:
             return None
 
         # virtual bbox of reference
-        setts = data_newest.measurementSettings[self.configuration]
+        setts = data_newest.measurement_settings[self.configuration]
         (min_r, len_r) = _virtual_bbox_from_settings(setts)
 
         # get all other indices of same level
@@ -60,7 +61,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         imgs_other = []
         offs_other = []
         for data_other_i in data_other:
-            setts_i = data_other_i.measurementSettings[self.configuration]
+            setts_i = data_other_i.measurement_settings[self.configuration]
             off_i = list(reversed(list(_approx_offset_from_settings(setts, setts_i))))
             img_i = np.squeeze(data_other_i.data[self.configuration][self.channel])
 
@@ -104,14 +105,14 @@ class StitchedNewestDataSelector(NewestDataSelector):
         # add singleton (T) dimension
         res_img = stitched.reshape((1, ) + stitched.shape)
         # add None for images of other channels
-        res_data = [None] * self.channel + [res_img] + [None] * (len(data_newest.data[self.configuration]) - (self.channel + 1))
+        res_data = [None] * self.channel + [res_img] + [None] * (data_newest.num_images(self.configuration) - (self.channel + 1))
 
         # wrap results, use None for other configs
         res = MeasurementData()
         for _ in range(self.configuration):
             res.append(None, None, None)
-        res.append(data_newest.globalSettings[self.configuration], stitch_setts, res_data)
-        for _ in range(len(data_newest.globalSettings)-(self.configuration + 1)):
+        res.append(data_newest.hardware_settings[self.configuration], stitch_setts, res_data)
+        for _ in range(data_newest.num_configurations -(self.configuration + 1)):
             res.append(None, None, None)
 
         return res
