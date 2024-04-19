@@ -3,7 +3,7 @@ import numpy as np
 from calmutils.stitching import stitch
 from calmutils.stitching import stitching
 
-from .taskgeneration import NewestDataSelector
+from .data_selection import NewestDataSelector
 from ..data import MeasurementData
 from ..utils.dict_utils import update_dicts, get_path_from_dict, generate_recursive_dict
 
@@ -20,31 +20,25 @@ class StitchedNewestDataSelector(NewestDataSelector):
         self.configuration = configuration
         self.generate_stage_offsets = generate_stage_offsets
 
-    def get_data(self):
+    def __call__(self):
 
-        # create index of measurement (indices of all levels until lvl)
-        latestMeasurementIdx = tuple([self.pipeline.counters[l] for l in self.pipeline.hierarchy_levels.levels[
-                                                                         0:self.pipeline.hierarchy_levels.levels.index(
-                                                                             self.lvl) + 1]])
         # get newest data, return None if not present
-        data_newest = self.pipeline.data.get(latestMeasurementIdx, None)
+        data_newest = super().__call__()
         if data_newest is None:
             return None
 
         # virtual bbox of reference
         setts = data_newest.measurementSettings[self.configuration]
-        (min_r, len_r) =_virtual_bbox_from_settings(setts)
+        (min_r, len_r) = _virtual_bbox_from_settings(setts)
 
         # get all other indices of same level
-        len_of_idx = self.pipeline.hierarchy_levels.levels.index(self.lvl) + 1
-        idxes_same_level = [idx for idx in self.pipeline.data.keys() if
-                            len(idx) == len_of_idx and idx != latestMeasurementIdx]
-
+        index_length = self.pipeline.hierarchy_levels.index(self.level) + 1
+        indices_same_level = [k for k in self.pipeline.data.keys() if len(k) == index_length]
         
         #print('Virtual BBOX ref: {}, {}'.format(min_r, len_r))
         # get all overlapping data
         data_other = []
-        for idx in idxes_same_level:
+        for idx in indices_same_level:
             data_other_i = self.pipeline.data.get(idx, None)
 
             # virtual bbox of image

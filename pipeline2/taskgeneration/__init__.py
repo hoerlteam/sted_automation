@@ -1,6 +1,5 @@
+from ..callback_buildingblocks.data_selection import NewestDataSelector, NewestSettingsSelector
 from .taskgeneration import (AcquisitionTaskGenerator,
-                             NewestDataSelector,
-                             NewestSettingsSelector,
                              SpiralOffsetGenerator,
                              JSONFileConfigLoader,
                              BoundingBoxLocationGrouper,

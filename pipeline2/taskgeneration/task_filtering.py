@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..utils.dict_utils import update_dicts
-from ..taskgeneration.stitched_data_generation import _virtual_bbox_from_settings, _get_overlaps
+from ..callback_buildingblocks.stitched_data_selection import _virtual_bbox_from_settings, _get_overlaps
 
 
 class AlreadyImagedFOVFilter:

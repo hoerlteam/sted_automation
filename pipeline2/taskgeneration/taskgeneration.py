@@ -168,39 +168,6 @@ class AcquisitionTask():
         pipeline.queue.put(AcquisitionTask(self.pipeline_level).withDelay(self.delay), self.pipeline_level)
 
 
-class NewestDataSelector():
-    """
-
-    """
-
-    def __init__(self, pipeline, level):
-        self.pipeline = pipeline
-        self.lvl = level
-
-    def get_data(self):
-        # create index of measurement (indices of all levels until lvl)
-        # FIXME: changed!
-        latestMeasurementIdx = tuple([self.pipeline.counters[l] for l in self.pipeline.hierarchy_levels.levels[
-                                                                         0:self.pipeline.hierarchy_levels.levels.index(
-                                                                             self.lvl) + 1]])
-        return self.pipeline.data.get(latestMeasurementIdx, None)
-
-
-class NewestSettingsSelector():
-    def __init__(self, pipeline, level):
-        self.level = level
-        self.pipeline = pipeline
-
-    def __call__(self):
-        pipeline = self.pipeline
-        # FIXME: changed!
-        latestMeasurementIdx = tuple([pipeline.counters[l] for l in pipeline.hierarchy_levels.levels[
-                                                                    0:pipeline.hierarchy_levels.levels.index(
-                                                                        self.level) + 1]])
-        data = pipeline.data.get(latestMeasurementIdx, None)
-        return [list(zip(data.measurementSettings, data.globalSettings))]
-
-
 class BoundingBoxLocationGrouper():
     """
     Wrapper for a locationGenerator that groups locations into bounding boxes of defined size.
