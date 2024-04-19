@@ -5,6 +5,7 @@ from itertools import cycle
 
 from pipeline2.utils.dict_utils import update_dicts, generate_recursive_dict
 from pipeline2.utils.parameter_constants import OFFSET_SCAN_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS, FOV_LENGTH_PARAMETERS
+from pipeline2.utils.tiling import relative_spiral_generator
 
 
 class ValuesToSettingsDictCallback:
@@ -58,7 +59,7 @@ class ValuesToSettingsDictCallback:
         for values_group, settings_paths_group in zip(values, settings_paths):
             for value, settings_path in zip(values_group, settings_paths_group):
                 # components of value may be None, e.g. if we only want to update xy/z coordinates
-                # and give the others as None: [None, None, z_coordinate]
+                # and give the others as None: [z_coordinate, None, None]
                 if value is None:
                     continue
                 # merge into result dict
@@ -124,6 +125,58 @@ class ScanFieldSettingsGenerator(ValuesToSettingsDictCallback):
     def __init__(self, location_generator, as_measurements=True):
         super().__init__(location_generator, (OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS), as_measurements)
 
+
+class SpiralOffsetGenerator:
+
+    def __init__(self, fov=[5e-5, 5e-5], start=[0, 0], z_position=None, verbose=False):
+        self.fov = fov
+        self.start = start
+        self.z_position = z_position
+        self.location_generator = relative_spiral_generator(self.fov, self.start)
+        self.verbose = verbose
+
+    def __call__(self):
+        res = [self.z_position] + next(self.location_generator)
+        if self.verbose:
+            print(self.__class__.__name__ + ': new coordinates: ' + str(res))
+        return [res]
+
+
+class StagePositionListGenerator:
+
+    # TODO: add possibility to reset index during acquisition?
+    #  -> might be necessary to re-image same positions multiple times?
+
+    def __init__(self, positions, verbose=False, auto_add_empty_z=True):
+        self.positions = positions
+        self.idx = 0
+        self.verbose = verbose
+        self.auto_add_empty_z = auto_add_empty_z
+
+    def get_all_locations(self):
+        # return copy of all positions
+        return list(self.positions)
+
+    def __call__(self):
+
+        # no more positions to image at
+        if self.idx >= len(self.positions):
+            return []
+
+        # get next position and increment index
+        coords = self.positions[self.idx]
+        self.idx += 1
+
+        # if stage positions are yx, add empty z so resulting values can be used with the
+        # default zyx parameter sets
+        if self.auto_add_empty_z and len(coords) < 3:
+            coords = [None] * (3 - len(coords)) + coords
+
+        if self.verbose:
+            print(self.__class__.__name__ + ': new coordinates: ' + str(coords))
+
+        return [coords]
+    
 
 if __name__ == '__main__':
 
