@@ -19,7 +19,7 @@ class AlreadyImagedFOVFilter:
 
         # get BBoxes of new task
         bboxes_new = []
-        updates = task.getAllUpdates()
+        updates = task.get_all_updates()
         for update in updates:
             measUpdates, _ = update
             measUpdates = update_dicts(*measUpdates)

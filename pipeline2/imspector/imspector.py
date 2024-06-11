@@ -1,40 +1,36 @@
-import json
 import re
 from warnings import warn
 import logging
 from threading import Semaphore
 
-from ..utils.dict_utils import update_dicts, get_path_from_dict
-from ..resources import dummy_measurements
+from pipeline2.utils.dict_utils import get_path_from_dict
+from pipeline2.utils.parameter_constants import (OFFSET_STAGE_GLOBAL_PARAMETERS, OFFSET_SCAN_PARAMETERS,
+                                                 OFFSET_SCAN_GLOBAL_PARAMETERS, FOV_LENGTH_PARAMETERS)
 import numpy as np
-import time
-from unittest.mock import MagicMock
-from ..data import MeasurementData
 
-# TODO: remove in production?
 try:
-    from specpy import Imspector
     import specpy
 except ImportError:
-    Imspector = MagicMock()
-
-# new error message that appeared with the addition of 'Powerswitch'
-_unknown_device_error = re.compile("Internal error: Unknown device or parameter '(.*?)'")
+    pass
 
 
 class ParameterSanitizer:
-    
+
+    pattern_parent = re.compile("(?:Internal error: )?Invalid argument for (?:device|parameter) '(.*?)'")
+    pattern_last = re.compile("No parameter '(.*?)'")
+    # new error message that appeared with the addition of 'Powerswitch'
+    unknown_device_error = re.compile("Internal error: Unknown device or parameter '(.*?)'")
+
     def __init__(self):
+        warn('ParameterSanitizer is deprecated', DeprecationWarning)
         self.paths_to_drop = []
-        self.pattern_parent = re.compile("(?:Internal error: )?Invalid argument for (?:device|parameter) '(.*?)'")
-        self.pattern_last = re.compile("No parameter '(.*?)'")
-        
+
     def parse_runtime_error(self, e):        
         lines = e.args[0].split('\n')
         print(lines)
 
         # check for unknown device error
-        m_unknown_device = _unknown_device_error.match(lines[0])
+        m_unknown_device = self.unknown_device_error.match(lines[0])
         if m_unknown_device:
             # add device to ignored list
             par_dev_unknown = [m_unknown_device.groups()[0]]
@@ -72,189 +68,117 @@ class ParameterSanitizer:
         if params[-1] in d:
             del d[params[-1]]
             
-            
-def set_parameters_nofail(target, sanitizer, pars):
-    done = False
-    while not done:
-        try:
-            sanitizer.sanitize(pars)
-            target.set_parameters('', pars)
-            done = True
-        except RuntimeError as e:
-            sanitizer.parse_runtime_error(e) 
+    @staticmethod
+    def set_parameters_nofail(target, sanitizer, pars):
+        done = False
+        while not done:
+            try:
+                sanitizer.sanitize(pars)
+                target.set_parameters('', pars)
+                done = True
+            except RuntimeError as e:
+                sanitizer.parse_runtime_error(e)
 
 
-class MockImspectorConnection():
-    def __init__(self):
-        self.getCurrentData = MagicMock(return_value=MeasurementData())
-        self.makeMeasurementFromTask = MagicMock(return_value=None)
-        self.makeConfigurationFromTask = MagicMock(return_value=None)
-        self.runCurrentMeasurement = MagicMock(return_value=None)
-        self.saveCurrentMeasurement = MagicMock(return_value=None)
-        self.closeCurrentMeasurement = MagicMock(return_value=None)
+class ImspectorConnection:
 
-class ImspectorConnection():
-    def __init__(self, im):
-        self.im = im
-        self.verbose = False
-        self.sanitizer_im = ParameterSanitizer()
-        self.sanitizer_ms = ParameterSanitizer()
+    def __init__(self, imspector=None):
+
+        # make default (local) specpy handle if none is given
+        if imspector is None:
+            imspector = specpy.get_application()
+
+        self.imspector = imspector
         self.dropped_parameters = set()
 
+        self.logger = logging.getLogger(__name__)
+
     def set_parameters_recursive(self, where, params, value_type):
+
+        # skip if the parameter caused an error before
+        if where in self.dropped_parameters:
+            return
+
         if not isinstance(params, dict):
+            # try to set parameter(s), if an error occurs, add to set of parameters to ignore
             try:
-                self.im.value_at(where, value_type).set(params)
-            except RuntimeError as e:
+                self.imspector.value_at(where, value_type).set(params)
+            except RuntimeError:
                 if where not in self.dropped_parameters:
-                    logging.debug('WARNING: parameter {} cannot be set, ignoring from here on'.format(where))
+                    self.logger.debug('parameter {} cannot be set, ignoring from here on'.format(where))
                     self.dropped_parameters.add(where)
         else:
-            for k,v in params.items():
-                self.set_parameters_recursive(k if where == '' else where + '/' + k, v, value_type)
+            # we have a dict of parameters, set all individually
+            for k, v in params.items():
+                child_key = k if where == '' else where + '/' + k
+                self.set_parameters_recursive(child_key, v, value_type)
 
-    def withVerbose(self, verbose=True):
-        self.verbose = verbose
-        return self
-        
-    def getCurrentData(self):
-        globalParams = self.im.value_at('').get()
-        measParameters = self.im.active_measurement().parameters('')
-        data = []
-        for name in self.im.active_measurement().stack_names():
-            data.append(np.copy(self.im.active_measurement().stack(name).data()))
-        return globalParams, measParameters, data
+    def get_current_data(self):
+        # get hardware and measurement params (dicts)
+        hardware_params = self.imspector.value_at('').get()
+        measurement_parameters = self.imspector.active_measurement().parameters('')
+        # get list of all stacks in currently active measurement / configuration
+        stack_data = []
+        for name in self.imspector.active_measurement().stack_names():
+            stack_data.append(np.copy(self.imspector.active_measurement().stack(name).data()))
+        return hardware_params, measurement_parameters, stack_data
 
     @staticmethod
     def get_n_channels(parameters):
         return len(get_path_from_dict(parameters, 'ExpControl/measurement/channels', False))
     
-    def makeMeasurementFromTask(self, task, halfDelay=0.0):
-        # FIXME: check if all the delays are really necessary
-        
-        # TODO: hacky fix for various channel numbers
-        ms = self.im.create_measurement()
-        #time.sleep(halfDelay)
-        measUpdates, confUpdates = task
-        measUpdates = update_dicts(*measUpdates)
-        confUpdates = update_dicts(*confUpdates)
-        
-        #n_channels = ImspectorConnection.get_n_channels(measUpdates)
-        #print('DEBUG: n_channels', n_channels)
-        
-        #ms = self.im.open(dummy_measurements[n_channels])
-        #self.im.activate(ms)
-        
-        # remove old stacks?
-        #ac = ms.active_configuration()
-        #ac2 = ms.clone(ac)
-        #ms.activate(ac2)
-        #ms.remove(ac)
+    def make_measurement_from_task(self, task, delay=0.0):
 
+        ms = self.imspector.create_measurement()
+        self.set_parameters_in_measurement(ms, task)
+
+    def set_parameters_in_measurement(self, ms, task):
+
+        measurement_updates, hardware_updates = task
         # we do the update twice to also set grayed-out values
-        #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
-        self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
-        #time.sleep(halfDelay)
-        #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
-        self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
-        # wait if requested
-        #time.sleep(halfDelay)
-        #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
-        self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
-        #time.sleep(halfDelay)
-        #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
-        self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
-        # wait again if requested
-        #time.sleep(halfDelay)
+        self.set_parameters_recursive('', measurement_updates, specpy.ValueTree.Measurement)
+        if len(hardware_updates) > 0:
+            self.set_parameters_recursive('', hardware_updates, specpy.ValueTree.Hardware)
+        self.set_parameters_recursive('', measurement_updates, specpy.ValueTree.Measurement)
+        if len(hardware_updates) > 0:
+            self.set_parameters_recursive('', hardware_updates, specpy.ValueTree.Hardware)
 
-        # NB: sync axis seems to jump back to frame after setting
+        # NOTE: sync axis seems to jump back to frame after setting
         # if we want lines, we manually re-set just that one parameter
         # FIXME: this causes weird problems in xz cut followed by any other image
-
-        if get_path_from_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
+        if get_path_from_dict(measurement_updates, 'Measurement/axes/num_synced', False) == 1:
             ms.set_parameters('Measurement/axes/num_synced', 1)
 
-    def makeConfigurationFromTask(self, task, halfDelay = 0.0):
-        ms = self.im.active_measurement()
+    def make_configuration_from_task(self, task, delay = 0.0):
+
+        # clone configuration in current measurement
+        ms = self.imspector.active_measurement()
         ac = ms.active_configuration()
-        #n_channels_existing = ImspectorConnection(ac.parameters(''))
-                
-        measUpdates, confUpdates = task
-        measUpdates = update_dicts(*measUpdates)
-        confUpdates = update_dicts(*confUpdates)
-        
-        _channels = ImspectorConnection.get_n_channels(measUpdates)
-        
-        #if (n_channels_existing == n_channels):
         ac = ms.clone(ac)
         ms.activate(ac)
-        # else:
-        #     warn('Number of channels in configurations differs. Only the last configurations will be saved as MSR')
-        #     ms = self.im.open(dummy_measurements[n_channels])
-        #     self.im.activate(ms)
-        #     # remove old stacks?
-        #     ac = ms.active_configuration()
-        #     ac2 = ms.clone(ac)
-        #     ms.activate(ac2)
-        #     ms.remove(ac)
 
-        # we do the update twice to also set grayed-out values
-        #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
-        self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
-        # NB: removed delay, keep an eye out for problems resulting from this
-        #time.sleep(halfDelay)
-        #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
-        self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
-        # wait if requested
-        #time.sleep(halfDelay)
-        #set_parameters_nofail(ms, self.sanitizer_ms, measUpdates)
-        self.set_parameters_recursive('', measUpdates, specpy.ValueTree.Measurement)
-        #time.sleep(halfDelay)
-        #set_parameters_nofail(self.im, self.sanitizer_im, confUpdates)
-        self.set_parameters_recursive('', confUpdates, specpy.ValueTree.Hardware)
-        # wait again if requested
-        #time.sleep(halfDelay)
+        self.set_parameters_in_measurement(ms, task)
 
-        # NB: sync axis seems to jump back to frame after setting
-        # if we want lines, we manually re-set just that one parameter
-        # FIXME: this causes weird problems in xz cut followed by any other image
+    def run_current_measurement(self):
 
-        if get_path_from_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
-            ms.set_parameters('Measurement/axes/num_synced', 1)
-
-    def runCurrentMeasurement(self, task=None):
-        
-        ms = self.im.active_measurement()
+        # get last configuration of active measurement
+        ms = self.imspector.active_measurement()
         ms.activate(ms.configuration(ms.number_of_configurations()-1))
         
-        # re-check num_synched
-        # TODO: re-activate ?
-        # FIXME: this causes weird problems in xz cut followed by any other image
-        '''
-        if task is not None:
-            measUpdates, confUpdates = task
-            measUpdates = update_dicts(*measUpdates)
-            confUpdates = update_dicts(*confUpdates)
-            if filter_dict(measUpdates, 'Measurement/axes/num_synced', False) == 1:
-                ms.set_parameters('Measurement/axes/num_synced', 1)
-                ms.configuration(ms.number_of_configurations()-1).set_parameters('Measurement/axes/num_synced', 1)
-        '''
-        
-        if self.verbose:
-            par = ms.parameters('')
-            offsStage = np.array([get_path_from_dict(
-                par, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-            offsScan = np.array([get_path_from_dict(
-                par, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-            offsGlobal = np.array([get_path_from_dict(
-                par, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-            
-            print('running acquisition:')
-            print('stage offsets: {}'.format(offsStage))
-            print('scan offsets: {}'.format(offsScan))
-            print('scan offsets global: {}'.format(offsGlobal))
-            
-        self.im.run(ms)
+        # get acquisition coordinates / fov and log for debug
+        params = ms.parameters('')
+        offsets_stage = [get_path_from_dict(params, path, False) for path in OFFSET_STAGE_GLOBAL_PARAMETERS]
+        offsets_scan = [get_path_from_dict(params, path, False) for path in OFFSET_SCAN_PARAMETERS]
+        offsets_scan_global = [get_path_from_dict(params, path, False) for path in OFFSET_SCAN_GLOBAL_PARAMETERS]
+        fov_length = [get_path_from_dict(params, path, False) for path in FOV_LENGTH_PARAMETERS]
+        self.logger.debug('running acquisition:')
+        self.logger.debug('stage offsets: {}'.format(offsets_stage))
+        self.logger.debug('scan offsets: {}'.format(offsets_scan))
+        self.logger.debug('scan offsets global: {}'.format(offsets_scan_global))
+        self.logger.debug('FOV length: {}'.format(fov_length))
+
+        # actually run
+        self.imspector.run(ms)
 
     @staticmethod
     def blocking_imspector_run(imspector, measurement):
@@ -284,24 +208,24 @@ class ImspectorConnection():
         sem.acquire()
         imspector.disconnect_end(sem.release, 0)
 
-
-    def saveCurrentMeasurement(self, path):
-        ms = self.im.active_measurement()
+    def save_current_measurement(self, path):
+        ms = self.imspector.active_measurement()
         ms.save_as(path)
 
-    def closeCurrentMeasurement(self):
-        ms = self.im.active_measurement()
-        self.im.close(ms)
+    def close_current_measurement(self):
+        ms = self.imspector.active_measurement()
+        self.imspector.close(ms)
 
 
 def get_current_stage_coords(im=None):
+
     if im is None:
-        im = Imspector()
+        im = specpy.get_application()
 
     im.create_measurement()
     ms = im.active_measurement()
 
-    coords = [ms.parameters('ExpControl/scan/range/coarse_' + c + '/g_off') for c in 'xyz']
+    coords = [ms.parameters(path) for path in OFFSET_STAGE_GLOBAL_PARAMETERS]
 
     im.close(ms)
 

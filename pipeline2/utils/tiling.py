@@ -17,6 +17,7 @@ def centered_tiles_1d(center_position, length, n_tiles, overlap):
     x += center_position
     return x
 
+
 def minmax_tiles_1d(min_position, max_position, length, overlap):
 
     # center of range

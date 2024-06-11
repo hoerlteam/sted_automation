@@ -107,9 +107,9 @@ class StageOffsetsSettingsGenerator(ValuesToSettingsDictCallback):
 class ZDCOffsetSettingsGenerator(ValuesToSettingsDictCallback):
     # mixed offsets when using Z-drift-controller (ZDC) -> use stage coords instead of piezo
     # TODO: check if this is still the correct path, esp. z
-    offset_settings_paths = ['ExpControl/scan/range/x/off',
+    offset_settings_paths = ['ExpControl/scan/range/offsets/coarse/z/g_off',
                              'ExpControl/scan/range/y/off',
-                             'ExpControl/scan/range/offsets/coarse/z/g_off']
+                             'ExpControl/scan/range/x/off']
 
     def __init__(self, location_generator, as_measurements=True):
         super().__init__(location_generator, self.offset_settings_paths, as_measurements)

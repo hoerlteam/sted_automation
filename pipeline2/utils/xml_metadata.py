@@ -4,6 +4,7 @@ LEAF_TYPE_INT_PREFIXES = ('int', 'uint')
 LEAF_TYPE_FLOAT_PREFIXES = ('single', 'double')
 LEAF_TYPE_PREFIXES = ('char', 'logical') + LEAF_TYPE_INT_PREFIXES + LEAF_TYPE_FLOAT_PREFIXES
 
+
 def startswith_any_in_collection(s, prefixes):
     for prefix in prefixes:
         if s.startswith(prefix):

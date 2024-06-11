@@ -1,8 +1,9 @@
 from itertools import cycle
-from unittest.mock import MagicMock
 from typing import Sequence
+import logging
 
 from pipeline2.taskgeneration.fov_util import group_in_bounding_boxes
+from pipeline2.utils.dict_utils import update_dicts
 
 
 class AcquisitionTaskGenerator:
@@ -14,14 +15,14 @@ class AcquisitionTaskGenerator:
         # e.g. when no parameter change is desired by the user
         self.update_generators = [u for u in update_generators if u is not None]
         self.delay = delay
-        self.taskFilters = []
+        self.task_filters = []
 
     def add_task_filters(self, *filters):
-        for filter in filters:
-            self.taskFilters.append(filter)
+        for filter_i in filters:
+            self.task_filters.append(filter_i)
         return self
 
-    def __call__(self, pipeline):
+    def __call__(self):
         """
         Run wrapped callbacks and broadcast and combine measurement updates,
         repeating single updates from one callback to match with multiple from another:
@@ -42,7 +43,7 @@ class AcquisitionTaskGenerator:
 
         # update the filters
         # TODO: check if this can be simplified/removed?
-        for task_filter in self.taskFilters:
+        for task_filter in self.task_filters:
             task_filter.update()
 
         tasks = []
@@ -51,12 +52,13 @@ class AcquisitionTaskGenerator:
             # broadcast configurations within measurements
             config_updates = broadcast_updates(measurement_update)
 
-            # print(json.dumps(finalConfs, indent=2))
-            task = AcquisitionTask(self.level).withUpdates(config_updates).withDelay(self.delay)
+            task = AcquisitionTask(self.level)
+            task.add_updates(config_updates)
+            task.delay = self.delay
 
             # reject task if it does not conform to a task_filter
             skip = False
-            for task_filter in self.taskFilters:
+            for task_filter in self.task_filters:
                 if not task_filter.conforms(task):
                     skip = True
             if skip:
@@ -67,10 +69,7 @@ class AcquisitionTaskGenerator:
         return self.level, tasks
 
 
-class AcquisitionTask():
-    """
-    a dummy acquisition task, that will repeat itself every second
-    """
+class AcquisitionTask:
 
     def __init__(self, pipeline_level):
         self.pipeline_level = pipeline_level
@@ -78,92 +77,76 @@ class AcquisitionTask():
         self.hardware_updates = []
         self.delay = 0
 
-    def withUpdates(self, updates):
+    def add_updates(self, updates):
         for u in updates:
-            measUpdates = [m for m, s in u]
-            settingsUpdates = [s for m, s in u]
-            self.measurement_updates.append(measUpdates)
-            self.hardware_updates.append(settingsUpdates)
-        return self
-
-    def withDelay(self, delay=0):
-        self.delay = delay
-        return self
+            measurement_updates = [m for m, s in u]
+            hardware_updates = [s for m, s in u]
+            self.measurement_updates.append(measurement_updates)
+            self.hardware_updates.append(hardware_updates)
 
     @property
-    def numAcquisitions(self):
+    def num_acquisitions(self):
         return len(self.measurement_updates)
 
-    def getUpdates(self, n):
-        return self.measurement_updates[n], self.hardware_updates[n]
+    def get_updates(self, n, concatenate=False):
+        hardware_updates = self.hardware_updates[n]
+        measurement_updates = self.measurement_updates[n]
+        if concatenate:
+            hardware_updates = update_dicts(*hardware_updates)
+            measurement_updates = update_dicts(*measurement_updates)
+        return measurement_updates, hardware_updates
 
-    def getAllUpdates(self):
-        return [self.getUpdates(n) for n in range(self.numAcquisitions)]
-
-    # TODO: move, this should become part of an analysis callback
-    def __call__(self, pipeline, *args, **kwargs):
-        print('pipeline {}: do dummy acquisition on level {}'.format(pipeline.name, self.pipeline_level))
-        # sleep(1)
-        pipeline.queue.put(AcquisitionTask(self.pipeline_level).withDelay(self.delay), self.pipeline_level)
+    def get_all_updates(self, concatenate=False):
+        return [self.get_updates(n, concatenate) for n in range(self.num_acquisitions)]
 
 
-class BoundingBoxLocationGrouper():
+class BoundingBoxLocationGrouper:
     """
     Wrapper for a locationGenerator that groups locations into bounding boxes of defined size.
     This may be necessary to avoid multiple imaging of the same object.
 
     Parameters
     ----------
-    locationGenerator : object implementing `get_locations` (returning iterable of 3d location vectors)
+    location_generator : callable returning iterable of 3d location vectors
         generator of locations
-    boundingBoxSize : 3d vector (array-like)
+    bounding_box_size : 3d vector (array-like)
         size of the bounding boxes to group in (same unit as vectors returned by locationGenerator)
     """
-    def __init__(self, locationGenerator, boundingBoxSize):
-        self.locationGenerator = locationGenerator
-        self.boundingBoxSize = boundingBoxSize
-        self.verbose = False
-        
-    def withVerbose(self, verbose=True):
-        self.verbose = verbose
-        return self
+    def __init__(self, location_generator, bounding_box_size):
+        self.location_generator = location_generator
+        self.bounding_box_size = bounding_box_size
+        self.logger = logging.getLogger(__name__)
 
-    def get_locations(self):
-        xs = self.locationGenerator.get_locations()
-        res = group_in_bounding_boxes(xs, self.boundingBoxSize)
+    def __call__(self):
+        xs = self.location_generator()
+        res = group_in_bounding_boxes(xs, self.bounding_box_size)
         
-        if self.verbose:
-            print('grouped detections into {} FOVS:'.format(len(res)))
-            for loc in res:
-                print(loc)
+        self.logger.info('grouped detections into {} FOVs'.format(len(res)))
+        for loc in res:
+            self.logger.debug('FOV: {}'.format(loc))
         return res
 
 
-class LocalizationNumberFilter():
+class LocalizationNumberFilter:
     """
     Wrapper for a locationGenerator that will discard all localizations, if there are too few or too many
 
     Parameters
     ----------
-    locationGenerator : object implementing `get_locations`
+    location_generator : callable
         generator of locations
-    min: int, optional
+    min_num_locs: int, optional
         minimum number of localizations
-    max: int, optional
+    max_num_locs: int, optional
         maximum number of localizations
     """
-    def __init__(self, locationGenerator, min=None, max=None):
-        self.locationGenerator = locationGenerator
-        self.min = min
-        self.max = max
-        self.verbose = False
+    def __init__(self, location_generator, min_num_locs=None, max_num_locs=None):
+        self.location_generator = location_generator
+        self.min = min_num_locs
+        self.max = max_num_locs
 
-    def withVerbos(self, verbose=True):
-        self.verbose = verbose
-        return self
-
-    def get_locations(self):
-        locs = self.locationGenerator.get_locations()
+    def __call__(self):
+        locs = self.location_generator.get_locations()
         n_locs = len(locs)
 
         # return all or nothing, depending on number of locs
@@ -212,7 +195,7 @@ def main():
 
 
 def ATGTest():
-
+    from unittest.mock import MagicMock
     from pipeline2.taskgeneration.coordinate_building_blocks import ZDCOffsetSettingsGenerator
 
     locMock = MagicMock(return_value = [])

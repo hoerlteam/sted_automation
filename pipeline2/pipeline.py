@@ -1,3 +1,4 @@
+import logging
 from itertools import chain
 import heapq
 from collections import defaultdict
@@ -5,7 +6,7 @@ from time import time
 import os
 import hashlib
 
-from pipeline2.imspector.imspector import MockImspectorConnection
+from pipeline2.imspector import ImspectorConnection
 from pipeline2.data import MeasurementData, HDF5DataStore
 from pipeline2.utils.delayed_interrupt import DelayedKeyboardInterrupt
 from pipeline2.stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
@@ -18,7 +19,6 @@ class AcquisitionPipeline:
     def __init__(self, name, path, hierarchy_levels, imspector=None, save_combined_hdf5=True, level_priorities=None):
 
         self.name = name
-
         self.hierarchy_levels = hierarchy_levels
 
         # by default, priorities are the inverse of the order of hierarchy_levels
@@ -36,13 +36,10 @@ class AcquisitionPipeline:
         # keep track of starting time, so
         self.starting_time = None
 
-        # hold the Imspector connection, or use Mock for debug (default)
-        # TODO: remove debug, instantiate ImspectorConnection here?
-        if imspector is None:
-            imspector = MockImspectorConnection()
-        self.imspector = imspector
+        # hold the Imspector connection
+        self.imspector_connection = ImspectorConnection(imspector)
 
-        self.logger = None
+        self.logger = logging.getLogger(__name__)
 
         # set up file name handling and create output directory
         self.base_path = path
@@ -68,8 +65,8 @@ class AcquisitionPipeline:
         run the pipeline
         """
 
-        # we use this context manager to handle interrupts so we can finish
-        # to acquisition we are in before stopping
+        # we use this context manager to handle interrupts,
+        # so we can finish the acquisition we are in before stopping
         with DelayedKeyboardInterrupt(self):
 
             # record starting time, so we can check whether a StoppingCondition is met
@@ -77,8 +74,9 @@ class AcquisitionPipeline:
 
             # run initial callback to populate queue
             if initial_callback is not None:
-                new_level, new_tasks = initial_callback(self)
+                new_level, new_tasks = initial_callback()
                 for task in new_tasks:
+                    # add with empty parent idx
                     self.enqueue_task(new_level, task, ())
 
             # main acquisition loop
@@ -88,26 +86,26 @@ class AcquisitionPipeline:
                 priority, index, acquisition_task = heapq.heappop(self.queue)
 
                 # go through updates sequentially (we might have multiple configurations per measurement)
-                for update_index in range(acquisition_task.numAcquisitions):
+                for update_index in range(acquisition_task.num_acquisitions):
 
                     # make measurement (for first update) or configuration (for subsequent) in Imspector
                     if update_index == 0:
-                        self.imspector.makeMeasurementFromTask(acquisition_task.getUpdates(update_index), acquisition_task.delay)
+                        self.imspector_connection.make_measurement_from_task(acquisition_task.get_updates(update_index, True), acquisition_task.delay)
                     else:
-                        self.imspector.makeConfigurationFromTask(acquisition_task.getUpdates(update_index), acquisition_task.delay)
+                        self.imspector_connection.make_configuration_from_task(acquisition_task.get_updates(update_index, True), acquisition_task.delay)
 
                     # run in Imspector
-                    self.imspector.runCurrentMeasurement(acquisition_task.getUpdates(update_index))
+                    self.imspector_connection.run_current_measurement()
 
                     # add data copy (of most recent configuration) to data storage
-                    self.data[index].append(*self.imspector.getCurrentData())
+                    self.data[index].append(*self.imspector_connection.get_current_data())
 
                 # save and close in Imspector
                 # only save if we actually did any acquisitions
-                if acquisition_task.numAcquisitions > 0:
+                if acquisition_task.num_acquisitions > 0:
                     path = self.filename_handler.get_path(index)
-                    self.imspector.saveCurrentMeasurement(path)
-                    self.imspector.closeCurrentMeasurement()
+                    self.imspector_connection.save_current_measurement(path)
+                    self.imspector_connection.close_current_measurement()
 
                 # get level of current task
                 current_level = next(hierarchy_level for hierarchy_level, priority_i in self.level_priorities.items() if priority_i == priority)
@@ -135,7 +133,7 @@ class AcquisitionPipeline:
                 if stopping_condition_met:
                     break
 
-            print('PIPELINE {} FINISHED'.format(self.name))
+            self.logger.info('PIPELINE {} FINISHED'.format(self.name))
 
     def get_next_free_index(self, hierarchy_level, parent_index=()):
         """
