@@ -11,19 +11,25 @@ from skimage.transform import rescale, resize
 from sklearn.cluster import KMeans
 
 try:
+    # try to import Cellpose, but do not make hard dependency
+    from cellpose.models import CellposeModel
+except:
+    pass
+
+try:
     # try to import StarDist, but do not make hard dependency
     from stardist.models import StarDist2D
     from csbdeep.utils import normalize
-    # try to import CellPose, but do not make hard dependency
-    from cellpose.models import Cellpose
 except:
     pass
 
 from calmutils.localization import refine_point
 from calmutils.misc import filter_rprops
 
-from ..utils.dict_utils import get_path_from_dict
-from .detection import pixel_to_physical_coordinates
+from pipeline2.utils.dict_utils import get_path_from_dict
+from pipeline2.detection.detection import pixel_to_physical_coordinates
+from pipeline2.utils.parameter_constants import (OFFSET_SCAN_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
+                                                 PIXEL_SIZE_PARAMETERS, FOV_LENGTH_PARAMETERS)
 
 
 def nnet_seg_outer(img, seg_fun, scale_factor=0.5, axis=0, regionprops_filters=None, do_plot=False, ignore_border=True, bg_val=None):
@@ -82,6 +88,7 @@ def nnet_seg_outer(img, seg_fun, scale_factor=0.5, axis=0, regionprops_filters=N
 
     return res
 
+
 def stardist_midplane_detection(img, model, scale_factor=0.5, prob_tresh=0.8, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
 
     def stardist_seg_fun(img):
@@ -90,11 +97,12 @@ def stardist_midplane_detection(img, model, scale_factor=0.5, prob_tresh=0.8, ax
 
     return nnet_seg_outer(img, stardist_seg_fun, scale_factor, axis, flt, do_plot, ignore_border, bg_val)
 
-def cellpose_midplane_detection(img, model, scale_factor=0.5, flow_tresh=0.2, diameter=50, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
+
+def cellpose_midplane_detection(img, model: CellposeModel, scale_factor=0.5, flow_tresh=0.2, diameter=50, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
 
     def cellpose_seg_fun(img):
-        seg, _ = model.eval(img, flow_threshold=flow_tresh, diameter=diameter, channels=[0,0])
-        return seg
+        segs, *_ = model.eval([img], flow_threshold=flow_tresh, diameter=diameter, channels=[0,0])
+        return segs[0]
 
     return nnet_seg_outer(img, cellpose_seg_fun, scale_factor, axis, flt, do_plot, ignore_border, bg_val)
 
@@ -134,7 +142,7 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
 
     # max project along z
     # use gamma corrected mip, blur and edge images as features
-    mip = np.apply_along_axis(np.max, axis, img)
+    mip = np.max(img, axis=axis)
     if bg_val is not None:
         mip[mip==bg_val] = 0
     mip = rescale_intensity(mip)
@@ -146,7 +154,7 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
     if bg_val is None:
         feat = np.dstack([mip, blur, edge])
         feat = feat.reshape((np.prod(feat.shape[:-1]), feat.shape[-1]))
-        km = KMeans(n_classes)
+        km = KMeans(n_classes, n_init='auto')
         seg = km.fit_predict(feat).reshape(mip.shape)
     else:
         mip2 = np.apply_along_axis(np.max, axis, img)
@@ -155,16 +163,14 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
         feat = np.dstack([mip[mip2 != bg_val], blur[mip2 != bg_val], edge[mip2 != bg_val]])
         print(feat.shape)
         feat = feat.reshape((-1,3))
-        km = KMeans(n_classes)
+        km = KMeans(n_classes, n_init='auto')
         seg_tmp = km.fit_predict(feat)
         seg = np.zeros_like(mip)
         seg[mip2 != bg_val] = seg_tmp
 
-    # k-Means might call backround 0 and foreground 1
+    # k-Means might arbitrarily number classes, pick the brightest as foreground
     max_class = np.argmax([np.mean(mip[seg==i]) for i in range(n_classes)])
     seg = (seg == max_class ) * 1
-   # if (cz > np.mean(mip[seg == 1])):
-    #    seg = (seg - 1) * -1
 
     # ignore objects touching the border
     if ignore_border:
@@ -220,42 +226,27 @@ def nucleus_midplane_detection(img, axis=0, flt=None, do_plot=False, ignore_bord
     return res
 
 
-class SimpleNucleusMidplaneDetector():
+class SimpleNucleusMidplaneDetector:
 
-    def __init__(self, dataSource, configuration=0, channel=0, n_classes=2, manual_offset=0, use_stage=False):
-        self.dataSource = dataSource
+    def __init__(self, data_source_callback, configuration=0, channel=0, n_classes=2, manual_offset=0, use_stage=False,
+                 region_filters={}, fov_expansion_factor=1.2, plot_detections=False, verbose=False):
+        self.data_source_callback = data_source_callback
         self.configuration = configuration
         self.channel = channel
-        self.verbose = False
-        self.do_plot = False
-        self.filt = {}
-        self.expand = 1.2
+        self.verbose = verbose
+        self.do_plot = plot_detections
+        self.region_filters = region_filters
+        self.expand = fov_expansion_factor
         self.n_classes = n_classes
         self.manual_offset = manual_offset
         self.use_stage = use_stage
 
-    def withVerbose(self, verbose=True):
-        self.verbose = verbose
-        return self
-
-    def withPlot(self, plot=True):
-        self.do_plot = plot
-        return self
-
-    def withFilter(self, filt=True):
-        self.filt = filt
-        return self
-    
-    def withFOVExpansion(self, expand):
-        self.expand = expand
-        return self
-
     def midplane_detection_fun(self, img):
-        return nucleus_midplane_detection(img, 0, self.filt, self.do_plot, True, -1, self.n_classes)
+        return nucleus_midplane_detection(img, 0, self.region_filters, self.do_plot, True, -1, self.n_classes)
 
-    def get_fields(self):
+    def __call__(self):
 
-        data = self.dataSource.get_data()
+        data = self.data_source_callback()
 
         # no data yet -> empty update
         if data is None:
@@ -267,52 +258,40 @@ class SimpleNucleusMidplaneDetector():
             raise ValueError('no images present. TODO: fail gracefully/skip here')
 
         img = data.data[self.configuration][self.channel][0, :, :, :]
-        # make float
-        img = np.array(img, np.float)
+        img = np.array(img, float)
         
-        # check which dimensions are singleton (note: x,y,z here!)
-        ignore_dim = np.array([d for d in img.shape][-1::-1]) == 1
-        
-        setts = data.measurementSettings[self.configuration]
+        # check which dimensions are singleton
+        ignore_dimensions = np.array([d for d in img.shape]) == 1
 
+        # get position / FOV parameters for measurement we detect in
+        settings = data.measurement_settings[self.configuration]
         if self.use_stage:
-            offsOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+            offsets_old = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_STAGE_GLOBAL_PARAMETERS], dtype=float)
         else:
-            offsOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-
-        lensOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-
-        pszOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+            offsets_old = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_SCAN_PARAMETERS], dtype=float)
+        fov_lengths_old = np.array([get_path_from_dict(settings, path, False) for path in FOV_LENGTH_PARAMETERS], dtype=float)
+        pixel_sizes_old = np.array([get_path_from_dict(settings, path, False) for path in PIXEL_SIZE_PARAMETERS], dtype=float)
 
         if self.verbose:
             print('Nucleus Detection:')
-            print('old offset: {}'.format(offsOld))
-            print('old len: {}'.format(lensOld))
-            print('old psz: {}'.format(pszOld))
+            print('old offset: {}'.format(offsets_old))
+            print('old len: {}'.format(fov_lengths_old))
+            print('old psz: {}'.format(pixel_sizes_old))
 
         midplanes = self.midplane_detection_fun(img)
 
         res = []
-
         for (ymin, xmin, ymax, xmax, zmid) in midplanes:
 
             if self.verbose:
                 print('pixel result: {}'.format((ymin, xmin, ymax, xmax, zmid)))
             
             # get offset and fov in world units
-            off = np.array([(xmax+xmin)/2, (ymax+ymin)/2, zmid], dtype=np.float)
+            off = np.array([zmid, (ymax+ymin)/2, (xmax+xmin)/2], dtype=float)
+            off = pixel_to_physical_coordinates(off, offsets_old, fov_lengths_old, pixel_sizes_old, ignore_dimensions)
+            fov = [None, (ymax - ymin)*pixel_sizes_old[1]*self.expand, (xmax - xmin)*pixel_sizes_old[2]*self.expand]
             
-            if self.verbose:
-                print('pixel off: {}'.format(off))
-                
-            off = pixel_to_physical_coordinates(off, offsOld, lensOld, pszOld, ignore_dim)
-            fov = [(xmax - xmin)*pszOld[0]*self.expand, (ymax - ymin)*pszOld[1]*self.expand, None]
-            
-            off[2] += self.manual_offset
+            off[0] += self.manual_offset
 
             if self.verbose:
                 print(self.__class__.__name__ + ': Found Nucleus at {}, FOV: {}'.format(off, fov))
@@ -323,9 +302,10 @@ class SimpleNucleusMidplaneDetector():
 
 
 class StarDistNucleusMidplaneDetector(SimpleNucleusMidplaneDetector):
-    def __init__(self, dataSource, scale_factor=0.5, prob_thresh=0.8, configuration=0, channel=0, manual_offset=0, use_stage=False):
+    def __init__(self, data_source_callback, scale_factor=0.5, prob_thresh=0.8, **kwargs):
 
-        super().__init__(dataSource, configuration, channel, 0, manual_offset, use_stage)
+        super().__init__(data_source_callback, **kwargs)
+        self.n_classes = 0
 
         # TODO: make settable?
         self.pretrained_model_id = '2D_versatile_fluo'
@@ -335,19 +315,53 @@ class StarDistNucleusMidplaneDetector(SimpleNucleusMidplaneDetector):
         self.model = StarDist2D(self.pretrained_model_id)
 
     def midplane_detection_fun(self, img):
-        return stardist_midplane_detection(img, self.model, self.scale_factor, self.prob_tresh, 0, self.filt, self.do_plot, True, -1)
+        return stardist_midplane_detection(img, self.model, self.scale_factor, self.prob_tresh, 0, self.region_filters, self.do_plot, True, -1)
 
 
 class CellposeNucleusMidplaneDetector(SimpleNucleusMidplaneDetector):
-    def __init__(self, dataSource, scale_factor=0.5, flow_thresh=0.2, diameter=50, configuration=0, channel=0, manual_offset=0, use_stage=False):
+    def __init__(self, data_source_callback, scale_factor=0.5, flow_thresh=0.2, diameter=50, **kwargs):
 
-        super().__init__(dataSource, configuration, channel, 0, manual_offset, use_stage)
+        super().__init__(data_source_callback, **kwargs)
+        self.n_classes = 0
 
         self.scale_factor = scale_factor
         self.flow_tresh = flow_thresh
         self.diameter = diameter
 
-        self.model = Cellpose(gpu=True, model_type='nuclei')
+        self.model = CellposeModel(gpu=True, model_type='nuclei')
 
     def midplane_detection_fun(self, img):
-        return cellpose_midplane_detection(img, self.model, self.scale_factor, self.flow_tresh, self.diameter, 0, self.filt, self.do_plot, True, -1)
+        return cellpose_midplane_detection(img, self.model, self.scale_factor, self.flow_tresh, self.diameter, 0, self.region_filters, self.do_plot, True, -1)
+
+if __name__ == '__main__':
+
+    from pipeline2.data import MeasurementData
+    from pprint import pprint
+    import logging
+    from pipeline2.taskgeneration.coordinate_building_blocks import ValuesToSettingsDictCallback
+    from skimage.io import imread
+
+    img = imread('/Users/david/Downloads/dapi_nuclei.tif')
+    img = img.reshape((1,1,img.shape[0],img.shape[1]))
+
+    logging.basicConfig(level=logging.INFO)
+
+    off = [0, 0, 0]
+    pixel_size = [0.1, 0.1, 0.1]
+    fov = np.array([0.1, 0.1, 0.1]) * np.array(img.shape[1:])
+    settings_call = ValuesToSettingsDictCallback(lambda: ((off, pixel_size, fov),),
+                                                 (OFFSET_SCAN_PARAMETERS, PIXEL_SIZE_PARAMETERS, FOV_LENGTH_PARAMETERS))
+
+    measurement_settings, hardware_settings = settings_call()[0][0]
+
+    data = MeasurementData()
+    data.append(hardware_settings, measurement_settings, [img])
+    data_call = lambda: data
+
+    detector = SimpleNucleusMidplaneDetector(data_call, plot_detections=True)
+    detector = CellposeNucleusMidplaneDetector(data_call, diameter=20, plot_detections=True, manual_offset=1)
+    # res = detector()
+
+    from pipeline2.taskgeneration.coordinate_building_blocks import ScanFieldSettingsGenerator
+    res = ScanFieldSettingsGenerator(detector, True)()
+    pprint(res)
