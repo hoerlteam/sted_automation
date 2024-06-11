@@ -1,7 +1,6 @@
 import pprint
 from operator import add
 from functools import reduce
-from itertools import cycle
 
 from pipeline2.utils.dict_utils import update_dicts, generate_recursive_dict
 from pipeline2.utils.parameter_constants import OFFSET_SCAN_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS, FOV_LENGTH_PARAMETERS

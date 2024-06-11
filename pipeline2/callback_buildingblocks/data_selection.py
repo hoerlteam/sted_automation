@@ -1,6 +1,7 @@
 from pipeline2 import AcquisitionPipeline
 from pipeline2.data import MeasurementData
 
+
 class NewestDataSelector:
     """
     Callback that will return the newest MeasurementData at a given hierarchy level from the pipeline

@@ -1,14 +1,16 @@
-import numpy as np
-import collections
+import logging
 from itertools import cycle
+
+import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage as ndi
 
-from pipeline2.taskgeneration.coordinate_building_blocks import  ValuesToSettingsDictCallback
-from pipeline2.detection.spot_util import pair_finder_inner, detect_blobs
+from pipeline2.taskgeneration.coordinate_building_blocks import ValuesToSettingsDictCallback
+from pipeline2.detection.spot_util import detect_blobs_find_pairs, detect_blobs
 from pipeline2.detection.display_util import draw_detections_2c, draw_detections_1c
 from pipeline2.utils.dict_utils import get_path_from_dict
-from pipeline2.utils.parameter_constants import PIXEL_SIZE_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS, OFFSET_SCAN_PARAMETERS
+from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
+                                                 OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
 
 
 class ParameterValuesRepeater:
@@ -84,7 +86,7 @@ class SimpleManualOffset:
 
 class SimpleFocusPlaneDetector:
 
-    def __init__(self, data_source_callback, configuration=0, channel=0, verbose=False, invert_z_direction=True):
+    def __init__(self, data_source_callback, configuration=0, channel=0, invert_z_direction=True):
         """
 
 
@@ -101,7 +103,7 @@ class SimpleFocusPlaneDetector:
         self.data_source_callback = data_source_callback
         self.configuration = configuration
         self.channel = channel
-        self.verbose = verbose
+        self.logger = logging.getLogger(__name__)
         self.invert_z_direction = invert_z_direction
 
         self.offset_z_path = OFFSET_STAGE_GLOBAL_PARAMETERS[0]
@@ -128,12 +130,11 @@ class SimpleFocusPlaneDetector:
 
     def __call__(self):
 
-        data = self.data_source_callback.get_data()
+        data = self.data_source_callback()
 
         # no data yet -> empty update
         if data is None:
-            if self.verbose:
-                print(self.__class__.__name__ + ': No data for Z correction present -> skipping.')
+            self.logger.info(': No data for Z correction present -> skipping.')
             return [[None, None, None]]
 
         if (data.num_configurations <= self.configuration) or (data.num_images(self.configuration) <= self.channel):
@@ -141,12 +142,11 @@ class SimpleFocusPlaneDetector:
 
         # get image of selected configuration and channel and convert to float
         img = data.data[self.configuration][self.channel][0, :, :, :]
-        img = np.array(img, np.float)
+        img = np.array(img, float)
 
         # 2D image -> empty update
         if img.shape[0] <= 1:
-            if self.verbose:
-                print(self.__class__.__name__ + ': Image is 2D, cannot do Z correction -> skipping.')
+            self.logger.info(': Image is 2D, cannot do Z correction -> skipping.')
             return [[None, None, None]]
 
         # get old z-offset and pixel size
@@ -158,17 +158,16 @@ class SimpleFocusPlaneDetector:
         z_delta = self.focus_in_stack(img, z_pixel_size, 0)
         new_z = z_offset_old + z_delta * (-1 if self.invert_z_direction else 1)
 
-        if self.verbose:
-            print(self.__class__.__name__ + ': Corrected Focus (was {}, new {})'.format(z_offset_old, new_z))
+        self.logger.info(': Corrected Focus (was {}, new {})'.format(z_offset_old, new_z))
         
         return [[new_z, None, None]]
 
 
+# TODO: implement generic wrappers for extensibility
 class CoordinateDetectorWrapper:
     def __init__(self, data_source_callback, detection_function_callback):
         self.data_source_callback = data_source_callback
         self.detection_function_callback = detection_function_callback
-
 
 
 class ROIDetectorWrapper:
@@ -186,7 +185,7 @@ class SimpleSingleChannelSpotDetector:
 
     def __init__(self, data_source_callback, sigmas, threshold, configuration=0, channel=0,
                  median_threshold=3, median_radius=5, refine_detections=True, return_parameter_dict=False,
-                 plot_detections=False, verbose=False):
+                 plot_detections=False):
 
         self.data_source_callback = data_source_callback
         self.sigmas = sigmas
@@ -196,7 +195,7 @@ class SimpleSingleChannelSpotDetector:
         self.median_threshold = median_threshold
         self.median_radius = median_radius
         self.plot_detections = plot_detections
-        self.verbose = verbose
+        self.logger = logging.getLogger(__name__)
         self.refine_detections = refine_detections
         self.return_parameter_dict = return_parameter_dict
 
@@ -218,10 +217,9 @@ class SimpleSingleChannelSpotDetector:
         psz_image = np.array([get_path_from_dict(settings, off_path, keep_structure=False) for off_path in self.pixel_size_parameter_paths], dtype=float)
         fov_length = (np.array(img_shape, dtype=float) - 1) * psz_image
 
-        if self.verbose:
-            print('offset: {}'.format(offset_image))
-            print('pixel size: {}'.format(psz_image))
-            print('FOV length: {}'.format(fov_length))
+        self.logger.debug('offset: {}'.format(offset_image))
+        self.logger.debug('pixel size: {}'.format(psz_image))
+        self.logger.debug('FOV length: {}'.format(fov_length))
             
         res = []
         for loc in localizations:
@@ -269,17 +267,15 @@ class SimpleSingleChannelSpotDetector:
             locs += locs_per_channel
 
         # to physical coordinates
-        corrected = self.to_world_coordinates(locs, setts, ignore_dim, img.shape)
+        corrected = self.to_world_coordinates(locs, setts, ignore_dim, img.shape) if len(locs) > 1 else []
 
-        if self.verbose:
-            print(self.__class__.__name__ + ': found {} spots. pixel coordinates:'.format(len(locs)))
-            for loc in locs:
-                print(loc)
+        self.logger.info(self.__class__.__name__ + ': found {} spots. pixel coordinates:'.format(len(locs)))
+        for loc in locs:
+            self.logger.info(loc)
 
-        if self.verbose:
-            print(self.__class__.__name__ + ': found {} spots. physical coordinates:'.format(len(locs)))
-            for locC in corrected:
-                print(locC)
+        self.logger.info(self.__class__.__name__ + ': found {} spots. physical coordinates:'.format(len(locs)))
+        for locC in corrected:
+            self.logger.info(locC)
 
         # plot
         # NOTE: this only shows the last channel if we detect in multiple
@@ -305,155 +301,139 @@ def refill_ignored_dimensions(coordinates, ignore_dim):
     return coords_refilled
 
 
-class LegacySpotPairFinder():
+class LegacySpotPairFinder:
     """
     wrapper for the 'old' spot pair detector
     get_locations will return a list of coordinate lists
     of scan coordinates (stage coordinates are ignored)
     """
 
-    def __init__(self, dataSource, sigma, thresholds, medianThresholds=[3, 3], medianRadius=5, channels=(0,1),
-                 in_channel_min_distance=3, between_channel_max_distance=5):
-        self.dataSource = dataSource
+    offset_parameter_paths = OFFSET_SCAN_PARAMETERS
+    pixel_size_parameter_paths = PIXEL_SIZE_PARAMETERS
+    fov_length_parameter_paths = FOV_LENGTH_PARAMETERS
+    invert_dimensions = (False, False, False)
+
+    def __init__(self, data_source, sigma, thresholds, median_thresholds=(3, 3), median_radius=5, channels=(0, 1),
+                 in_channel_min_distance=3, between_channel_max_distance=5, plot_detections=False, return_parameter_dict=False):
+
+        self.data_source_callback = data_source
         self.sigma = sigma
         self.thresholds = thresholds
-        self.medianThresholds = medianThresholds
-        self.medianRadius = medianRadius
-        self.plotDetections = False
-        self.verbose = False
+        self.median_thresholds = median_thresholds
+        self.median_radius = median_radius
+        self.plot_detections = plot_detections
         self.channels = channels
         self.between_channel_max_distance = between_channel_max_distance
         self.in_channel_min_distance = in_channel_min_distance
+        self.return_parameter_dict = return_parameter_dict
 
+        self.logger = logging.getLogger(__name__)
 
-    def doPlot(self, pairsPixel, stack1, stack2):
-        draw_detections_2c(stack1, stack2, [s[-1::-1] for s in pairsPixel], [0.5, 99.99], 0, 3, percentile_range=True)
+    def do_plot(self, locations_pixel, stack1, stack2):
+        draw_detections_2c(stack1, stack2, locations_pixel, [0.5, 99.99], 0, 3, percentile_range=True)
 
-    def correctForOffset(self, pairsPixel, setts, ignore_dim):
-        offsOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+    def to_world_coordinates(self, detections_pixel, setts, ignore_dim):
 
-        lensOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-
-        pszOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+        offsets = np.array([get_path_from_dict(setts, path, False) for path in self.offset_parameter_paths], dtype=float)
+        fov_lengths = np.array([get_path_from_dict(setts, path, False) for path in self.fov_length_parameter_paths], dtype=float)
+        pixel_sizes = np.array([get_path_from_dict(setts, path, False) for path in self.pixel_size_parameter_paths], dtype=float)
 
         res = []
-        for pair in pairsPixel:
-            pairT = np.array(pair, dtype=float)
-            res.append(pixel_to_physical_coordinates(pairT, offsOld, lensOld, pszOld, ignore_dim))
+        for detection in detections_pixel:
+            detection = np.array(detection, dtype=float)
+            res.append(pixel_to_physical_coordinates(detection, offsets, fov_lengths, pixel_sizes, ignore_dim, self.invert_dimensions))
         return res
 
-    def get_locations(self):
-        data = self.dataSource.get_data()
+    def __call__(self):
+        data = self.data_source_callback()
         if (data.num_configurations < 1) or (data.num_images(0) < 2):
             raise ValueError(
-                'too few images for LegacySpotPairFinder. The RichData provided needs to have two images in the first configuration.')
+                'too few images for LegacySpotPairFinder. The MeasurementData provided needs to have two images in the first configuration.')
         stack1 = data.data[0][self.channels[0]][0, :, :, :]
         stack2 = data.data[0][self.channels[1]][0, :, :, :]
 
         # make float
-        stack1 = np.array(stack1, np.float)
-        stack2 = np.array(stack2, np.float)
+        stack1 = np.array(stack1, float)
+        stack2 = np.array(stack2, float)
 
-        setts = data.measurementSettings[0]
+        setts = data.measurement_settings[0]
 
-        pairsRaw = pair_finder_inner(stack1, stack2, self.sigma, self.thresholds, True, False, self.medianThresholds,
-                                     self.medianRadius,
-                                     in_channel_min_distance=self.in_channel_min_distance,
-                                     between_channel_max_distance=self.between_channel_max_distance)
+        pairsRaw = detect_blobs_find_pairs(stack1, stack2, self.sigma, self.thresholds, False, False, self.median_thresholds,
+                                           self.median_radius,
+                                           in_channel_min_distance=self.in_channel_min_distance,
+                                           between_channel_max_distance=self.between_channel_max_distance)
 
-        if self.verbose:
-            print(self.__class__.__name__ + ': found {} spot pairs. pixel coordinates:'.format(len(pairsRaw)))
-            for pr in pairsRaw:
-                print(pr)
+        self.logger.info(': found {} spot pairs. pixel coordinates:'.format(len(pairsRaw)))
+        for pr in pairsRaw:
+            self.logger.info(pr)
 
         # plot
-        if self.plotDetections:
-            self.doPlot(pairsRaw, stack1, stack2)
+        if self.plot_detections:
+            self.do_plot(pairsRaw, stack1, stack2)
 
-        ignore_dim = np.array([d for d in stack1.shape][-1::-1]) == 1
-        corrected = self.correctForOffset(pairsRaw, setts, ignore_dim)
+        ignore_dim = np.array([d for d in stack1.shape]) == 1
+        corrected = self.to_world_coordinates(pairsRaw, setts, ignore_dim)
 
-        if self.verbose:
-            print(self.__class__.__name__ + ': found {} spot pairs. offsets:'.format(len(pairsRaw)))
-            for pc in corrected:
-                print(pc)
+        self.logger.info(self.__class__.__name__ + ': found {} spot pairs. offsets:'.format(len(pairsRaw)))
+        for pc in corrected:
+            self.logger.info(pc)
 
-        return corrected
+        if not self.return_parameter_dict:
+            return corrected
+        else:
+            return ValuesToSettingsDictCallback(lambda: corrected, self.offset_parameter_paths)()
 
 
 class PairedLegacySpotPairFinder(LegacySpotPairFinder):
 
-    def get_locations(self):
-        data = self.dataSource.get_data()
+    def __call__(self):
+        data = self.data_source_callback()
         if (data.num_configurations < 1) or (data.num_images(0) < 2):
             raise ValueError(
-                'too few images for LegacySpotPairFinder. The RichData provided needs to have two images in the first configuration.')
+                'too few images for LegacySpotPairFinder. The MeasurementData provided needs to have two images in the first configuration.')
         stack1 = data.data[0][self.channels[0]][0, :, :, :]
         stack2 = data.data[0][self.channels[1]][0, :, :, :]
 
         # make float
-        stack1 = np.array(stack1, np.float)
-        stack2 = np.array(stack2, np.float)
+        stack1 = np.array(stack1, float)
+        stack2 = np.array(stack2, float)
 
-        setts = data.measurementSettings[0]
+        setts = data.measurement_settings[0]
 
-        pairsRaw = pair_finder_inner(stack1, stack2, self.sigma, self.thresholds, True, False, self.medianThresholds,
-                                     self.medianRadius, True,
-                                     in_channel_min_distance=self.in_channel_min_distance,
-                                     between_channel_max_distance=self.between_channel_max_distance)
+        pairsRaw = detect_blobs_find_pairs(stack1, stack2, self.sigma, self.thresholds, False, False, self.median_thresholds,
+                                           self.median_radius, True,
+                                           in_channel_min_distance=self.in_channel_min_distance,
+                                           between_channel_max_distance=self.between_channel_max_distance)
 
-        if self.verbose:
-            print(self.__class__.__name__ + ': found {} spot pairs. pixel coordinates:'.format(len(pairsRaw)))
-            for pr in pairsRaw:
-                print(pr)
+        self.logger.info(self.__class__.__name__ + ': found {} spot pairs. pixel coordinates:'.format(len(pairsRaw)))
+        for pr in pairsRaw:
+            self.logger.info(pr)
 
         # plot
-        if self.plotDetections:
-            self.doPlot([list((np.array(p[0]) + np.array(p[1]))/2) for p in pairsRaw], stack1, stack2)
+        if self.plot_detections:
+            self.do_plot([list((np.array(p[0]) + np.array(p[1])) / 2) for p in pairsRaw], stack1, stack2)
 
-        ignore_dim = np.array([d for d in stack1.shape][-1::-1]) == 1
-
-        corrected_1 = self.correctForOffset([p[0] for p in pairsRaw], setts, ignore_dim)
-        corrected_2 = self.correctForOffset([p[1] for p in pairsRaw], setts, ignore_dim)
+        ignore_dim = np.array([d for d in stack1.shape]) == 1
+        corrected_1 = self.to_world_coordinates([p[0] for p in pairsRaw], setts, ignore_dim)
+        corrected_2 = self.to_world_coordinates([p[1] for p in pairsRaw], setts, ignore_dim)
 
         corrected = list(zip(corrected_1, corrected_2))
 
-        if self.verbose:
-            print(self.__class__.__name__ + ': found {} spot pairs. offsets:'.format(len(pairsRaw)))
-            for pc in corrected:
-                print(pc)
+        self.logger.info(self.__class__.__name__ + ': found {} spot pairs. offsets:'.format(len(pairsRaw)))
+        for pc in corrected:
+            self.logger.info(pc)
 
-        return corrected
+        if not self.return_parameter_dict:
+            return corrected
+        else:
+            return ValuesToSettingsDictCallback(lambda: corrected, self.offset_parameter_paths, nested_generator_callback=True)()
+
 
 class ZDCSpotPairFinder(LegacySpotPairFinder):
 
-
-    def correctForOffset(self, pairsPixel, setts, ignore_dim):
-        offsOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-
-        # we use the coarse offset here
-        offsOld[2] = get_path_from_dict(setts, 'ExpControl/scan/range/coarse_z/g_off', False)
-
-        print(offsOld)
-        lensOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-
-        print(lensOld)
-        pszOld = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-
-        print(pszOld)
-        
-        res = []
-        for pair in pairsPixel:
-            pairT = np.array(pair, dtype=float)
-            #res.append(list(offsOld - (lensOld / 2) + pairT * pszOld))
-            res.append(pixel_to_physical_coordinates(pairT, offsOld, lensOld, pszOld, ignore_dim))
-        return res
+    # TODO: check if the coordinates / directions used in ZDC mode are still correct
+    offset_parameter_paths = OFFSET_STAGE_GLOBAL_PARAMETERS[:1] + OFFSET_SCAN_PARAMETERS[1:]
+    invert_dimensions = (True, False, False)
 
 
 def pixel_to_physical_coordinates(pixel_coordinates, offset, fov_size, pixel_size, ignore_dimension=None, invert_dimension=None):
@@ -494,22 +474,33 @@ if __name__ == '__main__':
     from pipeline2.data import MeasurementData
     from pprint import pprint
 
+    logging.basicConfig(level=logging.ERROR)
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+    logging.getLogger('pipeline2').setLevel(logging.DEBUG)
+
     img = np.zeros((1, 1, 201, 201), dtype=float)
-    img[0, 0, 100, 100] = 1
-    img[0, 0, 20, 50] = 1
+    img[0, 0, 100, 100] = 5
+    img[0, 0, 20, 50] = 5
+
+    img_ch2 = img.copy()
 
     off = [0, 0, 0]
     pixel_size = [0.1, 0.1, 0.1]
-    settings_call = ValuesToSettingsDictCallback(lambda: ((off, pixel_size),),(OFFSET_SCAN_PARAMETERS, PIXEL_SIZE_PARAMETERS))
+    fov = np.array([0.1, 0.1, 0.1]) * 200
+    settings_call = ValuesToSettingsDictCallback(lambda: ((off, pixel_size, fov),),
+                                                 (OFFSET_SCAN_PARAMETERS, PIXEL_SIZE_PARAMETERS, FOV_LENGTH_PARAMETERS))
     measurement_settings, hardware_settings = settings_call()[0][0]
 
 
     data = MeasurementData()
-    data.append(hardware_settings, measurement_settings, [img])
+    data.append(hardware_settings, measurement_settings, [img, img_ch2])
     data_call = lambda: data
 
-    detector = SimpleSingleChannelSpotDetector(data_call, 1, 0.1, verbose=True, plot_detections=True, return_parameter_dict=False)
+    detector = SimpleSingleChannelSpotDetector(data_call, 1, 0.1, plot_detections=False, return_parameter_dict=False)
     detector.invert_dimensions = (False, False, True)
-    # res = detector()
-    res = ParameterValuesRepeater(SimpleManualOffset(detector, [13,13,13]), 2, nested=True)()
+
+    # detector = LegacySpotPairFinder(data_call, 1, [0.1, 0.1], plot_detections=False, return_parameter_dict=True)
+
+    res = detector()
+    # res = ParameterValuesRepeater(SimpleManualOffset(detector, [13,13,13]), 2, nested=False)()
     pprint(res)

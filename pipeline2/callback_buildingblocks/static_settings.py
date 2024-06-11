@@ -1,5 +1,6 @@
 from pathlib import Path
 from pipeline2.utils.dict_utils import generate_recursive_dict, remove_path_from_dict, update_dicts
+from pipeline2.utils.parameter_constants import FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS
 
 import json
 from functools import reduce
@@ -26,14 +27,8 @@ class FOVSettingsGenerator:
         self.pixelSizes = pixelSizes
         self.asMeasurements = asMeasurements
 
-    _paths_len = ['ExpControl/scan/range/x/len',
-                  'ExpControl/scan/range/y/len',
-                  'ExpControl/scan/range/z/len'
-                  ]
-    _paths_psz = ['ExpControl/scan/range/x/psz',
-                  'ExpControl/scan/range/y/psz',
-                  'ExpControl/scan/range/z/psz'
-                  ]
+    _paths_len = FOV_LENGTH_PARAMETERS
+    _paths_psz = PIXEL_SIZE_PARAMETERS
 
     def __call__(self):
 
