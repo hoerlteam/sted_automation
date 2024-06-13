@@ -1,13 +1,17 @@
 import numpy as np
 
 from calmutils.stitching import stitch
-from calmutils.stitching import stitching
 
 from .data_selection import NewestDataSelector
 from ..data import MeasurementData
 from ..utils.dict_utils import merge_dicts, get_path_from_dict, generate_nested_dict
 
-STAGE_DIRECTIONS = np.array([1,1,-1], dtype=float)
+from pipeline2.utils.parameter_constants import (OFFSET_SCAN_PARAMETERS, OFFSET_SCAN_GLOBAL_PARAMETERS,
+                                                 OFFSET_STAGE_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
+                                                 FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS)
+
+STAGE_DIRECTIONS = np.array([-1, 1, 1], dtype=float)
+
 
 class StitchedNewestDataSelector(NewestDataSelector):
     """
@@ -23,7 +27,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
 
     def __call__(self):
 
-        # get newest data, return None if not present
+        # get the newest data, return None if not present
         data_newest: MeasurementData = super().__call__()
         if data_newest is None:
             return None
@@ -35,21 +39,18 @@ class StitchedNewestDataSelector(NewestDataSelector):
         # get all other indices of same level
         index_length = self.pipeline.hierarchy_levels.index(self.level) + 1
         indices_same_level = [k for k in self.pipeline.data.keys() if len(k) == index_length]
-        
-        #print('Virtual BBOX ref: {}, {}'.format(min_r, len_r))
+
         # get all overlapping data
         data_other = []
         for idx in indices_same_level:
             data_other_i = self.pipeline.data.get(idx, None)
 
-            # virtual bbox of image
+            # virtual bbox of other image
             setts_i = data_other_i.measurementSettings[self.configuration]
             (min_i, len_i) = _virtual_bbox_from_settings(setts_i)
-            #print('Virtual BBOX test: {}, {}'.format(min_i, len_i))
 
             # check overlap
-            overlap = (_get_overlaps(len_r, len_i, min_r, min_i)) is not None
-
+            overlap = (get_overlap_bounding_box(len_r, len_i, min_r, min_i)) is not None
             if overlap:
                 data_other.append(data_other_i)
 
@@ -62,46 +63,50 @@ class StitchedNewestDataSelector(NewestDataSelector):
         offs_other = []
         for data_other_i in data_other:
             setts_i = data_other_i.measurement_settings[self.configuration]
-            off_i = list(reversed(list(_approx_offset_from_settings(setts, setts_i))))
+            off_i = _approx_offset_from_settings(setts, setts_i)
             img_i = np.squeeze(data_other_i.data[self.configuration][self.channel])
 
             imgs_other.append(img_i)
             offs_other.append(off_i)
 
+        # get reference image
         img = np.squeeze(data_newest.data[self.configuration][self.channel])
-        off = [0] * len(img.shape)
 
         # stitch
-        stitched, shift, min, corrs = stitch(img, imgs_other, off, offs_other)
+        pixel_off_reference = [0] * len(img.shape)
+        stitched, shifts, fused_origin_coords, correlations = stitch(img, imgs_other, pixel_off_reference, offs_other)
         
-        print('corrs: {}'.format(corrs))
+        print('image correlations: {}'.format(correlations))
 
-        min_rev = np.array(list(reversed(min)), dtype=float)
-        len_orig_half = np.array(list(reversed(img.shape)), dtype=float)/2
-        len_stitched_half = np.array(list(reversed(stitched.shape)), dtype=float)/2
+        min_rev = np.array(fused_origin_coords, dtype=float)
+        len_orig_half = np.array(img.shape, dtype=float)/2
+        len_stitched_half = np.array(stitched.shape, dtype=float)/2
 
+        # additional pixel offset of center of stitched image relative to center of reference image
         additional_off = len_stitched_half - (len_orig_half - min_rev)
 
-        # to pixel units
-        offs_scan = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-        offs_stage = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-        pixel_sizes = np.array([get_path_from_dict(
-            setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+        # to world units
+        offs_stage_global = np.array([get_path_from_dict(setts, path, False) for path in OFFSET_STAGE_GLOBAL_PARAMETERS],
+                                     dtype=float)
+        offs_scan = np.array([get_path_from_dict(setts, path, False) for path in OFFSET_SCAN_PARAMETERS],
+                             dtype=float)
+        pixel_sizes = np.array([get_path_from_dict(setts, path, False) for path in PIXEL_SIZE_PARAMETERS],
+                               dtype=float)
 
         additional_off *= pixel_sizes
         new_len = len_stitched_half * 2 * pixel_sizes
 
         # use stage or scan offsets as basis for dummy offsets
-        offs_to_use = offs_stage if self.generate_stage_offsets else offs_scan
+        offs_to_use = offs_stage_global if self.generate_stage_offsets else offs_scan
+        offset_paths_to_use = OFFSET_STAGE_GLOBAL_PARAMETERS if self.generate_stage_offsets else OFFSET_SCAN_PARAMETERS
 
         # create dummy settings
         stitch_setts = merge_dicts(setts)
-        for i, d in enumerate(['x', 'y', 'z']):
-            stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(new_len[i], 'ExpControl/scan/range/{}/len'.format(d)))
-            stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(offs_to_use[i] + additional_off[i], 'ExpControl/scan/range/{}/off'.format(d)))
+        for i, (p_off, p_len) in enumerate(zip(offset_paths_to_use, FOV_LENGTH_PARAMETERS)):
+            stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(new_len[i], p_off))
+            stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(offs_to_use[i] + additional_off[i], p_len))
 
+        # stitched image to Imspector shape
         # add singleton (T) dimension
         res_img = stitched.reshape((1, ) + stitched.shape)
         # add None for images of other channels
@@ -118,25 +123,21 @@ class StitchedNewestDataSelector(NewestDataSelector):
         return res
 
 
-def _virtual_bbox_from_settings(setts):
+def _virtual_bbox_from_settings(settings):
     """
     Get a minimum and FOV length from Imspector settings
     NB: since we move `down` in stack, we calculate a virtual origin here
-        that way, two bounding boxes can be checked for overlap, bot the virtual origin does not correspond to the real location
+        that way, two bounding boxes can be checked for overlap, but the virtual origin does not correspond to the real location
     """
-    offs_stage = np.array([get_path_from_dict(
-        setts, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
-        dtype=float)
-    offs_scan = np.array([get_path_from_dict(
-        setts, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    offs_global = np.array([get_path_from_dict(
-        setts, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    fov_len = np.array([get_path_from_dict(
-        setts, 'ExpControl/scan/range/{}/len'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    pixel_sizes = np.array([get_path_from_dict(
-        setts, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
+    offs_stage = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_STAGE_PARAMETERS], dtype=float)
+    offs_stage_global = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_STAGE_GLOBAL_PARAMETERS], dtype=float)
 
-    offs = offs_stage * STAGE_DIRECTIONS + offs_global + offs_scan
+    offs_scan = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_SCAN_PARAMETERS], dtype=float)
+    offs_scan_global = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_SCAN_GLOBAL_PARAMETERS], dtype=float)
+
+    fov_len = np.array([get_path_from_dict(settings, path, False) for path in FOV_LENGTH_PARAMETERS], dtype=float)
+
+    offs = (offs_stage + offs_stage_global) * STAGE_DIRECTIONS + offs_scan + offs_scan_global
     start = offs - fov_len / 2
 
     return start, fov_len
@@ -146,57 +147,42 @@ def _approx_offset_from_settings(setts_ref, setts2):
     """
     Get the approximate pixel offset of image with Imspector settings setts2 from reference image with setts_ref
     """
-    offs_stage_r = np.array([get_path_from_dict(
-        setts_ref, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
-        dtype=float)
-    offs_stage_i = np.array([get_path_from_dict(
-        setts2, 'ExpControl/scan/range/coarse_{}/g_off'.format(c), False) for c in ['x', 'y', 'z']],
-        dtype=float)
-    offs_stage = (offs_stage_i - offs_stage_r) * STAGE_DIRECTIONS
 
-    offs_scan_r = np.array([get_path_from_dict(
-        setts_ref, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    offs_scan_i = np.array([get_path_from_dict(
-        setts2, 'ExpControl/scan/range/{}/off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    offs_scan = offs_scan_i - offs_scan_r
+    start_i, _ = _virtual_bbox_from_settings(setts2)
+    start_r, _ = _virtual_bbox_from_settings(setts_ref)
 
-
-    offs_global_r = np.array([get_path_from_dict(
-        setts_ref, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    offs_global_i = np.array([get_path_from_dict(
-        setts2, 'ExpControl/scan/range/{}/g_off'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-    offs_global = offs_global_i - offs_global_r
-
-    pixel_sizes = np.array([get_path_from_dict(
-        setts_ref, 'ExpControl/scan/range/{}/psz'.format(c), False) for c in ['x', 'y', 'z']], dtype=float)
-
-    pixel_off = ((offs_scan + offs_stage + offs_global) / pixel_sizes).astype(int)
+    pixel_sizes = np.array([get_path_from_dict(setts_ref, path, False) for path in PIXEL_SIZE_PARAMETERS], dtype=float)
+    pixel_off = ((start_i - start_r) / pixel_sizes).astype(int)
 
     return pixel_off
 
-def _get_overlaps(len1, len2, off1=None, off2=None):
-    if off1 is None:
-        off_1 = [0] * len(len1)
 
-    if off2 is None:
-        off_2 = [0] * len(len2)
+def get_overlap_bounding_box(length_1, length_2, offset_1=None, offset_2=None):
 
-    r_min = []
-    r_max = []
+    # if no offsets are given, assume all zero
+    if offset_1 is None:
+        offset_1 = [0] * len(length_1)
+    if offset_2 is None:
+        offset_2 = [0] * len(length_2)
 
-    for d in range(len(len1)):
-        min_1 = off1[d]
-        min_2 = off2[d]
-        max_1 = min_1 + len1[d]
-        max_2 = min_2 + len2[d]
+    res_min = []
+    res_max = []
+
+    for d in range(len(length_1)):
+
+        min_1 = offset_1[d]
+        min_2 = offset_2[d]
+        max_1 = min_1 + length_1[d]
+        max_2 = min_2 + length_2[d]
 
         min_ol = max(min_1, min_2)
         max_ol = min(max_1, max_2)
 
+        # no overlap in any one dimension -> return None
         if max_ol < min_ol:
             return None
 
-        r_min.append(min_ol)
-        r_max.append(max_ol)
+        res_min.append(min_ol)
+        res_max.append(max_ol)
 
-    return r_min, r_max
+    return res_min, res_max

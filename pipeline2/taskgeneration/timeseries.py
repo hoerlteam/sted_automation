@@ -6,7 +6,7 @@ class TimeSeriesDummyAcquisitionTask:
     def __init__(self, pipeline_level) -> None:
         self.pipeline_level = pipeline_level
         # setting this to 0 will prevent Pipeline from querying for settings
-        self.numAcquisitions = 0
+        self.num_acquisitions = 0
 
 
 class TimeSeriesCallback:

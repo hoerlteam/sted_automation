@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..utils.dict_utils import merge_dicts
-from ..callback_buildingblocks.stitched_data_selection import _virtual_bbox_from_settings, _get_overlaps
+from ..callback_buildingblocks.stitched_data_selection import _virtual_bbox_from_settings, get_overlap_bounding_box
 
 
 class AlreadyImagedFOVFilter:
@@ -60,7 +60,7 @@ class AlreadyImagedFOVFilter:
         #print(bbox1)
         #print(bbox2)
             
-        overlap = _get_overlaps(len1, len2, min1, min2)
+        overlap = get_overlap_bounding_box(len1, len2, min1, min2)
 
         # no overlap
         if overlap is None:
