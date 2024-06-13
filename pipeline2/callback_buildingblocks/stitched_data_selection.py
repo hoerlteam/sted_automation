@@ -5,7 +5,7 @@ from calmutils.stitching import stitching
 
 from .data_selection import NewestDataSelector
 from ..data import MeasurementData
-from ..utils.dict_utils import update_dicts, get_path_from_dict, generate_recursive_dict
+from ..utils.dict_utils import merge_dicts, get_path_from_dict, generate_nested_dict
 
 STAGE_DIRECTIONS = np.array([1,1,-1], dtype=float)
 
@@ -97,10 +97,10 @@ class StitchedNewestDataSelector(NewestDataSelector):
         offs_to_use = offs_stage if self.generate_stage_offsets else offs_scan
 
         # create dummy settings
-        stitch_setts = update_dicts(setts)
+        stitch_setts = merge_dicts(setts)
         for i, d in enumerate(['x', 'y', 'z']):
-            stitch_setts = update_dicts(stitch_setts, generate_recursive_dict(new_len[i], 'ExpControl/scan/range/{}/len'.format(d)))
-            stitch_setts = update_dicts(stitch_setts, generate_recursive_dict(offs_to_use[i] + additional_off[i], 'ExpControl/scan/range/{}/off'.format(d)))
+            stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(new_len[i], 'ExpControl/scan/range/{}/len'.format(d)))
+            stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(offs_to_use[i] + additional_off[i], 'ExpControl/scan/range/{}/off'.format(d)))
 
         # add singleton (T) dimension
         res_img = stitched.reshape((1, ) + stitched.shape)

@@ -12,7 +12,7 @@ def dump_json_to_file(d, path):
         json.dump(d, fd, indent=2)
 
 
-def update_dicts(*dicts):
+def merge_dicts(*dicts):
     """
     update / merge multiple dicts
     this will work in a reduce-like fashion, merging the first two, then the result with the third, ...
@@ -26,10 +26,10 @@ def update_dicts(*dicts):
         return deepcopy(first)
     else:
         second = dicts[1]
-        return update_dicts(update_dict_pair(first, second), *dicts[2:])
+        return merge_dicts(merge_dict_pair(first, second), *dicts[2:])
 
 
-def update_dict_pair(dict_old, dict_new):
+def merge_dict_pair(dict_old, dict_new):
     """
     update / merge two dicts
     the resulting dict will be the union of the existing dicts, but in case of overlapping keys
@@ -38,7 +38,7 @@ def update_dict_pair(dict_old, dict_new):
     res = deepcopy(dict_old)
     for k, v in dict_new.items():
         if isinstance(v, collections.Mapping):
-            res[k] = update_dict_pair(res.get(k) if isinstance(res.get(k, None), collections.Mapping) else {}, v)
+            res[k] = merge_dict_pair(res.get(k) if isinstance(res.get(k, None), collections.Mapping) else {}, v)
         else:
             res[k] = v
     return res
@@ -161,7 +161,7 @@ def get_path_from_dict(d, path, keep_structure=True, sep='/'):
         return None
 
 
-def generate_recursive_dict(data, path, sep='/'):
+def generate_nested_dict(data, path, sep='/'):
     """
     generate a recursive dict in which a data value is wrapped in multiple layers of dicts,
     given by an XPath-style path
@@ -176,7 +176,7 @@ def generate_recursive_dict(data, path, sep='/'):
         return data
     else:
         # add one level to result, then recurse
-        return {first_path: generate_recursive_dict(data, sep.join(paths[1:]))}
+        return {first_path: generate_nested_dict(data, sep.join(paths[1:]))}
 
 
 def diff_dicts(d1, d2, separator='/'):

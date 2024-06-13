@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..utils.dict_utils import update_dicts
+from ..utils.dict_utils import merge_dicts
 from ..callback_buildingblocks.stitched_data_selection import _virtual_bbox_from_settings, _get_overlaps
 
 
@@ -15,14 +15,14 @@ class AlreadyImagedFOVFilter:
         # init old BBox list
         self.old_bboxes = []
 
-    def conforms(self, task):
+    def check(self, task):
 
         # get BBoxes of new task
         bboxes_new = []
         updates = task.get_all_updates()
         for update in updates:
             measUpdates, _ = update
-            measUpdates = update_dicts(*measUpdates)
+            measUpdates = merge_dicts(*measUpdates)
             (min_i, len_i) = _virtual_bbox_from_settings(measUpdates)
             bboxes_new.append((min_i, len_i))
 

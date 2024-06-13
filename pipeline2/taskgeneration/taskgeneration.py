@@ -3,7 +3,7 @@ from typing import Sequence
 import logging
 
 from pipeline2.taskgeneration.fov_util import group_in_bounding_boxes
-from pipeline2.utils.dict_utils import update_dicts
+from pipeline2.utils.dict_utils import merge_dicts
 
 
 class AcquisitionTaskGenerator:
@@ -59,7 +59,7 @@ class AcquisitionTaskGenerator:
             # reject task if it does not conform to a task_filter
             skip = False
             for task_filter in self.task_filters:
-                if not task_filter.conforms(task):
+                if not task_filter.check(task):
                     skip = True
             if skip:
                 continue
@@ -92,8 +92,8 @@ class AcquisitionTask:
         hardware_updates = self.hardware_updates[n]
         measurement_updates = self.measurement_updates[n]
         if concatenate:
-            hardware_updates = update_dicts(*hardware_updates)
-            measurement_updates = update_dicts(*measurement_updates)
+            hardware_updates = merge_dicts(*hardware_updates)
+            measurement_updates = merge_dicts(*measurement_updates)
         return measurement_updates, hardware_updates
 
     def get_all_updates(self, concatenate=False):

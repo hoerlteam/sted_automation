@@ -2,7 +2,7 @@ import pprint
 from operator import add
 from functools import reduce
 
-from pipeline2.utils.dict_utils import update_dicts, generate_recursive_dict
+from pipeline2.utils.dict_utils import merge_dicts, generate_nested_dict
 from pipeline2.utils.parameter_constants import OFFSET_SCAN_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS, FOV_LENGTH_PARAMETERS
 from pipeline2.utils.tiling import relative_spiral_generator
 
@@ -62,7 +62,7 @@ class ValuesToSettingsDictCallback:
                 if value is None:
                     continue
                 # merge into result dict
-                result_dict = update_dicts(result_dict, generate_recursive_dict(value, settings_path))
+                result_dict = merge_dicts(result_dict, generate_nested_dict(value, settings_path))
         return result_dict
 
     def __call__(self):
@@ -106,9 +106,7 @@ class StageOffsetsSettingsGenerator(ValuesToSettingsDictCallback):
 class ZDCOffsetSettingsGenerator(ValuesToSettingsDictCallback):
     # mixed offsets when using Z-drift-controller (ZDC) -> use stage coords instead of piezo
     # TODO: check if this is still the correct path, esp. z
-    offset_settings_paths = ['ExpControl/scan/range/offsets/coarse/z/g_off',
-                             'ExpControl/scan/range/y/off',
-                             'ExpControl/scan/range/x/off']
+    offset_settings_paths = OFFSET_STAGE_GLOBAL_PARAMETERS[:1] + OFFSET_SCAN_PARAMETERS[1:]
 
     def __init__(self, location_generator, as_measurements=True):
         super().__init__(location_generator, self.offset_settings_paths, as_measurements)

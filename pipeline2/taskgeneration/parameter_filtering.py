@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from pipeline2.utils.dict_utils import update_dicts, remove_path_from_dict, get_path_from_dict, generate_recursive_dict
+from pipeline2.utils.dict_utils import merge_dicts, remove_path_from_dict, get_path_from_dict, generate_nested_dict
 from pipeline2.utils.parameter_constants import LOCATION_PARAMETERS
 
 
@@ -38,18 +38,18 @@ class ParameterFilter:
                 if self.acquisition_parameters is not None:
                     for acquisition_update_key in self.acquisition_parameters:
                         old_value = get_path_from_dict(acquisition_updates_old, acquisition_update_key, False)
-                        acquisition_updates_new = update_dicts(
+                        acquisition_updates_new = merge_dicts(
                             acquisition_updates_new,
-                            generate_recursive_dict(old_value, acquisition_update_key) if old_value is not None else {}
+                            generate_nested_dict(old_value, acquisition_update_key) if old_value is not None else {}
                         )
                 # if we need to update hardware parameters, go over parameters to keep
                 # and add them (with value from wrapped update) to new updates
                 if self.hardware_parameters is not None:
                     for hardware_update_key in self.hardware_parameters:
                         old_value = get_path_from_dict(hardware_updates_old, hardware_update_key, False)
-                        hardware_updates_new = update_dicts(
+                        hardware_updates_new = merge_dicts(
                             hardware_updates_new,
-                            generate_recursive_dict(old_value, hardware_update_key) if old_value is not None else {}
+                            generate_nested_dict(old_value, hardware_update_key) if old_value is not None else {}
                         )
                 measurement_parameters_new.append((acquisition_updates_new, hardware_updates_new))
             new_updates.append(measurement_parameters_new)

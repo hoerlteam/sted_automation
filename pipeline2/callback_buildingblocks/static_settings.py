@@ -1,11 +1,12 @@
 from pathlib import Path
-from pipeline2.utils.dict_utils import generate_recursive_dict, remove_path_from_dict, update_dicts
+from pipeline2.utils.dict_utils import generate_nested_dict, remove_path_from_dict, merge_dicts
 from pipeline2.utils.parameter_constants import FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS
 
 import json
 from functools import reduce
 from itertools import cycle
 from operator import add
+from typing import Sequence
 
 
 class FOVSettingsGenerator:
@@ -16,47 +17,57 @@ class FOVSettingsGenerator:
     ----------
     lengths : iterable of 3d-vectors
         lengths of the FOVs to image
-    pixelSizes : iterable of 3d-vectors
+    pixel_sizes : iterable of 3d-vectors
         pixel sizes of FOVs to image
-    asMeasurements: boolean
+    as_measurements: boolean
         if more than one FOV is specified: whether to create multiple `measurements` or
         multiple `configurations` in one measurement
     """
-    def __init__(self, lengths, pixelSizes, asMeasurements=True):
-        self.lengths = lengths
-        self.pixelSizes = pixelSizes
-        self.asMeasurements = asMeasurements
+    def __init__(self, lengths, pixel_sizes, as_measurements=True):
 
-    _paths_len = FOV_LENGTH_PARAMETERS
-    _paths_psz = PIXEL_SIZE_PARAMETERS
+        # check if parameters are list of lists (or None), wrap single list
+        if lengths is not None and not isinstance(lengths[0], Sequence):
+            lengths = [lengths]
+        if pixel_sizes is not None and not isinstance(pixel_sizes[0], Sequence):
+            pixel_sizes = [pixel_sizes]
+
+        self.lengths = lengths
+        self.pixel_sizes = pixel_sizes
+        self.as_measurements = as_measurements
+
+    paths_fov_len = FOV_LENGTH_PARAMETERS
+    paths_pixel_size = PIXEL_SIZE_PARAMETERS
 
     def __call__(self):
 
+        # if neither lengths nor pixel sizes are given, return single empty update
+        if (self.lengths is None) and (self.pixel_sizes is None):
+            return [[({}, {})]]
+
         res = []
 
-        if (self.lengths is None) and (self.pixelSizes is None):
-            return [[({},{})]]
-
-        _lengths = self.lengths
-        _pixelSizes = self.pixelSizes
+        lengths = self.lengths
+        pixel_sizes = self.pixel_sizes
 
         if self.lengths is None:
-            _lengths = [None] * len(self.pixelSizes)
+            lengths = [[None] * len(self.pixel_sizes)]
+        if self.pixel_sizes is None:
+            pixel_sizes = [[None] * len(self.lengths)]
 
-        if self.pixelSizes is None:
-            _pixelSizes = [None] * len(self.lengths)
-
-        for l, psz in zip(_lengths, _pixelSizes ):
-            resD = {}
-            paths = cycle(zip(self._paths_len, self._paths_psz))
-            for l_i, psz_i in zip(l if l is not None else [None] * len(psz), psz if psz is not None else [None] * len(l)):
+        for l, psz in zip(lengths, pixel_sizes):
+            res_measurement_i = {}
+            paths = cycle(zip(self.paths_fov_len, self.paths_pixel_size))
+            for l_i, psz_i in zip(l, psz):
                 path_l, path_psz = next(paths)
                 if l_i is not None:
-                    resD = update_dicts(resD, generate_recursive_dict(l_i, path_l))
+                    res_measurement_i = merge_dicts(res_measurement_i, generate_nested_dict(l_i, path_l))
                 if psz_i is not None:
-                    resD = update_dicts(resD, generate_recursive_dict(psz_i, path_psz))
-            res.append([(resD, {})])
-        if self.asMeasurements:
+                    res_measurement_i = merge_dicts(res_measurement_i, generate_nested_dict(psz_i, path_psz))
+            res.append([(res_measurement_i, {})])
+
+        # return either list of single element lists of parameter pairs (multiple measurements @ 1 configuration)
+        # or a list containing one list of all pairs (1 measurement @ multiple configurations)
+        if self.as_measurements:
             return res
         else:
             return [reduce(add, res)]
@@ -72,19 +83,19 @@ class DifferentFirstFOVSettingsGenerator(FOVSettingsGenerator):
     ----------
     lengths : iterable of 3d-vectors
         lengths of the FOVs to image
-    pixelSizes : iterable of 3d-vectors
+    pixel_sizes : iterable of 3d-vectors
         pixel sizes of FOVs to image
-    firstLengths: iterable of 3d-vectors, optional
+    first_lengths: iterable of 3d-vectors, optional
         lengths of the first FOV
-    asMeasurements: boolean
+    as_measurements: boolean
         if more than one FOV is specified: whether to create multiple `measurements` or
         multiple `configurations` in one measurement
     """
 
-    def __init__(self, lengths, pixelSizes, firstLengths=None, asMeasurements=True):
+    def __init__(self, lengths, pixel_sizes, first_lengths=None, as_measurements=True):
         self.first_measurement = True
-        super().__init__(lengths, pixelSizes, asMeasurements)
-        self.first_lengths = self.lengths if firstLengths is None else firstLengths
+        super().__init__(lengths, pixel_sizes, as_measurements)
+        self.first_lengths = self.lengths if first_lengths is None else first_lengths
 
     def __call__(self):
         if self.first_measurement:
@@ -106,26 +117,26 @@ class ScanModeSettingsGenerator:
 
     modes: iterable of strings
         the mode strings, e.g. 'xy'
-    asMeasurements: boolean
+    as_measurements: boolean
         if more than one FOV is specified: whether to create multiple `measurements` or
         multiple `configurations` in one measurement    
     """
 
-    def __init__(self, modes, asMeasurements=True):
+    def __init__(self, modes, as_measurements=True):
         self.modes = modes
-        self.asMeasurements = asMeasurements
+        self.as_measurements = as_measurements
 
     def __call__(self):
         res = []
 
         for mode in self.modes:
             resD = {}
-            resD = update_dicts(resD, generate_recursive_dict(ScanModeSettingsGenerator.gen_mode_flag(mode), self._path))
+            resD = merge_dicts(resD, generate_nested_dict(ScanModeSettingsGenerator.gen_mode_flag(mode), self._path))
 
-            resD = update_dicts(
+            resD = merge_dicts(
                 resD,
-                generate_recursive_dict(['ExpControl {}'.format(mode[i].upper()) if i < len(mode) else "None" for i in range(4)],
-                                        self._path_axes))
+                generate_nested_dict(['ExpControl {}'.format(mode[i].upper()) if i < len(mode) else "None" for i in range(4)],
+                                     self._path_axes))
 
             # z-cut -> sync line
             # FIXME: this causes weird problems in xz cut followed by any other image
@@ -136,7 +147,7 @@ class ScanModeSettingsGenerator:
             '''
             res.append([(resD, {})])
 
-        if self.asMeasurements:
+        if self.as_measurements:
             return res
         else:
             return [reduce(add, res)]
@@ -168,9 +179,9 @@ class ScanModeSettingsGenerator:
         return res
 
 
-class JSONSettingsLoader():
+class JSONSettingsLoader:
     """
-    load settings from JSON dump
+    load settings from JSON
     """
 
     # parameters to remove from measurement parameter dicts because they caused problems
@@ -179,56 +190,64 @@ class JSONSettingsLoader():
         '/Measurement/propset_id', # remove, otherwise we will always use a set propset
         ]
 
-    def __init__(self, measurementConfigFileNames, settingsConfigFileNames=None, asMeasurements=True):
-        self.measConfigs = []
-        self.asMeasurements = asMeasurements
+    def __init__(self, measurement_config_sources, hardware_config_sources=None, as_measurements=True):
+        self.measurement_configs = []
+        self.as_measurements = as_measurements
 
-        for mFile in measurementConfigFileNames:
-            if isinstance(mFile, (str, Path)):
-                with open(mFile, 'r') as fd:
-                    d = json.load(fd)
-            elif isinstance(mFile, dict):
-                d = mFile
+        # allow single config -> wrap in list
+        if isinstance(measurement_config_sources, (str, Path, dict)):
+            measurement_config_sources = [measurement_config_sources]
+
+        for measurement_config_source in measurement_config_sources:
+            if isinstance(measurement_config_source, (str, Path)):
+                with open(measurement_config_source, 'r') as fd:
+                    measurement_config_loaded = json.load(fd)
+            elif isinstance(measurement_config_source, dict):
+                measurement_config_loaded = measurement_config_source
             else:
                 raise ValueError('configuration should be either a valid filename or an already loaded dict')
 
             # remove parameters known to cause problems
-            for parameter_to_drop in JSONSettingsLoader.parameters_to_drop:
-                d = remove_path_from_dict(d, parameter_to_drop)
+            for parameter_to_drop in self.parameters_to_drop:
+                measurement_config_loaded = remove_path_from_dict(measurement_config_loaded, parameter_to_drop)
 
-            self.measConfigs.append(d)
+            self.measurement_configs.append(measurement_config_loaded)
 
-        self.settingsConfigs = []
+        self.hardware_configs = []
 
         # option 1: no hardware configs provided, leave empty
-        if settingsConfigFileNames is None:
-            for _ in range(len(self.measConfigs)):
-                self.settingsConfigs.append(dict())
+        if hardware_config_sources is None:
+            for _ in range(len(self.measurement_configs)):
+                self.hardware_configs.append(dict())
 
         # option 2: load hardware configs
         else:
-            if len(settingsConfigFileNames) != len(self.measConfigs):
+
+            if isinstance(hardware_config_sources, (str, Path, dict)):
+                hardware_config_sources = [hardware_config_sources]
+
+            if len(hardware_config_sources) != len(self.measurement_configs):
                 raise ValueError('length of settings and measurement configs do not match')
 
-            for sFile in settingsConfigFileNames:
-                if isinstance(sFile, (str, Path)):
-                    with open(sFile, 'r') as fd:
-                        d = json.load(fd)
-                elif isinstance(sFile, dict):
-                    d = sFile
+            for hardware_config_source in hardware_config_sources:
+                if isinstance(hardware_config_source, (str, Path)):
+                    with open(hardware_config_source, 'r') as fd:
+                        hardware_config_loaded = json.load(fd)
+                elif isinstance(hardware_config_source, dict):
+                    hardware_config_loaded = hardware_config_source
                 else:
                     raise ValueError('configuration should be either a valid filename or an already loaded dict')
 
-                self.settingsConfigs.append(d)
+                self.hardware_configs.append(hardware_config_loaded)
 
     def __call__(self):
         res = []
-        if self.asMeasurements:
-            for i in range(len(self.measConfigs)):
-                res.append([(self.measConfigs[i], self.settingsConfigs[i])])
+        if self.as_measurements:
+            for i in range(len(self.measurement_configs)):
+                res.append([(self.measurement_configs[i], self.hardware_configs[i])])
         else:
-            resInner = []
-            for i in range(len(self.measConfigs)):
-                resInner.append((self.measConfigs[i], self.settingsConfigs[i]))
-            res.append(resInner)
+            res_inner = []
+            for i in range(len(self.measurement_configs)):
+                res_inner.append((self.measurement_configs[i], self.hardware_configs[i]))
+            res.append(res_inner)
         return res
