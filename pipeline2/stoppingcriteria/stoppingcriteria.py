@@ -1,10 +1,39 @@
 from time import time
 
+from pipeline2.pipeline import AcquisitionPipeline
+
 
 class MaximumAcquisitionsStoppingCriterion:
-    # TODO: max images per level or in total? offer both options?
-    pass
 
+    def __init__(self, max_acquisitions=None, max_acquisitions_per_level=None):
+        self.max_acquisitions = max_acquisitions
+        self.max_acquisitions_per_level = max_acquisitions_per_level
+
+    def check(self, pipeline: AcquisitionPipeline):
+
+        # we have set no limits -> always return False
+        if self.max_acquisitions is None and self.max_acquisitions_per_level is None:
+            return False
+
+        # check total amount of acquisitions
+        total_acquisitions = len(pipeline.data)
+        if self.max_acquisitions is not None and total_acquisitions >= self.max_acquisitions:
+            return True
+
+        # check acquisitions per level
+        if self.max_acquisitions_per_level is not None:
+            for level, max_acquisitions_at_level in self.max_acquisitions_per_level.items():
+                # length of indices of same level: position in levels of pipeline + 1
+                index_length = self.pipeline.hierarchy_levels.index(level) + 1
+                # get number of all measurement indices in data of same length (same level)
+                num_acquisitions_level = len([k for k in self.pipeline.data.keys() if len(k) == index_length])
+                if num_acquisitions_level >= max_acquisitions_at_level:
+                    return True
+
+        return False
+
+    def desc(self, pipeline):
+        return 'STOPPING PIPELINE {}: maximum number of acquisitions reached'.format(pipeline.name)
 
 class TimedStoppingCriterion():
     """
