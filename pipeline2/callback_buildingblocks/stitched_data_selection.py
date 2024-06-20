@@ -110,7 +110,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         # add singleton (T) dimension
         res_img = stitched.reshape((1, ) + stitched.shape)
         # add None for images of other channels
-        res_data = [None] * self.channel + [res_img] + [None] * (data_newest.num_images(self.configuration) - (self.channel + 1))
+        res_data = [None] * self.channel + [res_img] + [None] * (data_newest.num_channels(self.configuration) - (self.channel + 1))
 
         # wrap results, use None for other configs
         res = MeasurementData()

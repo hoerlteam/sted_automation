@@ -27,7 +27,7 @@ class MeasurementData:
     def num_configurations(self):
         return len(self.data)
 
-    def num_images(self, configuration_idx):
+    def num_channels(self, configuration_idx):
         if configuration_idx < self.num_configurations:
             return len(self.data[configuration_idx])
         else:

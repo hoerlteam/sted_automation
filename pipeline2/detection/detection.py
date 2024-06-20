@@ -137,7 +137,7 @@ class SimpleFocusPlaneDetector:
             self.logger.info(': No data for Z correction present -> skipping.')
             return [[None, None, None]]
 
-        if (data.num_configurations <= self.configuration) or (data.num_images(self.configuration) <= self.channel):
+        if (data.num_configurations <= self.configuration) or (data.num_channels(self.configuration) <= self.channel):
             raise ValueError('no images present. TODO: fail gracefully/skip here')
 
         # get image of selected configuration and channel and convert to float
@@ -163,11 +163,110 @@ class SimpleFocusPlaneDetector:
         return [[new_z, None, None]]
 
 
-# TODO: implement generic wrappers for extensibility
 class CoordinateDetectorWrapper:
-    def __init__(self, data_source_callback, detection_function_callback):
+
+    fov_length_parameter_paths = FOV_LENGTH_PARAMETERS
+    pixel_size_parameter_paths = PIXEL_SIZE_PARAMETERS
+
+    def __init__(self, data_source_callback, detection_function, configurations=(0,), channels=(0,), detection_kwargs=None,
+                 reference_configuration=None, offset_parameters=OFFSET_SCAN_PARAMETERS):
+        """
+        Parameters
+        ----------
+        data_source_callback : a callable (e.g. NewestDataSelector), which should return a MeasurementData object
+        detection_function : a callable taking one or more images as the first positional arguments and optionally keyword arguments
+        configurations : index of configuration to use, or list of indices to use multiple
+        channels : index of channel to use, or list of indices to use multiple
+        detection_kwargs : keyword arguments to pass to detection_function
+        reference_configuration : index of configuration from which to get metadata (e.g. stage/scan position)
+        offset_parameters : parameter paths of offset position in measurement settings
+        """
+
         self.data_source_callback = data_source_callback
-        self.detection_function_callback = detection_function_callback
+        self.detection_function = detection_function
+
+        self.offset_parameter_paths = offset_parameters
+        # do not invert any dimension by default
+        self.invert_dimensions = (False,) * len(offset_parameters)
+
+        # keyword arguments that are passed to the detection_function call (after the images)
+        self.detection_kwargs = {} if detection_kwargs is None else detection_kwargs
+
+        # make sure we have a sequence of configurations & channels, even if just a single one is selected
+        self.configurations = (configurations,) if np.isscalar(configurations) else configurations
+        self.channels = (channels,) if np.isscalar(channels) else channels
+
+        # by default pick the first configuration as reference
+        # if user gave a configuration index, make sure it is among those we load
+        self.reference_configuration = self.configurations[0] if reference_configuration is None else reference_configuration
+        if self.reference_configuration not in self.configurations:
+            raise ValueError('Reference configuration must be one of: {}'.format(self.configurations))
+
+    def to_world_coordinates(self, detections_pixel, setts, ignore_dim):
+
+        offsets = np.array([get_path_from_dict(setts, path, False) for path in self.offset_parameter_paths], dtype=float)
+        fov_lengths = np.array([get_path_from_dict(setts, path, False) for path in self.fov_length_parameter_paths], dtype=float)
+        pixel_sizes = np.array([get_path_from_dict(setts, path, False) for path in self.pixel_size_parameter_paths], dtype=float)
+
+        res = []
+        for detection in detections_pixel:
+            detection = np.array(detection, dtype=float)
+            res.append(pixel_to_physical_coordinates(detection, offsets, fov_lengths, pixel_sizes, ignore_dim, self.invert_dimensions))
+        return res
+
+    @staticmethod
+    def collect_images_from_measurement_data(data, configurations, channels):
+        images = []
+        for configuration in configurations:
+            if configuration >= data.num_configurations:
+                raise ValueError('Requested configuration does not exist in MeasurementData')
+            for channel in channels:
+                if channel >= data.num_channels(configuration):
+                    raise ValueError('Requested channel does not exist in MeasurementData')
+                img = data.data[configuration][channel]
+                img = img.squeeze()
+                images.append(img)
+        return images
+
+    def __call__(self):
+
+        # get list of images we want to process
+        data = self.data_source_callback()
+        images = CoordinateDetectorWrapper.collect_images_from_measurement_data(data, self.configurations, self.channels)
+
+        # check if any dimensions of first image of reference channel are singleton
+        # NOTE: we ignore the first of the 4 dimensions of the Imspector stack
+        singleton_dims = np.array(data.data[self.reference_configuration][0].shape) == 1
+        singleton_dims = singleton_dims[1:]
+
+        # get settings dict for reference configuration
+        measurement_settings = data.measurement_settings[self.reference_configuration]
+
+        # run detection
+        detections = self.detection_function(*images, **self.detection_kwargs)
+
+        # nothing found -> early return
+        if len(detections) == 0:
+            return []
+
+        # we support nested detections, i.e. a list of lists of coordinates
+        # check by looking at the first element of the first detection
+        # in non-nested results, this will be a number, otherwise it will be an array of coords
+        nested_detections = not np.isscalar(detections[0][0])
+
+        # go over pixel results, convert to world units
+        # if we have nested results, do an extra inner loop to keep structure
+        if not nested_detections:
+            detections = [refill_ignored_dimensions(detection_pixel, singleton_dims) for detection_pixel in detections]
+            detections_unit = self.to_world_coordinates(detections, measurement_settings, singleton_dims)
+            return detections_unit
+        else:
+            results = []
+            for detections_i in detections:
+                detections_i = [refill_ignored_dimensions(detections_i_pixel, singleton_dims) for detections_i_pixel in detections_i]
+                detection_unit = self.to_world_coordinates(detections_i, measurement_settings, singleton_dims)
+                results.append(detection_unit)
+            return results
 
 
 class ROIDetectorWrapper:
@@ -230,7 +329,7 @@ class SimpleSingleChannelSpotDetector:
     def __call__(self):
 
         data = self.data_source_callback()
-        if (data.num_configurations <= self.configuration) or (data.num_images(self.configuration) < max(self.channels)):
+        if (data.num_configurations <= self.configuration) or (data.num_channels(self.configuration) < max(self.channels)):
             raise ValueError('required images not present. TODO: fail gracefully/skip here')
 
         locs = []
@@ -346,7 +445,7 @@ class LegacySpotPairFinder:
 
     def __call__(self):
         data = self.data_source_callback()
-        if (data.num_configurations < 1) or (data.num_images(0) < 2):
+        if (data.num_configurations < 1) or (data.num_channels(0) < 2):
             raise ValueError(
                 'too few images for LegacySpotPairFinder. The MeasurementData provided needs to have two images in the first configuration.')
         stack1 = data.data[0][self.channels[0]][0, :, :, :]
@@ -388,7 +487,7 @@ class PairedLegacySpotPairFinder(LegacySpotPairFinder):
 
     def __call__(self):
         data = self.data_source_callback()
-        if (data.num_configurations < 1) or (data.num_images(0) < 2):
+        if (data.num_configurations < 1) or (data.num_channels(0) < 2):
             raise ValueError(
                 'too few images for LegacySpotPairFinder. The MeasurementData provided needs to have two images in the first configuration.')
         stack1 = data.data[0][self.channels[0]][0, :, :, :]
@@ -498,6 +597,17 @@ if __name__ == '__main__':
 
     detector = SimpleSingleChannelSpotDetector(data_call, 1, 0.1, plot_detections=False, return_parameter_dict=False)
     detector.invert_dimensions = (False, False, True)
+
+    def fun(img, *other_imgs, sigma=3):
+        from scipy.ndimage import gaussian_laplace
+        from skimage.feature import peak_local_max
+
+        for oi in other_imgs:
+            print(oi.shape)
+
+        return peak_local_max(-gaussian_laplace(img.astype(float), sigma), threshold_abs=1e-6)
+
+    detector = CoordinateDetectorWrapper(data_call, fun, channels=(0,1), detection_kwargs={'sigma': 3})
 
     # detector = LegacySpotPairFinder(data_call, 1, [0.1, 0.1], plot_detections=False, return_parameter_dict=True)
 

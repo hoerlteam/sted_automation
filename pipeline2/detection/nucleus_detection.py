@@ -254,7 +254,7 @@ class SimpleNucleusMidplaneDetector:
                 print(self.__class__.__name__ + ': ERROR: no image for nucleus detection')
             return []
 
-        if (data.num_configurations <= self.configuration) or (data.num_images(self.configuration) <= self.channel):
+        if (data.num_configurations <= self.configuration) or (data.num_channels(self.configuration) <= self.channel):
             raise ValueError('no images present. TODO: fail gracefully/skip here')
 
         img = data.data[self.configuration][self.channel][0, :, :, :]
