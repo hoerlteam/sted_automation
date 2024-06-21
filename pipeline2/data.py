@@ -36,7 +36,7 @@ class MeasurementData:
 
 class HDF5DataStore(defaultdict):
 
-    def __init__(self, h5_file, pipeline_levels=None, root_path='experiment', read_only=False):
+    def __init__(self, h5_file, pipeline_levels=None, root_path='experiment', read_only=False, compressed=True):
         super().__init__()
         self.h5_file = h5_file
 
@@ -45,6 +45,8 @@ class HDF5DataStore(defaultdict):
 
         self.root_path = root_path
         self.pipeline_levels = pipeline_levels
+
+        self.compressed = compressed
 
         # get file handle for write: if member h5_file is already a File object, use as-is
         # otherwise, we assume h5_file is a str/Path and try to open in append mode
@@ -114,7 +116,7 @@ class HDF5DataStore(defaultdict):
 
     def __missing__(self, key):
 
-        new_data = HDF5MeasurementData(self.h5_file, self.pipeline_levels, key, self.root_path, self.read_only)
+        new_data = HDF5MeasurementData(self.h5_file, self.pipeline_levels, key, self.root_path, self.read_only, self.compressed)
         self.__setitem__(key, new_data)
 
         return self[key]
@@ -122,13 +124,14 @@ class HDF5DataStore(defaultdict):
 
 class HDF5MeasurementData(MeasurementData):
 
-    def __init__(self, h5_file, pipeline_levels, idxes, root_path='experiment', read_only=False):
+    def __init__(self, h5_file, pipeline_levels, idxes, root_path='experiment', read_only=False, compressed=True):
         super().__init__()
         self.h5_file = h5_file
         self.pll = pipeline_levels
         self.idxes = idxes
         self.root_path = root_path
         self.read_only = read_only
+        self.compressed = compressed
 
         self.load_existing_data()
 
@@ -210,7 +213,7 @@ class HDF5MeasurementData(MeasurementData):
         # save channels as actual datasets
         for idx, data_i in enumerate(data):
             path_channel = '/'.join([cfg_path, str(idx)])
-            fd.create_dataset(path_channel, data=data_i)
+            fd.create_dataset(path_channel, data=data_i, compression='gzip' if self.compressed else None)
 
         # if we have opened a new file object, close it again
         # otherwise (we are using a provided object), leave it
