@@ -1,8 +1,6 @@
 from itertools import cycle
 from typing import Sequence
-import logging
 
-from pipeline2.taskgeneration.fov_util import group_in_bounding_boxes
 from pipeline2.utils.dict_utils import merge_dicts
 
 
@@ -40,11 +38,6 @@ class AcquisitionTaskGenerator:
 
         # broadcast updates at the measurement level
         updates_per_measurements_broadcast = broadcast_updates(updates)
-
-        # update the filters
-        # TODO: check if this can be simplified/removed?
-        for task_filter in self.task_filters:
-            task_filter.update()
 
         tasks = []
         for measurement_update in updates_per_measurements_broadcast:
@@ -98,64 +91,6 @@ class AcquisitionTask:
 
     def get_all_updates(self, concatenate=False):
         return [self.get_updates(n, concatenate) for n in range(self.num_acquisitions)]
-
-
-class BoundingBoxLocationGrouper:
-    """
-    Wrapper for a locationGenerator that groups locations into bounding boxes of defined size.
-    This may be necessary to avoid multiple imaging of the same object.
-
-    Parameters
-    ----------
-    location_generator : callable returning iterable of 3d location vectors
-        generator of locations
-    bounding_box_size : 3d vector (array-like)
-        size of the bounding boxes to group in (same unit as vectors returned by locationGenerator)
-    """
-    def __init__(self, location_generator, bounding_box_size):
-        self.location_generator = location_generator
-        self.bounding_box_size = bounding_box_size
-        self.logger = logging.getLogger(__name__)
-
-    def __call__(self):
-        xs = self.location_generator()
-        res = group_in_bounding_boxes(xs, self.bounding_box_size)
-        
-        self.logger.info('grouped detections into {} FOVs'.format(len(res)))
-        for loc in res:
-            self.logger.debug('FOV: {}'.format(loc))
-        return res
-
-
-class LocalizationNumberFilter:
-    """
-    Wrapper for a locationGenerator that will discard all localizations, if there are too few or too many
-
-    Parameters
-    ----------
-    location_generator : callable
-        generator of locations
-    min_num_locs: int, optional
-        minimum number of localizations
-    max_num_locs: int, optional
-        maximum number of localizations
-    """
-    def __init__(self, location_generator, min_num_locs=None, max_num_locs=None):
-        self.location_generator = location_generator
-        self.min = min_num_locs
-        self.max = max_num_locs
-
-    def __call__(self):
-        locs = self.location_generator.get_locations()
-        n_locs = len(locs)
-
-        # return all or nothing, depending on number of locs
-        if self.min is not None and n_locs < self.min:
-            return []
-        elif self.max is not None and n_locs > self.max:
-            return []
-        else:
-            return locs
 
 
 def broadcast_updates(updates: Sequence[Sequence]):

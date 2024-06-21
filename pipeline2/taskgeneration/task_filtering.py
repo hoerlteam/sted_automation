@@ -1,7 +1,7 @@
 import numpy as np
 
-from ..utils.dict_utils import merge_dicts
-from ..callback_buildingblocks.stitched_data_selection import _virtual_bbox_from_settings, get_overlap_bounding_box
+from pipeline2.utils.dict_utils import merge_dicts
+from pipeline2.callback_buildingblocks.stitched_data_selection import _virtual_bbox_from_settings, get_overlap_bounding_box
 
 
 class AlreadyImagedFOVFilter:
@@ -16,6 +16,8 @@ class AlreadyImagedFOVFilter:
         self.old_bboxes = []
 
     def check(self, task):
+
+        self.update_old_bboxes()
 
         # get BBoxes of new task
         bboxes_new = []
@@ -34,7 +36,7 @@ class AlreadyImagedFOVFilter:
                     return False
         return True
 
-    def update(self):
+    def update_old_bboxes(self):
         """
         get BBoxes for all existing acquisitions
         """

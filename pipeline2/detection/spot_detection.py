@@ -1,5 +1,4 @@
 import logging
-from itertools import cycle
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -11,77 +10,6 @@ from pipeline2.detection.display_util import draw_detections_2c, draw_detections
 from pipeline2.utils.dict_utils import get_path_from_dict
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
                                                  OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
-
-
-class ParameterValuesRepeater:
-    """
-    Simple callback to wrap another callback and repeat the returned values n times.
-
-    E.g., can be used to image each location returned by a spot or ROI detector multiple times.
-    """
-    
-    def __init__(self, wrapped_callback, n=2, nested=False):
-        self.wrapped_callback = wrapped_callback
-        self.n = n
-        self.nested = nested
-        
-    def __call__(self):
-        value_sets = self.wrapped_callback()
-        repeated_values = []
-        
-        for values in value_sets:
-
-            # case 1: add multiple copies of values wrapped in a tuple,
-            # this way, the nested values can become configurations in a wrapping building block
-            if self.nested:
-                repeated_values.append((values,) * self.n)
-            # case 2 (default): just add multiple copies, that is intended to result in multiple configurations
-            else:
-                for _ in range(self.n):
-                    repeated_values.append(values)
-        
-        return repeated_values
-    
-    
-class SimpleManualOffset:
-
-    """
-    Callback to wrap another callback and add a manual offset to the returned parameter values.
-
-    E.g., can be used to add a focus offset [z_offset, 0, 0] to results of spot detection
-    """
-    
-    def __init__(self, wrapped_callback, offset):
-        self.wrapped_callback = wrapped_callback
-        self.offset = np.array(offset, dtype=float)
-        
-    def __call__(self):
-        values = self.wrapped_callback()
-        res = []
-        
-        offset_cycler = cycle(self.offset)
-        for values_i in values:
-
-            # we have a sequence of collection types (e.g., list of lists of coordinates)
-            # add offset to all, keep structure
-            if len(values_i) > 0 and not np.isscalar(values_i[0]):
-                ri_tup = []
-                for values_i_inner in values_i:
-                    ri = []
-                    for value in values_i_inner:
-                        off_i = next(offset_cycler)
-                        ri.append(None if value is None else value + off_i)
-                    ri_tup.append(ri)
-                res.append(tuple(ri_tup))
-
-            # we have just a list of value sequences (e.g., coordinate lists/arrays)
-            else:
-                ri = []
-                for value in values_i:
-                    off_i = next(offset_cycler)
-                    ri.append(None if value is None else value + off_i)
-                res.append(ri)
-        return res
 
 
 class SimpleFocusPlaneDetector:
@@ -269,10 +197,6 @@ class CoordinateDetectorWrapper:
             return results
 
 
-class ROIDetectorWrapper:
-    pass
-
-
 class SimpleSingleChannelSpotDetector:
     """
     simple Laplacian-of-Gaussian spot detector with an additional intensity criterion (spots must be x-fold brighter than median around spot)
@@ -386,18 +310,6 @@ class SimpleSingleChannelSpotDetector:
             return corrected
         else:
             return ValuesToSettingsDictCallback(lambda: corrected, self.offset_parameter_paths)()
-
-
-def refill_ignored_dimensions(coordinates, ignore_dim):
-    coords_refilled = []
-    true_coords_i = 0
-    for d_ignored in ignore_dim:
-        if d_ignored:
-            coords_refilled.append(0.0)
-        else:
-            coords_refilled.append(coordinates[true_coords_i])
-            true_coords_i += 1
-    return coords_refilled
 
 
 class LegacySpotPairFinder:
@@ -533,6 +445,18 @@ class ZDCSpotPairFinder(LegacySpotPairFinder):
     # TODO: check if the coordinates / directions used in ZDC mode are still correct
     offset_parameter_paths = OFFSET_STAGE_GLOBAL_PARAMETERS[:1] + OFFSET_SCAN_PARAMETERS[1:]
     invert_dimensions = (True, False, False)
+
+
+def refill_ignored_dimensions(coordinates, ignore_dim):
+    coords_refilled = []
+    true_coords_i = 0
+    for d_ignored in ignore_dim:
+        if d_ignored:
+            coords_refilled.append(0.0)
+        else:
+            coords_refilled.append(coordinates[true_coords_i])
+            true_coords_i += 1
+    return coords_refilled
 
 
 def pixel_to_physical_coordinates(pixel_coordinates, offset, fov_size, pixel_size, ignore_dimension=None, invert_dimension=None):

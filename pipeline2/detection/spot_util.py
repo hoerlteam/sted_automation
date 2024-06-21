@@ -1,7 +1,8 @@
+import logging
+
 from scipy import ndimage, spatial
 import numpy as np
 import skimage
-import logging
 
 logger = logging.getLogger(__name__)
 

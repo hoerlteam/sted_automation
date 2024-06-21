@@ -27,7 +27,7 @@ from calmutils.localization import refine_point
 from calmutils.misc import filter_rprops
 
 from pipeline2.utils.dict_utils import get_path_from_dict
-from pipeline2.detection.detection import pixel_to_physical_coordinates
+from pipeline2.detection.spot_detection import pixel_to_physical_coordinates
 from pipeline2.utils.parameter_constants import (OFFSET_SCAN_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
                                                  PIXEL_SIZE_PARAMETERS, FOV_LENGTH_PARAMETERS)
 

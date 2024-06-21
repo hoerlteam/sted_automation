@@ -1,11 +1,9 @@
 import numpy as np
-
 from calmutils.stitching import stitch
 
-from .data_selection import NewestDataSelector
-from ..data import MeasurementData
-from ..utils.dict_utils import merge_dicts, get_path_from_dict, generate_nested_dict
-
+from pipeline2.callback_buildingblocks.data_selection import NewestDataSelector
+from pipeline2.data import MeasurementData
+from pipeline2.utils.dict_utils import merge_dicts, get_path_from_dict, generate_nested_dict
 from pipeline2.utils.parameter_constants import (OFFSET_SCAN_PARAMETERS, OFFSET_SCAN_GLOBAL_PARAMETERS,
                                                  OFFSET_STAGE_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
                                                  FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS)

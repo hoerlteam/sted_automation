@@ -1,12 +1,12 @@
 from pathlib import Path
-from pipeline2.utils.dict_utils import generate_nested_dict, remove_path_from_dict, merge_dicts
-from pipeline2.utils.parameter_constants import FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS
-
 import json
 from functools import reduce
 from itertools import cycle
 from operator import add
 from typing import Sequence
+
+from pipeline2.utils.dict_utils import generate_nested_dict, remove_path_from_dict, merge_dicts
+from pipeline2.utils.parameter_constants import FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS
 
 
 class FOVSettingsGenerator:

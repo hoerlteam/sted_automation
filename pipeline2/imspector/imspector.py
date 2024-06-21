@@ -3,15 +3,16 @@ from warnings import warn
 import logging
 from threading import Semaphore
 
-from pipeline2.utils.dict_utils import get_path_from_dict
-from pipeline2.utils.parameter_constants import (OFFSET_STAGE_GLOBAL_PARAMETERS, OFFSET_SCAN_PARAMETERS,
-                                                 OFFSET_SCAN_GLOBAL_PARAMETERS, FOV_LENGTH_PARAMETERS)
 import numpy as np
 
 try:
     import specpy
 except ImportError:
     pass
+
+from pipeline2.utils.dict_utils import get_path_from_dict
+from pipeline2.utils.parameter_constants import (OFFSET_STAGE_GLOBAL_PARAMETERS, OFFSET_SCAN_PARAMETERS,
+                                                 OFFSET_SCAN_GLOBAL_PARAMETERS, FOV_LENGTH_PARAMETERS)
 
 
 class ParameterSanitizer:
