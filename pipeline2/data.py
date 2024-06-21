@@ -141,8 +141,13 @@ class HDF5MeasurementData(MeasurementData):
 
         # query corresponding group in hdf5 file
         path = _hdf5_group_path(self.pll, self.idxes, self.root_path)
-        h5_dataset = fd[path]
-        num_configs = h5py.AttributeManager(h5_dataset)['num_configs']
+        if path in fd:
+            h5_dataset = fd[path]
+            num_configs = h5py.AttributeManager(h5_dataset)['num_configs']
+        else:
+            # if group does not (yet) exist, we set num_configs to 0,
+            # -> rest of the function (except close) is skipped
+            num_configs = 0
 
         # append data and metadata for all configurations to self
         for config_idx in range(num_configs):

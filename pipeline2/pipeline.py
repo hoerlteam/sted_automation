@@ -116,7 +116,7 @@ class AcquisitionPipeline:
                     for callback in callbacks_for_current_level:
                         # allow callback to return None for flexibility
                         # default (AcquisitionTaskGenerator) will return list of new tasks and their level
-                        result = callback(self)
+                        result = callback()
                         if result is not None:
                             new_level, new_tasks = result
                             for task in new_tasks:

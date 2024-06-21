@@ -217,17 +217,29 @@ class ImspectorConnection:
         ms = self.imspector.active_measurement()
         self.imspector.close(ms)
 
+def get_active_measurement_safe(imspector):
+    # Getting active measurement from Imspector fails with RuntimeError
+    # if no measurement is open or if none is selected (e.g. after closing)
+    # This function catches the exception and returns None instead
+    try:
+        return imspector.active_measurement()
+    except RuntimeError:
+        return None
 
 def get_current_stage_coords(im=None):
 
     if im is None:
         im = specpy.get_application()
 
-    im.create_measurement()
-    ms = im.active_measurement()
+    ms = get_active_measurement_safe(im)
+    need_temp_measurement = ms is None
+    if need_temp_measurement:
+        im.create_measurement()
+        ms = im.active_measurement()
 
     coords = [ms.parameters(path) for path in OFFSET_STAGE_GLOBAL_PARAMETERS]
 
-    im.close(ms)
+    if need_temp_measurement:
+        im.close(ms)
 
     return coords
