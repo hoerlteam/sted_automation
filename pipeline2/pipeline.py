@@ -191,14 +191,14 @@ class FilenameHandler:
     """
     helper class to generate systematic filenames to save data to.
     """
-    # TODO: add zero-padding of indices in filenames?
 
     random_prefix_length = 8
 
-    def __init__(self, path, levels, prefix=None, default_ending ='.msr'):
+    def __init__(self, path, levels, prefix=None, default_ending ='.msr', min_index_padding_length=0):
         self.path = path
         self.levels = levels
         self.default_ending = default_ending
+        self.min_index_padding_length = min_index_padding_length
 
         # if no prefix for filenames is given, use a random hash
         if prefix is None:
@@ -211,7 +211,14 @@ class FilenameHandler:
         # format string used for each (level, index)-pair in filename generation
         self.insert_fstring = '_{}_{}'
 
+    @staticmethod
+    def leftpad(string, length, padding_char='0'):
+        return padding_char * (length - len(string)) + string
+
     def get_filename(self, idxes=(), ending=None):
+
+        # left-pad to desired length
+        idxes = [self.leftpad(str(idx), self.min_index_padding_length) for idx in idxes]
 
         # make chained inserts [level1, idx1, level2, idx2, ...]
         insert = chain.from_iterable(zip(self.levels[0:len(idxes)], idxes))
@@ -228,5 +235,7 @@ class FilenameHandler:
 
 
 if __name__ == '__main__':
-    file_handler = FilenameHandler('/path/to/file', ['overview', 'detail'])
+    FilenameHandler.random_prefix_length = 6
+    file_handler = FilenameHandler('/path/to/file', ['overview', 'detail'], min_index_padding_length=3)
     print(file_handler.get_path((2,3), ending='.h5'))
+    print(file_handler.get_path(ending='.h5'))

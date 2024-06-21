@@ -1,7 +1,5 @@
 from time import time
 
-from pipeline2.pipeline import AcquisitionPipeline
-
 
 class MaximumAcquisitionsStoppingCriterion:
 
@@ -9,7 +7,7 @@ class MaximumAcquisitionsStoppingCriterion:
         self.max_acquisitions = max_acquisitions
         self.max_acquisitions_per_level = max_acquisitions_per_level
 
-    def check(self, pipeline: AcquisitionPipeline):
+    def check(self, pipeline):
 
         # we have set no limits -> always return False
         if self.max_acquisitions is None and self.max_acquisitions_per_level is None:
