@@ -114,17 +114,18 @@ class AcquisitionPipeline:
                 callbacks_for_current_level = self.callbacks.get(current_level, None)
                 if not (callbacks_for_current_level is None):
                     for callback in callbacks_for_current_level:
-                        new_level, new_tasks = callback(self)
-                        for task in new_tasks:
-                            self.enqueue_task(new_level, task, index)
+                        # allow callback to return None for flexibility
+                        # default (AcquisitionTaskGenerator) will return list of new tasks and their level
+                        result = callback(self)
+                        if result is not None:
+                            new_level, new_tasks = result
+                            for task in new_tasks:
+                                self.enqueue_task(new_level, task, index)
 
                 # go through stopping conditions
                 stopping_condition_met = False
                 for sc in self.stopping_conditions:
                     if sc.check(self):
-                        # reset interrupt flag if necessary
-                        if isinstance(sc, InterruptedStoppingCriterion):
-                            sc.resetInterrupt(self)
                         print(sc.desc(self))
                         stopping_condition_met = True
                         break

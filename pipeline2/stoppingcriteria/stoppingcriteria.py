@@ -52,14 +52,20 @@ class TimedStoppingCriterion():
 
 class InterruptedStoppingCriterion():
     """
-    stopping criterion to check wether SIGINT was received and stop then
+    stopping criterion to check whether SIGINT was received and stop then
     will also reset the signal status in parent AcquisitionPipeline
     """
 
     def check(self, pipeline):
-        return pipeline.interrupted
+        if not pipeline.interrupted:
+            return False
+        else:
+            # reset the interrupt in pipeline (e.g. so it can be run again)
+            # TODO: check if really necessary?
+            self.reset_interrupt()
+            return True
 
-    def resetInterrupt(self, pipeline):
+    def reset_interrupt(self, pipeline):
         pipeline.interrupted = False
 
     def desc(self, pipeline):
