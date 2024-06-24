@@ -98,7 +98,7 @@ def stardist_midplane_detection(img, model, scale_factor=0.5, prob_tresh=0.8, ax
     return nnet_seg_outer(img, stardist_seg_fun, scale_factor, axis, flt, do_plot, ignore_border, bg_val)
 
 
-def cellpose_midplane_detection(img, model: CellposeModel, scale_factor=0.5, flow_tresh=0.2, diameter=50, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
+def cellpose_midplane_detection(img, model, scale_factor=0.5, flow_tresh=0.2, diameter=50, axis=0, flt=None, do_plot=False, ignore_border=True, bg_val=None):
 
     def cellpose_seg_fun(img):
         segs, *_ = model.eval([img], flow_threshold=flow_tresh, diameter=diameter, channels=[0,0])
