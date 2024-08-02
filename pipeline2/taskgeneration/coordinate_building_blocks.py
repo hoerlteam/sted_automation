@@ -126,6 +126,11 @@ class ScanFieldSettingsGenerator(ValuesToSettingsDictCallback):
 class SpiralOffsetGenerator:
 
     def __init__(self, fov=[5e-5, 5e-5], start=[0, 0], z_position=None, verbose=False):
+        
+        # if we get length-3 start coordinates, assume zyx and use only the second two
+        if len(start) == 3:
+            start = start[1:]
+
         self.fov = fov
         self.start = start
         self.z_position = z_position

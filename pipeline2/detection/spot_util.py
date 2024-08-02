@@ -2,7 +2,7 @@ import logging
 
 from scipy import ndimage, spatial
 import numpy as np
-import skimage
+from skimage.feature import peak_local_max
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ def detect_blobs(img, sigmas, threshold, normalize=False, threshold_rel_median=3
 
     # do LoG filtering and local maxima detection
     log_img = -ndimage.gaussian_laplace(img, sigmas) * (sigmas[0] ** 2)
-    peaks = skimage.feature.peak_local_max(log_img, threshold_abs=threshold, min_distance=1, exclude_border=False)
+    peaks = peak_local_max(log_img, threshold_abs=threshold, min_distance=1, exclude_border=False)
 
     # if a nonzero threshold_rel_median is set, make sure that
     # blob peak is at least x-fold brighter than median withing med_radius

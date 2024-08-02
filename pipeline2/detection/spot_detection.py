@@ -78,7 +78,7 @@ class SimpleFocusPlaneDetector:
             return [[None, None, None]]
 
         # get old z-offset and pixel size
-        setts = data.measurementSettings[self.configuration]
+        setts = data.measurement_settings[self.configuration]
         z_offset_old = get_path_from_dict(setts, self.offset_z_path, keep_structure=False)
         z_pixel_size = get_path_from_dict(setts, self.pixel_size_z_path, keep_structure=False)
 

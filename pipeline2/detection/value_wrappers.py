@@ -57,7 +57,7 @@ class SimpleManualOffset:
 
             # we have a sequence of collection types (e.g., list of lists of coordinates)
             # add offset to all, keep structure
-            if len(values_i) > 0 and not np.isscalar(values_i[0]):
+            if len(values_i) > 0 and not (np.isscalar(values_i[0]) or values_i[0] is None):
                 ri_tup = []
                 for values_i_inner in values_i:
                     ri = []

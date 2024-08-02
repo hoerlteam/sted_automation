@@ -21,7 +21,7 @@ class ParameterFilter:
         self.wrapped_callback = wrapped_callback
         self.acquisition_parameters = acquisition_parameters
         self.hardware_parameters = hardware_parameters
-        self.remove_parameters = remove_parameters
+        self.remove_parameters_flag = remove_parameters
 
     def keep_parameters(self):
         new_updates = []
@@ -83,7 +83,7 @@ class ParameterFilter:
         return new_updates
 
     def __call__(self):
-        if self.remove_parameters:
+        if self.remove_parameters_flag:
             return self.remove_parameters()
         else:
             return self.keep_parameters()

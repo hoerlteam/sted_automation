@@ -60,7 +60,7 @@ class InterruptedStoppingCriterion():
         else:
             # reset the interrupt in pipeline (e.g. so it can be run again)
             # TODO: check if really necessary?
-            self.reset_interrupt()
+            self.reset_interrupt(pipeline)
             return True
 
     def reset_interrupt(self, pipeline):

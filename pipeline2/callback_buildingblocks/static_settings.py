@@ -101,7 +101,7 @@ class DifferentFirstFOVSettingsGenerator(FOVSettingsGenerator):
         if self.first_measurement:
             lens_temp = self.lengths
             self.lengths = self.first_lengths
-        res = super()()
+        res = super().__call__()
         if self.first_measurement:
             self.lengths = lens_temp
             self.first_measurement = False
