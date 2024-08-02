@@ -6,7 +6,7 @@ from scipy import ndimage as ndi
 
 from pipeline2.taskgeneration.coordinate_building_blocks import ValuesToSettingsDictCallback
 from pipeline2.detection.spot_util import detect_blobs_find_pairs, detect_blobs
-from pipeline2.detection.display_util import draw_detections_2c, draw_detections_1c
+from pipeline2.detection.display_util import draw_detections_multicolor, draw_detections_1c, DEFAULT_COLOR_NAMES
 from pipeline2.utils.dict_utils import get_path_from_dict
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
                                                  OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
@@ -97,7 +97,7 @@ class CoordinateDetectorWrapper:
     pixel_size_parameter_paths = PIXEL_SIZE_PARAMETERS
 
     def __init__(self, data_source_callback, detection_function, configurations=(0,), channels=(0,), detection_kwargs=None,
-                 reference_configuration=None, offset_parameters=OFFSET_SCAN_PARAMETERS):
+                 reference_configuration=None, offset_parameters=OFFSET_SCAN_PARAMETERS, plot_detections=True):
         """
         Parameters
         ----------
@@ -129,6 +129,11 @@ class CoordinateDetectorWrapper:
         self.reference_configuration = self.configurations[0] if reference_configuration is None else reference_configuration
         if self.reference_configuration not in self.configurations:
             raise ValueError('Reference configuration must be one of: {}'.format(self.configurations))
+
+        self.plot_detections = plot_detections
+
+        self.normalization_range = (0.5, 99.5)
+        self.plot_colors = DEFAULT_COLOR_NAMES
 
     def to_world_coordinates(self, detections_pixel, setts, ignore_dim):
 
@@ -172,6 +177,15 @@ class CoordinateDetectorWrapper:
 
         # run detection
         detections = self.detection_function(*images, **self.detection_kwargs)
+
+        if self.plot_detections:
+            # get images of reference configuration
+            imgs_ref_config = CoordinateDetectorWrapper.collect_images_from_measurement_data(data, (self.reference_configuration,), self.channels)
+            # plot in RGB (multiple channels) or gray (single channel)
+            if len(imgs_ref_config) > 1:
+                draw_detections_multicolor(imgs_ref_config, detections, self.normalization_range, None, 3, True, self.plot_colors)
+            else:
+                draw_detections_1c(imgs_ref_config[0], detections, self.normalization_range, None, 3, True)
 
         # nothing found -> early return
         if len(detections) == 0:
@@ -231,7 +245,7 @@ class SimpleSingleChannelSpotDetector:
     
     def do_plot(self, spots_pixel, img):
 
-        draw_detections_1c(img, spots_pixel, None, 0, 3)
+        draw_detections_1c(img, spots_pixel, None, None, 3)
         plt.show()
 
     def to_world_coordinates(self, localizations, settings, ignore_dim, img_shape):
@@ -338,10 +352,14 @@ class LegacySpotPairFinder:
         self.in_channel_min_distance = in_channel_min_distance
         self.return_parameter_dict = return_parameter_dict
 
+        self.normalization_range = (0.5, 99.5)
+        self.plot_colors = ('red', 'green')
+
         self.logger = logging.getLogger(__name__)
 
     def do_plot(self, locations_pixel, stack1, stack2):
-        draw_detections_2c(stack1, stack2, locations_pixel, [0.5, 99.99], 0, 3, percentile_range=True)
+        draw_detections_multicolor([stack1, stack2], locations_pixel, self.normalization_range, None, 3,
+                                   percentile_range=True, color_names=self.plot_colors)
 
     def to_world_coordinates(self, detections_pixel, setts, ignore_dim):
 
@@ -519,7 +537,7 @@ if __name__ == '__main__':
     data.append(hardware_settings, measurement_settings, [img, img_ch2])
     data_call = lambda: data
 
-    detector = SimpleSingleChannelSpotDetector(data_call, 1, 0.1, plot_detections=False, return_parameter_dict=False)
+    detector = SimpleSingleChannelSpotDetector(data_call, 1, 0.1, plot_detections=True, return_parameter_dict=False)
     detector.invert_dimensions = (False, False, True)
 
     def fun(img, *other_imgs, sigma=3):
@@ -532,8 +550,10 @@ if __name__ == '__main__':
         return peak_local_max(-gaussian_laplace(img.astype(float), sigma), threshold_abs=1e-6)
 
     detector = CoordinateDetectorWrapper(data_call, fun, channels=(0,1), detection_kwargs={'sigma': 3})
-
-    # detector = LegacySpotPairFinder(data_call, 1, [0.1, 0.1], plot_detections=False, return_parameter_dict=True)
+    #
+    # detector = LegacySpotPairFinder(data_call, 1, [500, 0.1], plot_detections=True, return_parameter_dict=True)
+    detector.normalization_range = (0, 100)
+    # detector.plot_colors = ('cyan', 'magenta')
 
     res = detector()
     # res = ParameterValuesRepeater(SimpleManualOffset(detector, [13,13,13]), 2, nested=False)()
