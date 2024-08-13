@@ -116,7 +116,7 @@ class ImspectorConnection:
 
     def get_current_data(self):
         # get hardware and measurement params (dicts)
-        hardware_params = self.imspector.value_at('').get()
+        hardware_params = self.imspector.value_at('', specpy.ValueTree.Hardware).get()
         measurement_parameters = self.imspector.active_measurement().parameters('')
         # get list of all stacks in currently active measurement / configuration
         stack_data = []
