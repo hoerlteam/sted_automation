@@ -33,6 +33,16 @@ class AcquisitionPipeline:
         # the queue is just a list, but should only be modified via the heapq module
         self.queue = []
 
+        # levels at which new tasks will reuse the index of their parent level instead of starting from 0
+        # use e.g. to give coarse overview -> fine overview of same FOV the same id
+        self._levels_reusing_parent_index = []
+
+        # levels that should not show up in filnames for files at other levels
+        # e.g. acquisitions just for autofocus (levels: autofocus, image, detail)
+        # filenames will be imageX_detailY instead of autofocusX_imageY_detailZ
+        # TODO: mask levels in H5 as well
+        self._masked_levels_in_filename = []
+
         # keep track of starting time, so
         self.starting_time = None
 
@@ -85,6 +95,9 @@ class AcquisitionPipeline:
                 # pop next task from queue
                 priority, index, acquisition_task = heapq.heappop(self.queue)
 
+                # get level of current task
+                current_level = next(hierarchy_level for hierarchy_level, priority_i in self.level_priorities.items() if priority_i == priority)
+
                 # go through updates sequentially (we might have multiple configurations per measurement)
                 for update_index in range(acquisition_task.num_acquisitions):
 
@@ -103,12 +116,16 @@ class AcquisitionPipeline:
                 # save and close in Imspector
                 # only save if we actually did any acquisitions
                 if acquisition_task.num_acquisitions > 0:
-                    path = self.filename_handler.get_path(index)
+
+                    # get levels to mask (if current level is in there, remove it)
+                    levels_to_mask = self._masked_levels_in_filename
+                    if current_level in self._masked_levels_in_filename:
+                        levels_to_mask = set(self._masked_levels_in_filename)
+                        levels_to_mask.remove(current_level)
+
+                    path = self.filename_handler.get_path(index, mask_levels=levels_to_mask)
                     self.imspector_connection.save_current_measurement(path)
                     self.imspector_connection.close_current_measurement()
-
-                # get level of current task
-                current_level = next(hierarchy_level for hierarchy_level, priority_i in self.level_priorities.items() if priority_i == priority)
 
                 # do the callbacks (this should do analysis and return tasks to re-fill the queue)
                 callbacks_for_current_level = self.callbacks.get(current_level, None)
@@ -120,7 +137,7 @@ class AcquisitionPipeline:
                         if result is not None:
                             new_level, new_tasks = result
                             for task in new_tasks:
-                                self.enqueue_task(new_level, task, index)
+                                self.enqueue_task(new_level, task, index, new_level in self._levels_reusing_parent_index)
 
                 # go through stopping conditions
                 stopping_condition_met = False
@@ -146,11 +163,7 @@ class AcquisitionPipeline:
         if len(parent_index) < hierarchy_level:
             raise ValueError("length of parent index must be at least equal to hierarchy level")
 
-        # get all indices with same hierarchy level from data (already imaged and thus taken)
-        # and from queue (not yet imaged but already enqueued, so also taken)
-        indices_in_queue = {idx for prio, idx, task in self.queue if len(idx) == hierarchy_level + 1}
-        indices_in_data = {idx for idx in self.data.keys() if len(idx) == hierarchy_level + 1}
-        indices = indices_in_queue.union(indices_in_data)
+        indices = self.get_all_used_indices()
 
         # get all that start with parent index
         # NOTE: only parts of the parent index up to hierarchy level are considered
@@ -167,10 +180,32 @@ class AcquisitionPipeline:
         # return as index tuple
         return parent_index[:hierarchy_level] + (next_index,)
 
-    def enqueue_task(self, level, task, parent_index):
+    def get_all_used_indices(self, hierarchy_level):
+        """
+        get a set of all indices with same hierarchy level from data (already imaged and thus taken)
+        and from queue (not yet imaged but already enqueued, so also taken)
+        """
+
+        indices_in_queue = {idx for prio, idx, task in self.queue if len(idx) == hierarchy_level + 1}
+        indices_in_data = {idx for idx in self.data.keys() if len(idx) == hierarchy_level + 1}
+        indices = indices_in_queue.union(indices_in_data)
+        return indices
+
+    def enqueue_task(self, level, task, parent_index, reuse_parent_index=False):
+
         new_priority = next(priority for hierarchy_level, priority in self.level_priorities.items() if hierarchy_level == level)
         new_hierarchy_index = self.hierarchy_levels.index(level)
-        heapq.heappush(self.queue, (new_priority, self.get_next_free_index(new_hierarchy_index, parent_index), task))
+
+        if reuse_parent_index:
+            # repeat last value from parent index e.g. (4, 2) -> (4, 2, 2)
+            new_index = parent_index + (parent_index[-1],)
+            # check if it already exists, warn of overwrite in that case
+            if new_index in self.get_all_used_indices(new_hierarchy_index):
+                self.logger.warn('Reusing index {new_index}, data will be overwritten!')
+        else:
+            new_index = self.get_next_free_index(new_hierarchy_index, parent_index)
+
+        heapq.heappush(self.queue, (new_priority, new_index, task))
 
     def add_callback(self, callback, level):
         """
@@ -215,23 +250,29 @@ class FilenameHandler:
     def leftpad(string, length, padding_char='0'):
         return padding_char * (length - len(string)) + string
 
-    def get_filename(self, idxes=(), ending=None):
+    def get_filename(self, idxes=(), ending=None, mask_levels=None):
 
         # left-pad to desired length
         idxes = [self.leftpad(str(idx), self.min_index_padding_length) for idx in idxes]
 
+        # get level, index-pairs, drop masked levels if necessary
+        if mask_levels is not None:
+            insert_pairs = [(level, index) for level, index in zip(self.levels[0:len(idxes)], idxes) if level not in mask_levels]
+        else:
+            insert_pairs = list(zip(self.levels[0:len(idxes)], idxes))
+
         # make chained inserts [level1, idx1, level2, idx2, ...]
-        insert = chain.from_iterable(zip(self.levels[0:len(idxes)], idxes))
+        insert = chain.from_iterable(insert_pairs)
         insert = list(insert)
 
         # if no ending was specified, use default one
         if ending is None:
             ending = ending or self.default_ending
 
-        return (self.prefix + self.insert_fstring * len(idxes)).format(*insert) + ending
+        return (self.prefix + self.insert_fstring * len(insert_pairs)).format(*insert) + ending
     
-    def get_path(self, idxes=(), ending=None):
-        return os.path.join(self.path, self.get_filename(idxes, ending))
+    def get_path(self, idxes=(), ending=None, mask_levels=None):
+        return os.path.join(self.path, self.get_filename(idxes, ending, mask_levels))
 
 
 if __name__ == '__main__':
@@ -239,3 +280,6 @@ if __name__ == '__main__':
     file_handler = FilenameHandler('/path/to/file', ['overview', 'detail'], min_index_padding_length=3)
     print(file_handler.get_path((2,3), ending='.h5'))
     print(file_handler.get_path(ending='.h5'))
+
+    file_handler = FilenameHandler('/path/to/file', ['pre-overview', 'overview', 'detail'], min_index_padding_length=3)
+    print(file_handler.get_path((2,3,4), ending='.h5', mask_levels=['pre-overview']))
