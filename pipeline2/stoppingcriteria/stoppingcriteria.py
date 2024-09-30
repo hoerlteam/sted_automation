@@ -33,7 +33,8 @@ class MaximumAcquisitionsStoppingCriterion:
     def desc(self, pipeline):
         return 'STOPPING PIPELINE {}: maximum number of acquisitions reached'.format(pipeline.name)
 
-class TimedStoppingCriterion():
+
+class TimedStoppingCriterion:
     """
     stopping criterion to stop after a set amount of time
     """
@@ -48,7 +49,7 @@ class TimedStoppingCriterion():
         return 'STOPPING PIPELINE {}: maximum time exceeded'.format(pipeline.name)
 
 
-class InterruptedStoppingCriterion():
+class InterruptedStoppingCriterion:
     """
     stopping criterion to check whether SIGINT was received and stop then
     will also reset the signal status in parent AcquisitionPipeline

@@ -338,7 +338,7 @@ if __name__ == '__main__':
     from pipeline2.data import MeasurementData
     from pprint import pprint
     import logging
-    from pipeline2.taskgeneration.coordinate_building_blocks import ValuesToSettingsDictCallback
+    from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
     from skimage.io import imread
 
     img = imread('/Users/david/Downloads/dapi_nuclei.tif')
@@ -362,6 +362,6 @@ if __name__ == '__main__':
     detector = CellposeNucleusMidplaneDetector(data_call, diameter=20, plot_detections=True, manual_offset=1)
     # res = detector()
 
-    from pipeline2.taskgeneration.coordinate_building_blocks import ScanFieldSettingsGenerator
+    from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ScanFieldSettingsGenerator
     res = ScanFieldSettingsGenerator(detector, True)()
     pprint(res)

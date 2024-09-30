@@ -123,7 +123,7 @@ def broadcast_updates(updates: Sequence[Sequence]):
 
 def main():
 
-    from pipeline2.taskgeneration.coordinate_building_blocks import SpiralOffsetGenerator
+    from pipeline2.callback_buildingblocks.regular_position_generators import SpiralOffsetGenerator
     spiralGen = SpiralOffsetGenerator().withStart([0,0]).withFOV([5,5]).withZOffset(1)
     for _ in range(5):
         print(spiralGen.get_locations())
@@ -131,7 +131,7 @@ def main():
 
 def ATGTest():
     from unittest.mock import MagicMock
-    from pipeline2.taskgeneration.coordinate_building_blocks import ZDCOffsetSettingsGenerator
+    from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ZDCOffsetSettingsGenerator
 
     locMock = MagicMock(return_value = [])
     locMock.get_locations = MagicMock(return_value = [])

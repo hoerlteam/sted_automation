@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy import ndimage as ndi
 
-from pipeline2.taskgeneration.coordinate_building_blocks import ValuesToSettingsDictCallback
+from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
 from pipeline2.detection.spot_util import detect_blobs_find_pairs, detect_blobs
 from pipeline2.detection.display_util import draw_detections_multicolor, draw_detections_1c, DEFAULT_COLOR_NAMES
 from pipeline2.utils.dict_utils import get_path_from_dict
@@ -270,41 +270,43 @@ class SimpleSingleChannelSpotDetector:
         if (data.num_configurations <= self.configuration) or (data.num_channels(self.configuration) < max(self.channels)):
             raise ValueError('required images not present. TODO: fail gracefully/skip here')
 
+        # get measurement setting for configuration
+        settings = data.measurement_settings[self.configuration]
+
         locs = []
         for channel, threshold in zip(self.channels, self.thresholds):
 
             # get image for channel, make float
             img = data.data[self.configuration][channel][0, :, :, :]
             img = np.array(img, float)
-            # get measurement setting for channel
-            setts = data.measurement_settings[self.configuration]
+
             # check which dimensions are singleton
             ignore_dim = np.array([d == 1 for d in img.shape])
-            
+
             # if sigma is scalar: repeat for number of 'valid' dimensions
             sigmas = self.sigmas
             if np.isscalar(sigmas):
                 sigmas = [sigmas] * int(len(ignore_dim) - np.sum(ignore_dim))
-            
+
             # discard singleton dimensions for detection
             img_squeezed = np.squeeze(img)
 
             # do detection
-            locs_per_channel = detect_blobs(img_squeezed, sigmas, threshold, False, self.median_threshold,
-                                            self.median_radius, self.refine_detections)
+            locs_for_channel = detect_blobs(img_squeezed, sigmas, threshold, normalize=False, threshold_rel_median=self.median_threshold,
+                                            med_radius=self.median_radius, refine=self.refine_detections)
 
             # re-introduce zeroes to get back to 3-d (if we dropped dims)
             locs_expanded = []
-            for loc in locs_per_channel:
+            for loc in locs_for_channel:
                 loc_expanded = refill_ignored_dimensions(loc, ignore_dim)
                 locs_expanded.append(loc_expanded)
-            locs_per_channel = locs_expanded
+            locs_for_channel = locs_expanded
 
             # accumulate localizations for all channels
-            locs += locs_per_channel
+            locs += locs_for_channel
 
         # to physical coordinates
-        corrected = self.to_world_coordinates(locs, setts, ignore_dim, img.shape) if len(locs) > 1 else []
+        corrected = self.to_world_coordinates(locs, settings, ignore_dim, img.shape) if len(locs) > 1 else []
 
         self.logger.info(self.__class__.__name__ + ': found {} spots. pixel coordinates:'.format(len(locs)))
         for loc in locs:
