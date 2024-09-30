@@ -148,7 +148,7 @@ class CoordinateDetectorWrapper:
         return res
 
     @staticmethod
-    def collect_images_from_measurement_data(data, configurations, channels):
+    def collect_images_from_measurement_data(data, configurations, channels, squeeze=True):
         images = []
         for configuration in configurations:
             if configuration >= data.num_configurations:
@@ -157,7 +157,8 @@ class CoordinateDetectorWrapper:
                 if channel >= data.num_channels(configuration):
                     raise ValueError('Requested channel does not exist in MeasurementData')
                 img = data.data[configuration][channel]
-                img = img.squeeze()
+                if squeeze:
+                    img = img.squeeze()
                 images.append(img)
         return images
 

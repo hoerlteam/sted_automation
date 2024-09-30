@@ -36,14 +36,14 @@ class MaximumAcquisitionsStoppingCriterion:
 
 class TimedStoppingCriterion:
     """
-    stopping criterion to stop after a set amount of time
+    stopping criterion to stop after a set amount of time (given in seconds)
     """
 
-    def __init__(self, maxtime):
-        self.maxtime = maxtime
+    def __init__(self, max_time_sec):
+        self.max_time_sec = max_time_sec
 
     def check(self, pipeline):
-        return time() > (pipeline.starting_time + self.maxtime)
+        return time() > (pipeline.starting_time + self.max_time_sec)
 
     def desc(self, pipeline):
         return 'STOPPING PIPELINE {}: maximum time exceeded'.format(pipeline.name)

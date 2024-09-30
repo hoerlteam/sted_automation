@@ -36,7 +36,7 @@ class SpiralOffsetGenerator:
             return [coordinates]
 
 
-class StagePositionListGenerator:
+class PositionListOffsetGenerator:
 
     # TODO: add possibility to reset index during acquisition?
     #  -> might be necessary to re-image same positions multiple times?
@@ -84,7 +84,7 @@ def __test_main():
     logging.basicConfig(level=logging.INFO)
 
     positions = [[1, 2], [3, 4]]
-    generator = StagePositionListGenerator(positions, return_parameter_dict=True)
+    generator = PositionListOffsetGenerator(positions, return_parameter_dict=True)
     print(generator())
 
     generator = SpiralOffsetGenerator([5, 5], [2, 0, 0], return_parameter_dict=True)

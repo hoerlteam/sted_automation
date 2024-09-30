@@ -1,2 +1,1 @@
 from pipeline2.taskgeneration.taskgeneration import AcquisitionTaskGenerator
-from pipeline2.taskgeneration.parameter_filtering import DefaultLocationKeeper, DefaultLocationRemover

@@ -96,7 +96,7 @@ def detect_blobs(img, sigmas, threshold, normalize=False, threshold_rel_median=3
     peaks = peak_local_max(log_img, threshold_abs=threshold, min_distance=1, exclude_border=False)
 
     # if a nonzero threshold_rel_median is set, make sure that
-    # blob peak is at least x-fold brighter than median withing med_radius
+    # blob peak is at least x-fold brighter than median within med_radius
     if threshold_rel_median:
         median_img = ndimage.median_filter(img, med_radius)
         peaks = [p for p in peaks if img[tuple(p)] > median_img[tuple(p)] * threshold_rel_median]

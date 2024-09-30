@@ -23,7 +23,7 @@ class FOVSettingsGenerator:
         if more than one FOV is specified: whether to create multiple `measurements` or
         multiple `configurations` in one measurement
     """
-    def __init__(self, lengths, pixel_sizes, as_measurements=True):
+    def __init__(self, lengths=None, pixel_sizes=None, as_measurements=True):
 
         # check if parameters are list of lists (or None), wrap single list
         if lengths is not None and not isinstance(lengths[0], Sequence):
@@ -92,9 +92,14 @@ class DifferentFirstFOVSettingsGenerator(FOVSettingsGenerator):
         multiple `configurations` in one measurement
     """
 
-    def __init__(self, lengths, pixel_sizes, first_lengths=None, as_measurements=True):
+    def __init__(self, lengths=None, pixel_sizes=None, first_lengths=None, as_measurements=True):
         self.first_measurement = True
         super().__init__(lengths, pixel_sizes, as_measurements)
+
+        # wrap single vector first_lengths in list if necessary
+        if first_lengths is not None and not isinstance(first_lengths[0], Sequence):
+            first_lengths = [first_lengths]
+
         self.first_lengths = self.lengths if first_lengths is None else first_lengths
 
     def __call__(self):
@@ -251,3 +256,10 @@ class JSONSettingsLoader:
                 res_inner.append((self.measurement_configs[i], self.hardware_configs[i]))
             res.append(res_inner)
         return res
+
+
+if __name__ == '__main__':
+
+    generator = DifferentFirstFOVSettingsGenerator([None, None, None], first_lengths=[15e-6, None, None])
+    print(generator())
+    print(generator())

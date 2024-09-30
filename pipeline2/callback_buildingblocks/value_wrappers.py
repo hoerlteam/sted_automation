@@ -3,7 +3,7 @@ from itertools import cycle
 
 import numpy as np
 
-from pipeline2.taskgeneration.fov_util import group_in_bounding_boxes
+from pipeline2.utils.fov_util import group_in_bounding_boxes
 
 
 class ParameterValuesRepeater:
