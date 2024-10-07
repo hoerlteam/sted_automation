@@ -5,6 +5,7 @@ import numpy as np
 from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
 from pipeline2.detection.display_util import draw_detections_multicolor, draw_detections_1c, DEFAULT_COLOR_NAMES
 from pipeline2.utils.dict_utils import get_path_from_dict
+from pipeline2.data import MeasurementData
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
 
 
@@ -64,31 +65,15 @@ class CoordinateDetectorWrapper:
             res.append(pixel_to_physical_coordinates(detection, offsets, fov_lengths, pixel_sizes, ignore_dim, self.invert_dimensions))
         return res
 
-    @staticmethod
-    def collect_images_from_measurement_data(data, configurations, channels, squeeze=True):
-        images = []
-        for configuration in configurations:
-            if configuration >= data.num_configurations:
-                raise ValueError('Requested configuration does not exist in MeasurementData')
-            for channel in channels:
-                if channel >= data.num_channels(configuration):
-                    raise ValueError('Requested channel does not exist in MeasurementData')
-                img = data.data[configuration][channel]
-                if squeeze:
-                    img = img.squeeze()
-                images.append(img)
-        return images
-
     def __call__(self):
 
         # get list of images we want to process
         data = self.data_source_callback()
-        images = CoordinateDetectorWrapper.collect_images_from_measurement_data(data, self.configurations, self.channels)
+        images = MeasurementData.collect_images_from_measurement_data(data, self.configurations, self.channels)
 
-        # check if any dimensions of first image of reference channel are singleton
-        # NOTE: we ignore the first of the 4 dimensions of the Imspector stack
-        singleton_dims = np.array(data.data[self.reference_configuration][0].shape) == 1
-        singleton_dims = singleton_dims[1:]
+        # check for singleton dimensions
+        # (dropped in squeezed images, but should be refilled with original position in results)
+        singleton_dims = MeasurementData.get_singleton_dimensions(data, self.reference_configuration)
 
         # get settings dict for reference configuration
         measurement_settings = data.measurement_settings[self.reference_configuration]
@@ -98,7 +83,7 @@ class CoordinateDetectorWrapper:
 
         if self.plot_detections:
             # get images of reference configuration
-            imgs_ref_config = CoordinateDetectorWrapper.collect_images_from_measurement_data(data, (self.reference_configuration,), self.channels)
+            imgs_ref_config = MeasurementData.collect_images_from_measurement_data(data, (self.reference_configuration,), self.channels)
             # plot in RGB (multiple channels) or gray (single channel)
             if len(imgs_ref_config) > 1:
                 draw_detections_multicolor(imgs_ref_config, detections, self.normalization_range, None, 3, True, self.plot_colors)
@@ -154,17 +139,17 @@ def pixel_to_physical_coordinates(pixel_coordinates, offset, fov_size, pixel_siz
     :return: x in world coordinates (array-like)
     """
 
+    pixel_coordinates = np.array(pixel_coordinates, dtype=float)
+    offset = np.array(offset, dtype=float)
+    fov_size = np.array(fov_size, dtype=float)
+    pixel_size = np.array(pixel_size, dtype=float)
+
     # default for ignore_dimension: don't ignore any dimension
     if ignore_dimension is None:
         ignore_dimension = np.zeros_like(pixel_coordinates, dtype=bool)
     # default for invert_dimension: don't invert any dimension
     if invert_dimension is None:
         invert_dimension = np.zeros_like(pixel_coordinates, dtype=bool)
-
-    pixel_coordinates = np.array(pixel_coordinates, dtype=float)
-    offset = np.array(offset, dtype=float)
-    fov_size = np.array(fov_size, dtype=float)
-    pixel_size = np.array(pixel_size, dtype=float)
 
     ignore_dimension = np.array(ignore_dimension, dtype=bool)
     invert_dimension = np.array(invert_dimension, dtype=bool)

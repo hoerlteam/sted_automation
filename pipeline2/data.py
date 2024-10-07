@@ -33,6 +33,34 @@ class MeasurementData:
         else:
             return 0
 
+    @staticmethod
+    def collect_images_from_measurement_data(data, configurations, channels, squeeze=True):
+        images = []
+        for configuration in configurations:
+            if configuration >= data.num_configurations:
+                raise ValueError('Requested configuration does not exist in MeasurementData')
+            for channel in channels:
+                if channel >= data.num_channels(configuration):
+                    raise ValueError('Requested channel does not exist in MeasurementData')
+                img = data.data[configuration][channel]
+                if squeeze:
+                    img = img.squeeze()
+                images.append(img)
+        return images
+
+    @staticmethod
+    def get_singleton_dimensions(data, configuration=0, channel=0, ignore_t=True):
+
+        # check if any dimensions of first channel of selected reference configuration are singleton
+        # NOTE: in almost all cases all channels should have the same shape 
+        singleton_dims = np.array(data.data[configuration][channel].shape) == 1
+
+        # NOTE: typically, we want to ignore the first (t) of the 4 dimensions of the Imspector stack
+        if ignore_t:
+            singleton_dims = singleton_dims[1:]
+
+        return singleton_dims
+
 
 class HDF5DataStore(defaultdict):
 
