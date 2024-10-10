@@ -50,9 +50,9 @@ class FOVSettingsGenerator:
         pixel_sizes = self.pixel_sizes
 
         if self.lengths is None:
-            lengths = [[None] * len(self.pixel_sizes)]
+            lengths = [[None] * len(pixel_size_i) for pixel_size_i in self.pixel_sizes]
         if self.pixel_sizes is None:
-            pixel_sizes = [[None] * len(self.lengths)]
+            pixel_sizes = [[None] * len(lengths_i) for lengths_i in self.lengths]
 
         for l, psz in zip(lengths, pixel_sizes):
             res_measurement_i = {}

@@ -1,4 +1,7 @@
 import logging
+
+import numpy as np
+
 from pipeline2.data import MeasurementData
 
 

@@ -163,7 +163,7 @@ class AcquisitionPipeline:
         if len(parent_index) < hierarchy_level:
             raise ValueError("length of parent index must be at least equal to hierarchy level")
 
-        indices = self.get_all_used_indices()
+        indices = self.get_all_used_indices(hierarchy_level)
 
         # get all that start with parent index
         # NOTE: only parts of the parent index up to hierarchy level are considered
