@@ -128,7 +128,12 @@ class ScanModeSettingsGenerator:
     """
 
     def __init__(self, modes, as_measurements=True):
+
+        # if only one mode sting is given, wrap in list
+        if isinstance(modes, str):
+            modes = [modes]
         self.modes = modes
+
         self.as_measurements = as_measurements
 
     def __call__(self):

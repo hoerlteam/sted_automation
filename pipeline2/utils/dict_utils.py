@@ -9,7 +9,7 @@ def dump_json_to_file(d, path):
     helper function to save a dict in JSON-format to a file given by path
     """
     with open(path, 'w') as fd:
-        json.dump(d, fd, indent=2)
+        json.dump(d, fd, indent=1)
 
 
 def merge_dicts(*dicts):
