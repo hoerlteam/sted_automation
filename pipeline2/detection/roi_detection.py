@@ -6,10 +6,12 @@ from skimage.measure import regionprops
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
 from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
 from pipeline2.detection.spot_detection import refill_ignored_dimensions, pixel_to_physical_coordinates
+from pipeline2.detection.display_util import draw_bboxes_multicolor, draw_bboxes_1c, DEFAULT_COLOR_NAMES
 from pipeline2.utils.dict_utils import get_path_from_dict
 from pipeline2.data import MeasurementData
 
 from calmutils.misc import filter_rprops
+
 
 class SegmentationWrapper:
 
@@ -45,7 +47,21 @@ class SegmentationWrapper:
         # dict of property name -> (min, max) ranges for regionprops, default to empty dict
         self.regionprops_filters = {} if regionprops_filters is None else regionprops_filters
 
+        self.normalization_range = (0.5, 99.5)
+        self.plot_colors = DEFAULT_COLOR_NAMES
+
         self.logger = logging.getLogger(__name__)
+
+    def plot_bboxes(self, bboxes):
+        # get images of reference configuration
+        imgs_ref_config = MeasurementData.collect_images_from_measurement_data(data,
+                                (self.reference_configuration,), self.channels)
+        # plot in RGB (multiple channels) or gray (single channel)
+        if len(imgs_ref_config) > 1:
+            draw_bboxes_multicolor(imgs_ref_config, bboxes, self.normalization_range, None, 2, True,
+                                   self.plot_colors)
+        else:
+            draw_bboxes_1c(imgs_ref_config[0], bboxes, self.normalization_range, None, 2, True)
 
     def run_segmentation(self, images):
 
@@ -55,10 +71,6 @@ class SegmentationWrapper:
         for region in regionprops(label_map):
             if filter_rprops(region, self.regionprops_filters):
                 bboxes.append(region.bbox)
-
-        if self.plot_detections:
-            # TODO: plot
-            pass
 
         return bboxes
 
@@ -79,6 +91,9 @@ class SegmentationWrapper:
         # run segmentation, should return sequence of (min_0, min_1, ..., max_0, max_1, ...) bounding boxes
         bboxes = self.run_segmentation(images)
         self.logger.info(f'detected {len(bboxes)} bounding box(es), pixel coordinates: {bboxes}')
+
+        if self.plot_detections:
+            self.plot_bboxes(bboxes)
 
         # we found nothing, return
         if len(bboxes) == 0:
@@ -132,10 +147,10 @@ if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.DEBUG)
 
-    img = np.zeros((1, 1, 201, 201), dtype=float)
+    img = np.zeros((1, 5, 201, 201), dtype=float)
 
-    img[0, 0, 100:101, 100:101] = 2
-    # img[0, 0, 20:25, 50:55] = 10
+    img[0, 0, 100:111, 100:111] = 5
+    img[0, 0, 20:45, 50:85] = 10
 
     off = [0, 0, 0]
     pixel_size = [0.1, 0.1, 0.1]
@@ -158,11 +173,11 @@ if __name__ == '__main__':
         return [r.bbox for r in regionprops(label(img > thresh)[0])]
 
     callback = SegmentationWrapper(data_call, detection_fun, return_parameter_dict=True, detection_kwargs={'thresh': 0.1},
-                                   regionprops_filters={'area': (24, 199)})
-    callback = ROIDetectorWrapper(data_call, detection_rois, return_parameter_dict=True,
-                                   detection_kwargs={'thresh': 1})
+                                   regionprops_filters={'area': (24, 2000)})
+    # callback = ROIDetectorWrapper(data_call, detection_rois, return_parameter_dict=True,
+    #                                detection_kwargs={'thresh': 1})
     callback.invert_dimensions = (False, True, True)
-
+    callback.plot_detections = True
 
     res = callback()
 

@@ -70,3 +70,42 @@ def draw_detections_multicolor(images, coordinates, normalization_range=None, ax
 def draw_detections_1c(im, detections, ran=None, projection_axis=0, siz=3, percentile_range=False):
     draw_detections_multicolor([im], detections, ran, projection_axis, siz, percentile_range,
                                color_names=['gray'], marker_color='red')
+
+
+def draw_bboxes_multicolor(images, bboxes, normalization_range=None, axis=None, box_width=2, percentile_range=False,
+                           color_names=DEFAULT_COLOR_NAMES, box_color='white'):
+
+    # projection axes default: all but last two
+    if axis is None:
+        axis = tuple(np.arange(images[0].ndim - 2, dtype=int))
+
+    # plot projected image
+    fig, ax = plt.subplots()
+    rgb_image = make_rgb_max_projection(images, normalization_range, axis, percentile_range, color_names)
+    ax.imshow(rgb_image)
+
+    for bbox in bboxes:
+
+        # split min_0, min_1, ..., max_0, max_1, ... bbox into mins and maxs
+        mins = np.array(bbox[:len(bbox)//2])
+        maxs = np.array(bbox[len(bbox)//2:])
+        # drop dimensions that we projected in images
+        mins = mins[~np.isin(np.arange(len(mins)), axis)]
+        maxs = maxs[~np.isin(np.arange(len(maxs)), axis)]
+
+        # start of bbox in xy <- inversed min coords
+        xy_start = mins[::-1]
+        # height, width
+        h, w = maxs - mins
+
+        # add to plot
+        rec = plt.Rectangle(xy_start, w, h, edgecolor=box_color, fill=None, linewidth=box_width)
+        ax.add_patch(rec)
+
+    fig.show()
+
+
+def draw_bboxes_1c(image, bboxes, normalization_range=None, axis=None, box_width=2, percentile_range=False):
+    draw_bboxes_multicolor([image], bboxes, normalization_range, axis, box_width, percentile_range,
+                           color_names=['gray'], box_color='red')
+
