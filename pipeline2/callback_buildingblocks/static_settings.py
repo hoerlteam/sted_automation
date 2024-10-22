@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 import json
 from functools import reduce
@@ -263,8 +264,30 @@ class JSONSettingsLoader:
         return res
 
 
+class PinholeSizeSettingsGenerator:
+
+    """
+    SettingsGenerator to adjust the pinhole size
+    """
+
+    valid_pinhole_sizes = (25e-6, 30e-6, 35e-6, 40e-6, 45e-6, 50e-6, 60e-6, 70e-6, 80e-6, 90e-6, 100e-6, 125e-6, 200e-6, 300e-6, 1000e-6, 2000e-6)
+    pinhole_size_setting_path = 'Pinhole/pinhole_size'
+
+    def __init__(self, pinhole_size):
+        if pinhole_size not in self.valid_pinhole_sizes:
+            warnings.warn('Pinhole size {} is not in valid sizes, will result in default size.'.format(pinhole_size))
+        self.pinhole_size = pinhole_size
+
+    def __call__(self):
+        settings = [[(generate_nested_dict(self.pinhole_size, self.pinhole_size_setting_path), {})]]
+        return settings
+
+
 if __name__ == '__main__':
 
     generator = DifferentFirstFOVSettingsGenerator([None, None, None], first_lengths=[15e-6, None, None])
     print(generator())
+    print(generator())
+
+    generator = PinholeSizeSettingsGenerator(25e-6)
     print(generator())
