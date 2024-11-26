@@ -52,7 +52,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
             data_other_i = self.pipeline.data.get(idx, None)
 
             # virtual bbox of other image
-            setts_i = data_other_i.measurementSettings[self.configuration]
+            setts_i = data_other_i.measurement_settings[self.configuration]
             (min_i, len_i) = _virtual_bbox_from_settings(setts_i)
 
             # check overlap
@@ -81,6 +81,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         imgs = [reference_img] + imgs_other
         pixel_off_reference = [0] * len(reference_img.shape)
         pixel_offsets = [pixel_off_reference] + offs_other
+        pixel_offsets = [np.array(offset) for offset in pixel_offsets]
 
         # get transformations
         if self.register_tiles:
@@ -90,6 +91,9 @@ class StitchedNewestDataSelector(NewestDataSelector):
 
         # stitch / fuse
         stitched_mins, stitched_maxs = get_axes_aligned_bbox([img.shape for img in imgs], transforms)
+        stitched_mins = np.floor(stitched_mins).astype(int)
+        stitched_maxs = np.ceil(stitched_maxs).astype(int)
+        
         bbox = list(zip(stitched_mins, stitched_maxs))
         stitched = fuse_image(bbox, imgs, transforms, oob_val=self.background_value)
 

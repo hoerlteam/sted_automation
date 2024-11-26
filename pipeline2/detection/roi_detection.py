@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 from skimage.measure import regionprops
+from matplotlib import pyplot as plt
 
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
 from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
@@ -52,7 +53,7 @@ class SegmentationWrapper:
 
         self.logger = logging.getLogger(__name__)
 
-    def plot_bboxes(self, bboxes):
+    def plot_bboxes(self, data, bboxes):
         # get images of reference configuration
         imgs_ref_config = MeasurementData.collect_images_from_measurement_data(data,
                                 (self.reference_configuration,), self.channels)
@@ -62,6 +63,7 @@ class SegmentationWrapper:
                                    self.plot_colors)
         else:
             draw_bboxes_1c(imgs_ref_config[0], bboxes, self.normalization_range, None, 2, True)
+        plt.show()
 
     def run_segmentation(self, images):
 
@@ -93,7 +95,7 @@ class SegmentationWrapper:
         self.logger.info(f'detected {len(bboxes)} bounding box(es), pixel coordinates: {bboxes}')
 
         if self.plot_detections:
-            self.plot_bboxes(bboxes)
+            self.plot_bboxes(data, bboxes)
 
         # we found nothing, return
         if len(bboxes) == 0:
