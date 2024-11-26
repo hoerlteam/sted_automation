@@ -1,5 +1,8 @@
 import numpy as np
 from calmutils.stitching import stitch
+from calmutils.stitching.fusion import fuse_image
+from calmutils.stitching.transform_helpers import translation_matrix
+from calmutils.stitching.phase_correlation import get_axes_aligned_bbox
 
 from pipeline2.callback_buildingblocks.data_selection import NewestDataSelector
 from pipeline2.data import MeasurementData
@@ -7,6 +10,7 @@ from pipeline2.utils.dict_utils import merge_dicts, get_path_from_dict, generate
 from pipeline2.utils.parameter_constants import (OFFSET_SCAN_PARAMETERS, OFFSET_SCAN_GLOBAL_PARAMETERS,
                                                  OFFSET_STAGE_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
                                                  FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS)
+
 
 STAGE_DIRECTIONS = np.array([-1, 1, 1], dtype=float)
 
@@ -17,22 +21,26 @@ class StitchedNewestDataSelector(NewestDataSelector):
     return virtually stitched data with all neighboring images of the same level 
     """
 
-    def __init__(self, pipeline, level, channel=0, configuration=0, generate_stage_offsets=False):
+    def __init__(self, pipeline, level, channel=0, configuration=0, generate_stage_offsets=False, register_tiles=True):
         super().__init__(pipeline, level)
         self.channel = channel
         self.configuration = configuration
         self.generate_stage_offsets = generate_stage_offsets
+        self.register_tiles = register_tiles
+        # background value for areas with no images in fusion
+        # by setting it to an "unnatural number" like -1, we can distinguish areas that are not imaged yet
+        self.background_value = -1
 
     def __call__(self):
 
         # get the newest data, return None if not present
-        data_newest: MeasurementData = super().__call__()
+        data_newest = super().__call__()
         if data_newest is None:
             return None
 
         # virtual bbox of reference
-        setts = data_newest.measurement_settings[self.configuration]
-        (min_r, len_r) = _virtual_bbox_from_settings(setts)
+        settings_reference = data_newest.measurement_settings[self.configuration]
+        (min_r, len_r) = _virtual_bbox_from_settings(settings_reference)
 
         # get all other indices of same level
         index_length = self.pipeline.hierarchy_levels.index(self.level) + 1
@@ -61,37 +69,49 @@ class StitchedNewestDataSelector(NewestDataSelector):
         offs_other = []
         for data_other_i in data_other:
             setts_i = data_other_i.measurement_settings[self.configuration]
-            off_i = _approx_offset_from_settings(setts, setts_i)
+            off_i = _approx_offset_from_settings(settings_reference, setts_i)
             img_i = np.squeeze(data_other_i.data[self.configuration][self.channel])
 
             imgs_other.append(img_i)
             offs_other.append(off_i)
 
         # get reference image
-        img = np.squeeze(data_newest.data[self.configuration][self.channel])
+        reference_img = np.squeeze(data_newest.data[self.configuration][self.channel])
 
-        # stitch
-        pixel_off_reference = [0] * len(img.shape)
-        stitched, shifts, fused_origin_coords, correlations = stitch(img, imgs_other, pixel_off_reference, offs_other)
-        
-        print('image correlations: {}'.format(correlations))
+        imgs = [reference_img] + imgs_other
+        pixel_off_reference = [0] * len(reference_img.shape)
+        pixel_offsets = [pixel_off_reference] + offs_other
 
-        min_rev = np.array(fused_origin_coords, dtype=float)
-        len_orig_half = np.array(img.shape, dtype=float)/2
+        # get transformations
+        if self.register_tiles:
+            transforms = stitch(imgs, pixel_offsets)
+        else:
+            transforms = [translation_matrix(offset) for offset in pixel_offsets]
+
+        # stitch / fuse
+        stitched_mins, stitched_maxs = get_axes_aligned_bbox([img.shape for img in imgs], transforms)
+        bbox = list(zip(stitched_mins, stitched_maxs))
+        stitched = fuse_image(bbox, imgs, transforms, oob_val=self.background_value)
+
+        min_rev = np.array(stitched_mins, dtype=float)
+        len_orig_half = np.array(reference_img.shape, dtype=float)/2
         len_stitched_half = np.array(stitched.shape, dtype=float)/2
 
         # additional pixel offset of center of stitched image relative to center of reference image
         additional_off = len_stitched_half - (len_orig_half - min_rev)
 
         # to world units
-        offs_stage_global = np.array([get_path_from_dict(setts, path, False) for path in OFFSET_STAGE_GLOBAL_PARAMETERS],
+        offs_stage_global = np.array([get_path_from_dict(settings_reference, path, False) for path in OFFSET_STAGE_GLOBAL_PARAMETERS],
                                      dtype=float)
-        offs_scan = np.array([get_path_from_dict(setts, path, False) for path in OFFSET_SCAN_PARAMETERS],
+        offs_scan = np.array([get_path_from_dict(settings_reference, path, False) for path in OFFSET_SCAN_PARAMETERS],
                              dtype=float)
-        pixel_sizes = np.array([get_path_from_dict(setts, path, False) for path in PIXEL_SIZE_PARAMETERS],
+        pixel_sizes = np.array([get_path_from_dict(settings_reference, path, False) for path in PIXEL_SIZE_PARAMETERS],
                                dtype=float)
 
         additional_off *= pixel_sizes
+        if self.generate_stage_offsets:
+            additional_off *= STAGE_DIRECTIONS
+
         new_len = len_stitched_half * 2 * pixel_sizes
 
         # use stage or scan offsets as basis for dummy offsets
@@ -99,7 +119,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         offset_paths_to_use = OFFSET_STAGE_GLOBAL_PARAMETERS if self.generate_stage_offsets else OFFSET_SCAN_PARAMETERS
 
         # create dummy settings
-        stitch_setts = merge_dicts(setts)
+        stitch_setts = merge_dicts(settings_reference)
         for i, (p_off, p_len) in enumerate(zip(offset_paths_to_use, FOV_LENGTH_PARAMETERS)):
             stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(new_len[i], p_off))
             stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(offs_to_use[i] + additional_off[i], p_len))
