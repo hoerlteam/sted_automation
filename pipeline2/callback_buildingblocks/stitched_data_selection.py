@@ -95,7 +95,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         stitched_maxs = np.ceil(stitched_maxs).astype(int)
         
         bbox = list(zip(stitched_mins, stitched_maxs))
-        stitched = fuse_image(bbox, imgs, transforms, oob_val=self.background_value)
+        stitched = fuse_image(imgs, transforms, bbox=bbox, oob_val=self.background_value)
 
         min_rev = np.array(stitched_mins, dtype=float)
         len_orig_half = np.array(reference_img.shape, dtype=float)/2
