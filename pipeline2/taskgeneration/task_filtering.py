@@ -15,6 +15,7 @@ class AlreadyImagedFOVFilter:
         # init old BBox list
         self.old_bboxes = []
 
+
     def check(self, task):
 
         self.update_old_bboxes()
@@ -70,12 +71,12 @@ class AlreadyImagedFOVFilter:
 
         r_min, r_max = overlap
         
-        # if user decided to ignore z, use only x & y
+        # if user decided to ignore z, use only y & x
         if z_ignore:
-            r_min = r_min[:-1]
-            r_max = r_max[:-1]
-            len1 = len1[:-1]
-            len2 = len2[:-1]
+            r_min = r_min[1:]
+            r_max = r_max[1:]
+            len1 = len1[1:]
+            len2 = len2[1:]
             
         len_ol = np.array(r_max, dtype=float) - np.array(r_min, dtype=float)
         area_o = np.prod(len_ol)
