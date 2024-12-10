@@ -89,7 +89,7 @@ class ParameterFilter:
             return self.keep_parameters()
 
 
-class DefaultLocationKeeper(ParameterFilter):
+class LocationKeeper(ParameterFilter):
     """
     This wrapper can be used to keep just the location-related updates from the
     output of a settings generation callback.
@@ -105,7 +105,7 @@ class DefaultLocationKeeper(ParameterFilter):
         super().__init__(wrapped_callback, remove_parameters=False, acquisition_parameters=LOCATION_PARAMETERS)
 
 
-class DefaultLocationRemover(ParameterFilter):
+class LocationRemover(ParameterFilter):
     """
     This wrapper can be used to remove location-related updates from the output
     of a settings generation callback.
