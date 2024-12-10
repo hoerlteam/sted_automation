@@ -22,11 +22,10 @@ class AlreadyImagedFOVFilter:
 
         # get BBoxes of new task
         bboxes_new = []
-        updates = task.get_all_updates()
-        for update in updates:
-            measUpdates, _ = update
-            measUpdates = merge_dicts(*measUpdates)
-            (min_i, len_i) = _virtual_bbox_from_settings(measUpdates)
+
+        for i in range(len(task)):
+            measurement_updates, _ = task[i]
+            (min_i, len_i) = _virtual_bbox_from_settings(measurement_updates)
             bboxes_new.append((min_i, len_i))
 
         # if any overlap > IOU threshold: return False, else True

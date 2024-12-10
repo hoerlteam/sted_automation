@@ -3,10 +3,14 @@ from time import sleep, time
 
 
 class TimeSeriesDummyAcquisitionTask:
+
     def __init__(self, pipeline_level) -> None:
         self.pipeline_level = pipeline_level
         # setting this to 0 will prevent Pipeline from querying for settings
         self.num_acquisitions = 0
+
+    def __len__(self):
+        return 0
 
 
 class TimeSeriesCallback:

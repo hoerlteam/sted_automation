@@ -64,6 +64,13 @@ class AcquisitionTaskGenerator:
 
 class AcquisitionTask:
 
+    '''
+    Wrapper for (measurement_settings, hardware_settings) dict-pairs
+    representing a measurement (consisting of multiple configurations) to be run.
+    '''
+
+    # TODO: this has minimal added value to just a list of parameter pairs, remove?
+
     def __init__(self, pipeline_level):
         self.pipeline_level = pipeline_level
         self.measurement_updates = []
@@ -80,6 +87,12 @@ class AcquisitionTask:
     @property
     def num_acquisitions(self):
         return len(self.measurement_updates)
+
+    def __len__(self):
+        return self.num_acquisitions
+
+    def __getitem__(self, idx):
+        return self.get_updates(idx, True)
 
     def get_updates(self, n, concatenate=False):
         hardware_updates = self.hardware_updates[n]

@@ -10,6 +10,7 @@ from pipeline2.imspector import ImspectorConnection
 from pipeline2.data import MeasurementData, HDF5DataStore
 from pipeline2.utils.delayed_interrupt import DelayedKeyboardInterrupt
 from pipeline2.stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion
+from pipeline2.taskgeneration.taskgeneration import AcquisitionTask
 
 
 class AcquisitionPipeline:
@@ -98,14 +99,18 @@ class AcquisitionPipeline:
                 # get level of current task
                 current_level = next(hierarchy_level for hierarchy_level, priority_i in self.level_priorities.items() if priority_i == priority)
 
+                # if we have an actual AcquisitionTask wrapper object, get it's delay
+                # otherwise (e.g. we have list of parameters) default to 0
+                delay = acquisition_task.delay if isinstance(acquisition_task, AcquisitionTask) else 0
+
                 # go through updates sequentially (we might have multiple configurations per measurement)
-                for update_index in range(acquisition_task.num_acquisitions):
+                for update_index in range(len(acquisition_task)):
 
                     # make measurement (for first update) or configuration (for subsequent) in Imspector
                     if update_index == 0:
-                        self.imspector_connection.make_measurement_from_task(acquisition_task.get_updates(update_index, True), acquisition_task.delay)
+                        self.imspector_connection.make_measurement_from_task(acquisition_task[update_index], delay)
                     else:
-                        self.imspector_connection.make_configuration_from_task(acquisition_task.get_updates(update_index, True), acquisition_task.delay)
+                        self.imspector_connection.make_configuration_from_task(acquisition_task[update_index], delay)
 
                     # run in Imspector
                     self.imspector_connection.run_current_measurement()
@@ -115,7 +120,7 @@ class AcquisitionPipeline:
 
                 # save and close in Imspector
                 # only save if we actually did any acquisitions
-                if acquisition_task.num_acquisitions > 0:
+                if len(acquisition_task) > 0:
 
                     # get levels to mask (if current level is in there, remove it)
                     levels_to_mask = self._masked_levels_in_filename
