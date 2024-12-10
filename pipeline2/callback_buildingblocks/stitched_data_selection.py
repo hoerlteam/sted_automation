@@ -3,6 +3,7 @@ from calmutils.stitching import stitch
 from calmutils.stitching.fusion import fuse_image
 from calmutils.stitching.transform_helpers import translation_matrix
 from calmutils.stitching.phase_correlation import get_axes_aligned_bbox
+from calmutils.misc.bounding_boxes import get_overlap_bounding_box
 
 from pipeline2.callback_buildingblocks.data_selection import NewestDataSelector
 from pipeline2.data import MeasurementData
@@ -179,32 +180,4 @@ def _approx_offset_from_settings(setts_ref, setts2):
     return pixel_off
 
 
-def get_overlap_bounding_box(length_1, length_2, offset_1=None, offset_2=None):
 
-    # if no offsets are given, assume all zero
-    if offset_1 is None:
-        offset_1 = [0] * len(length_1)
-    if offset_2 is None:
-        offset_2 = [0] * len(length_2)
-
-    res_min = []
-    res_max = []
-
-    for d in range(len(length_1)):
-
-        min_1 = offset_1[d]
-        min_2 = offset_2[d]
-        max_1 = min_1 + length_1[d]
-        max_2 = min_2 + length_2[d]
-
-        min_ol = max(min_1, min_2)
-        max_ol = min(max_1, max_2)
-
-        # no overlap in any one dimension -> return None
-        if max_ol < min_ol:
-            return None
-
-        res_min.append(min_ol)
-        res_max.append(max_ol)
-
-    return res_min, res_max
