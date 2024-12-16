@@ -4,9 +4,10 @@ import numpy as np
 from skimage.measure import regionprops
 from matplotlib import pyplot as plt
 
+from pipeline2.utils.coordinate_utils import pixel_to_physical_coordinates, get_offset_parameters_defaults
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
 from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
-from pipeline2.detection.spot_detection import refill_ignored_dimensions, pixel_to_physical_coordinates
+from pipeline2.detection.spot_detection import refill_ignored_dimensions
 from pipeline2.detection.display_util import draw_bboxes_multicolor, draw_bboxes_1c, DEFAULT_COLOR_NAMES
 from pipeline2.utils.dict_utils import get_path_from_dict
 from pipeline2.data import MeasurementData
@@ -20,17 +21,15 @@ class SegmentationWrapper:
     pixel_size_parameter_paths = PIXEL_SIZE_PARAMETERS
 
     def __init__(self, data_source_callback, detection_function, configurations=(0,), channels=(0,), detection_kwargs=None,
-                 regionprops_filters=None, reference_configuration=None, offset_parameter_paths=OFFSET_SCAN_PARAMETERS,
+                 regionprops_filters=None, reference_configuration=None, offset_parameters='scan',
                  plot_detections=True, return_parameter_dict=True):
 
         self.data_source_callback = data_source_callback
         self.detection_function = detection_function
-        self.offset_parameter_paths = offset_parameter_paths
         self.plot_detections = plot_detections
         self.return_parameter_dict = return_parameter_dict
 
-        # do not invert any dimension by default
-        self.invert_dimensions = (False,) * len(offset_parameter_paths)
+        self.offset_parameter_paths, self.invert_dimensions = get_offset_parameters_defaults(offset_parameters)
 
         # make sure we have a sequence of configurations & channels, even if just a single one is selected
         self.configurations = (configurations,) if np.isscalar(configurations) else configurations
@@ -119,8 +118,8 @@ class SegmentationWrapper:
 
             # refill ignored/singleton dimensions, convert to world units
             mins, maxs = refill_ignored_dimensions(mins, singleton_dims), refill_ignored_dimensions(maxs, singleton_dims)
-            mins = pixel_to_physical_coordinates(mins, offsets, fov_lengths, pixel_sizes, ignore_dimension=singleton_dims, invert_dimension=self.invert_dimensions)
-            maxs = pixel_to_physical_coordinates(maxs, offsets, fov_lengths, pixel_sizes, ignore_dimension=singleton_dims, invert_dimension=self.invert_dimensions)
+            mins = pixel_to_physical_coordinates(mins, offsets, pixel_sizes, fov_lengths, ignore_dimension=singleton_dims, invert_dimension=self.invert_dimensions)
+            maxs = pixel_to_physical_coordinates(maxs, offsets, pixel_sizes, fov_lengths, ignore_dimension=singleton_dims, invert_dimension=self.invert_dimensions)
 
             # min/max to center/length
             roi_center = (mins + maxs) / 2

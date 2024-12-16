@@ -27,7 +27,7 @@ from calmutils.localization import refine_point
 from calmutils.misc import filter_rprops
 
 from pipeline2.utils.dict_utils import get_path_from_dict
-from pipeline2.detection.spot_detection import pixel_to_physical_coordinates
+from pipeline2.utils.coordinate_utils import pixel_to_physical_coordinates
 from pipeline2.utils.parameter_constants import (OFFSET_SCAN_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
                                                  PIXEL_SIZE_PARAMETERS, FOV_LENGTH_PARAMETERS)
 
@@ -288,7 +288,7 @@ class SimpleNucleusMidplaneDetector:
             
             # get offset and fov in world units
             off = np.array([zmid, (ymax+ymin)/2, (xmax+xmin)/2], dtype=float)
-            off = pixel_to_physical_coordinates(off, offsets_old, fov_lengths_old, pixel_sizes_old, ignore_dimensions)
+            off = pixel_to_physical_coordinates(off, offsets_old, pixel_sizes_old, fov_lengths_old, ignore_dimension=ignore_dimensions)
             fov = [None, (ymax - ymin)*pixel_sizes_old[1]*self.expand, (xmax - xmin)*pixel_sizes_old[2]*self.expand]
             
             off[0] += self.manual_offset

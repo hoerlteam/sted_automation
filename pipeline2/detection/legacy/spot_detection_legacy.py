@@ -5,8 +5,9 @@ from matplotlib import pyplot as plt
 
 from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
 from pipeline2.detection.display_util import draw_detections_1c, draw_detections_multicolor
-from pipeline2.detection.spot_detection import pixel_to_physical_coordinates, refill_ignored_dimensions
+from pipeline2.detection.spot_detection import refill_ignored_dimensions
 from pipeline2.detection.spot_util import detect_blobs, detect_blobs_find_pairs
+from pipeline2.utils.coordinate_utils import pixel_to_physical_coordinates
 from pipeline2.utils.dict_utils import get_path_from_dict
 from pipeline2.utils.parameter_constants import OFFSET_SCAN_PARAMETERS, PIXEL_SIZE_PARAMETERS, FOV_LENGTH_PARAMETERS, \
     OFFSET_STAGE_GLOBAL_PARAMETERS
@@ -62,7 +63,7 @@ class SimpleSingleChannelSpotDetector:
         res = []
         for loc in localizations:
             loc = np.array(loc, dtype=float)
-            res.append(pixel_to_physical_coordinates(loc, offset_image, fov_length, psz_image, ignore_dim, self.invert_dimensions))
+            res.append(pixel_to_physical_coordinates(loc, offset_image, psz_image, fov_length, ignore_dimension=ignore_dim, invert_dimension=self.invert_dimensions))
         return res
 
     def __call__(self):
@@ -173,7 +174,7 @@ class LegacySpotPairFinder:
         res = []
         for detection in detections_pixel:
             detection = np.array(detection, dtype=float)
-            res.append(pixel_to_physical_coordinates(detection, offsets, fov_lengths, pixel_sizes, ignore_dim, self.invert_dimensions))
+            res.append(pixel_to_physical_coordinates(detection, offsets, pixel_sizes, fov_lengths, ignore_dimension=ignore_dim, invert_dimension=self.invert_dimensions))
         return res
 
     def __call__(self):

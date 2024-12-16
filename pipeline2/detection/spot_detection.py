@@ -4,6 +4,7 @@ import numpy as np
 
 from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
 from pipeline2.detection.display_util import draw_detections_multicolor, draw_detections_1c, DEFAULT_COLOR_NAMES
+from pipeline2.utils.coordinate_utils import pixel_to_physical_coordinates, get_offset_parameters_defaults
 from pipeline2.utils.dict_utils import get_path_from_dict
 from pipeline2.data import MeasurementData
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
@@ -15,7 +16,7 @@ class CoordinateDetectorWrapper:
     pixel_size_parameter_paths = PIXEL_SIZE_PARAMETERS
 
     def __init__(self, data_source_callback, detection_function, configurations=(0,), channels=(0,), detection_kwargs=None,
-                 reference_configuration=None, offset_parameters=OFFSET_SCAN_PARAMETERS, plot_detections=True):
+                 reference_configuration=None, offset_parameters='scan', plot_detections=True, return_parameter_dict=True):
         """
         Parameters
         ----------
@@ -26,14 +27,14 @@ class CoordinateDetectorWrapper:
         detection_kwargs : keyword arguments to pass to detection_function
         reference_configuration : index of configuration from which to get metadata (e.g. stage/scan position)
         offset_parameters : parameter paths of offset position in measurement settings
+        return_parameter_dict : whether to return ready-to-use parameter dictionary instead of values
         """
 
         self.data_source_callback = data_source_callback
         self.detection_function = detection_function
+        self.return_parameter_dict = return_parameter_dict
 
-        self.offset_parameter_paths = offset_parameters
-        # do not invert any dimension by default
-        self.invert_dimensions = (False,) * len(offset_parameters)
+        self.offset_parameter_paths, self.invert_dimensions = get_offset_parameters_defaults(offset_parameters)
 
         # keyword arguments that are passed to the detection_function call (after the images)
         self.detection_kwargs = {} if detection_kwargs is None else detection_kwargs
@@ -62,7 +63,7 @@ class CoordinateDetectorWrapper:
         res = []
         for detection in detections_pixel:
             detection = np.array(detection, dtype=float)
-            res.append(pixel_to_physical_coordinates(detection, offsets, fov_lengths, pixel_sizes, ignore_dim, self.invert_dimensions))
+            res.append(pixel_to_physical_coordinates(detection, offsets, pixel_sizes, fov_lengths, ignore_dimension=ignore_dim, invert_dimension=self.invert_dimensions))
         return res
 
     def __call__(self):
@@ -104,14 +105,21 @@ class CoordinateDetectorWrapper:
         if not nested_detections:
             detections = [refill_ignored_dimensions(detection_pixel, singleton_dims) for detection_pixel in detections]
             detections_unit = self.to_world_coordinates(detections, measurement_settings, singleton_dims)
-            return detections_unit
+            if self.return_parameter_dict:
+                return ValuesToSettingsDictCallback(lambda: detection_unit, self.offset_parameter_paths)()
+            else:
+                return detections_unit
         else:
             results = []
             for detections_i in detections:
                 detections_i = [refill_ignored_dimensions(detections_i_pixel, singleton_dims) for detections_i_pixel in detections_i]
                 detection_unit = self.to_world_coordinates(detections_i, measurement_settings, singleton_dims)
                 results.append(detection_unit)
-            return results
+
+            if self.return_parameter_dict:
+                return ValuesToSettingsDictCallback(lambda: results, self.offset_parameter_paths, nested_generator_callback=True)()
+            else:
+                return results
 
 
 def refill_ignored_dimensions(coordinates, ignore_dim):
@@ -124,39 +132,6 @@ def refill_ignored_dimensions(coordinates, ignore_dim):
             coords_refilled.append(coordinates[true_coords_i])
             true_coords_i += 1
     return coords_refilled
-
-
-def pixel_to_physical_coordinates(pixel_coordinates, offset, fov_size, pixel_size, ignore_dimension=None, invert_dimension=None):
-    """
-    correct pixel coordinates to physical coordinates usable as Imspector parameters
-
-    :param pixel_coordinates: pixel coordinates (array-like)
-    :param offset: Imspector metadata offset (array-like)
-    :param fov_size: Imspector metadata FOV-length (array-like)
-    :param pixel_size: Imspector metadata pixel-size (array-like)
-    :param ignore_dimension: dimensions to ignore (keep offset) (boolean array-like)
-    :param invert_dimension: dimensions to invert (boolean array-like)
-    :return: x in world coordinates (array-like)
-    """
-
-    pixel_coordinates = np.array(pixel_coordinates, dtype=float)
-    offset = np.array(offset, dtype=float)
-    fov_size = np.array(fov_size, dtype=float)
-    pixel_size = np.array(pixel_size, dtype=float)
-
-    # default for ignore_dimension: don't ignore any dimension
-    if ignore_dimension is None:
-        ignore_dimension = np.zeros_like(pixel_coordinates, dtype=bool)
-    # default for invert_dimension: don't invert any dimension
-    if invert_dimension is None:
-        invert_dimension = np.zeros_like(pixel_coordinates, dtype=bool)
-
-    ignore_dimension = np.array(ignore_dimension, dtype=bool)
-    invert_dimension = np.array(invert_dimension, dtype=bool)
-
-    return (offset  # old offset
-            - np.logical_not(ignore_dimension) * np.where(invert_dimension, -1, 1) * fov_size / 2.0  # minus half length
-            + np.logical_not(ignore_dimension) * np.where(invert_dimension, -1, 1) * pixel_coordinates * pixel_size) # new offset in units
 
 
 if __name__ == '__main__':
