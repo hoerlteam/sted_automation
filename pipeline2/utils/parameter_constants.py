@@ -27,4 +27,11 @@ PIXEL_SIZE_PARAMETERS = ('ExpControl/scan/range/z/psz',
                          'ExpControl/scan/range/y/psz',
                          'ExpControl/scan/range/x/psz')
 
+# directions of stage and scan coordinates relative to image pixels
+# 1: larger pixel coord <-> larger world coord
+# -1: larger pixel coord <-> smaller world coord
+# NOTE: axes may be flipped in Imspector, Lightbox tiling seems to require flipped x-stage coords
+DIRECTION_STAGE = (1, 1, -1)
+DIRECTION_SCAN = (1, 1, 1)
+
 
