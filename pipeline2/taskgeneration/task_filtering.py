@@ -1,5 +1,5 @@
-from pipeline2.callback_buildingblocks.stitched_data_selection import virtual_bbox_from_settings
-
+from pipeline2.utils.coordinate_utils import virtual_bbox_from_settings
+from calmutils.misc.bounding_boxes import get_iou
 
 class AlreadyImagedFOVFilter:
 
@@ -11,7 +11,6 @@ class AlreadyImagedFOVFilter:
 
         # init old BBox list
         self.old_bboxes = []
-
 
     def check(self, task):
 
@@ -32,7 +31,7 @@ class AlreadyImagedFOVFilter:
         for bbox in bboxes_new:
             for bbox_old in self.old_bboxes:
                 #print('check against old BBOX IOU: {}'.format(self.get_iou(bbox, bbox_old, self.ignore_z)))
-                if self.get_iou(bbox, bbox_old) > self.iou_thresh:
+                if get_iou(bbox, bbox_old) > self.iou_thresh:
                     return False
         return True
 

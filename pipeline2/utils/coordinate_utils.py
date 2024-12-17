@@ -1,6 +1,7 @@
 import numpy as np
 
-from pipeline2.utils.parameter_constants import OFFSET_STAGE_GLOBAL_PARAMETERS, OFFSET_SCAN_PARAMETERS, DIRECTION_SCAN, DIRECTION_STAGE
+from pipeline2.utils.dict_utils import get_parameter_value_array_from_dict
+from pipeline2.utils.parameter_constants import FOV_LENGTH_PARAMETERS, OFFSET_SCAN_GLOBAL_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS, OFFSET_SCAN_PARAMETERS, DIRECTION_SCAN, DIRECTION_STAGE, OFFSET_STAGE_PARAMETERS, PIXEL_SIZE_PARAMETERS
 
 
 def pixel_to_physical_coordinates(pixel_coordinates, offset, pixel_size, fov_size=None, shape=None, ignore_dimension=None, invert_dimension=None):
@@ -84,3 +85,43 @@ def refill_ignored_dimensions(coordinates, ignored_dimensions, fill_value=0.0):
             coords_refilled.append(coordinates[true_coords_idx])
             true_coords_idx += 1
     return coords_refilled
+
+
+def virtual_bbox_from_settings(settings):
+    """
+    Get a minimum, FOV length bounding box from Imspector settings
+    NOTE: we flip offests of axes that do not move in same direction as image pixel coordinates
+    that way, two bounding boxes can be checked for overlap, but the virtual origin does not correspond to the real location
+    """
+
+    # direction tuples to arrays
+    direction_scan, direction_stage = np.array(list(DIRECTION_SCAN), dtype=float), np.array(list(DIRECTION_STAGE), dtype=float)
+
+    offs_stage = get_parameter_value_array_from_dict(settings, OFFSET_STAGE_PARAMETERS)
+    offs_stage_global = get_parameter_value_array_from_dict(settings, OFFSET_STAGE_GLOBAL_PARAMETERS)
+    offs_stage_total = offs_stage + offs_stage_global
+
+    offs_scan = get_parameter_value_array_from_dict(settings, OFFSET_SCAN_PARAMETERS)
+    offs_scan_global = get_parameter_value_array_from_dict(settings, OFFSET_SCAN_GLOBAL_PARAMETERS)
+    offs_scan_total = offs_scan + offs_scan_global
+
+    fov_len = get_parameter_value_array_from_dict(settings, FOV_LENGTH_PARAMETERS)
+
+    offset_combined = offs_stage_total * direction_stage + offs_scan_total * direction_scan
+    start = offset_combined - fov_len / 2
+
+    return start, fov_len
+
+
+def approximate_pixel_shift_from_settings(settings_reference, settings_moving):
+    """
+    Get the approximate pixel offset of image with Imspector settings settings_moving from reference image with settings_reference
+    """
+
+    start_moving, _ = virtual_bbox_from_settings(settings_moving)
+    start_reference, _ = virtual_bbox_from_settings(settings_reference)
+
+    pixel_sizes = get_parameter_value_array_from_dict(settings_reference, PIXEL_SIZE_PARAMETERS)
+    pixel_off = ((start_moving - start_reference) / pixel_sizes).astype(int)
+
+    return pixel_off
