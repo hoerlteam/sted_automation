@@ -53,7 +53,9 @@ def get_offset_parameters_defaults(offset_parameters='scan'):
     elif offset_parameters == 'stage':
         offset_parameter_paths = OFFSET_STAGE_GLOBAL_PARAMETERS
     else:
-        offset_parameter_paths = offset_parameters
+        offset_parameter_paths = offset_parameters # use as-is if not preset
+
+    # TODO: raise exception on wrong input (not sequence of strings)?
 
     # boolean tuple of inverted dimensions
     # use default stage / scan directions
@@ -66,3 +68,19 @@ def get_offset_parameters_defaults(offset_parameters='scan'):
         invert_dimensions = (False,) * len(offset_parameters)
 
     return offset_parameter_paths, invert_dimensions
+
+
+def refill_ignored_dimensions(coordinates, ignored_dimensions, fill_value=0.0):
+    """
+    Given a vector coordinates and a (longer) boolean vector,
+    add fill_value to the coordinates at positions where ignored_dimesnions is True
+    """
+    coords_refilled = []
+    true_coords_idx = 0
+    for is_ignored_dim in ignored_dimensions:
+        if is_ignored_dim:
+            coords_refilled.append(fill_value)
+        else:
+            coords_refilled.append(coordinates[true_coords_idx])
+            true_coords_idx += 1
+    return coords_refilled

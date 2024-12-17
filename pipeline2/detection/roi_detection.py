@@ -7,9 +7,9 @@ from matplotlib import pyplot as plt
 from pipeline2.utils.coordinate_utils import pixel_to_physical_coordinates, get_offset_parameters_defaults
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
 from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
-from pipeline2.detection.spot_detection import refill_ignored_dimensions
+from pipeline2.utils.coordinate_utils import refill_ignored_dimensions
 from pipeline2.detection.display_util import draw_bboxes_multicolor, draw_bboxes_1c, DEFAULT_COLOR_NAMES
-from pipeline2.utils.dict_utils import get_path_from_dict
+from pipeline2.utils.dict_utils import get_parameter_value_array_from_dict
 from pipeline2.data import MeasurementData
 
 from calmutils.misc import filter_rprops
@@ -101,9 +101,9 @@ class SegmentationWrapper:
             return []
 
         # get reference frame in world units
-        offsets = np.array([get_path_from_dict(measurement_settings, path, False) for path in self.offset_parameter_paths], dtype=float)
-        fov_lengths = np.array([get_path_from_dict(measurement_settings, path, False) for path in self.fov_length_parameter_paths], dtype=float)
-        pixel_sizes = np.array([get_path_from_dict(measurement_settings, path, False) for path in self.pixel_size_parameter_paths], dtype=float)
+        offsets = get_parameter_value_array_from_dict(measurement_settings, self.offset_parameter_paths)
+        fov_lengths = get_parameter_value_array_from_dict(measurement_settings, self.fov_length_parameter_paths)
+        pixel_sizes = get_parameter_value_array_from_dict(measurement_settings, self.pixel_size_parameter_paths)
 
         self.logger.debug(f'reference offsets: {offsets}')
         self.logger.debug(f'reference fov lengths: {fov_lengths}')

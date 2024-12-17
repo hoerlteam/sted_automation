@@ -7,13 +7,12 @@ from calmutils.misc.bounding_boxes import get_overlap_bounding_box
 
 from pipeline2.callback_buildingblocks.data_selection import NewestDataSelector
 from pipeline2.data import MeasurementData
-from pipeline2.utils.dict_utils import merge_dicts, get_path_from_dict, generate_nested_dict
+from pipeline2.utils.dict_utils import merge_dicts, generate_nested_dict, get_parameter_value_array_from_dict
+from pipeline2.utils.coordinate_utils import get_offset_parameters_defaults
 from pipeline2.utils.parameter_constants import (OFFSET_SCAN_PARAMETERS, OFFSET_SCAN_GLOBAL_PARAMETERS,
                                                  OFFSET_STAGE_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS,
-                                                 FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS)
-
-
-STAGE_DIRECTIONS = np.array([-1, 1, 1], dtype=float)
+                                                 FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS,
+                                                 DIRECTION_SCAN, DIRECTION_STAGE)
 
 
 class StitchedNewestDataSelector(NewestDataSelector):
@@ -22,11 +21,14 @@ class StitchedNewestDataSelector(NewestDataSelector):
     return virtually stitched data with all neighboring images of the same level 
     """
 
-    def __init__(self, pipeline, level, channel=0, configuration=0, generate_stage_offsets=False, register_tiles=True):
+    def __init__(self, pipeline, level, channel=0, configuration=0, offset_parameters='scan', register_tiles=True):
         super().__init__(pipeline, level)
         self.channel = channel
         self.configuration = configuration
-        self.generate_stage_offsets = generate_stage_offsets
+        
+        self.offset_parameter_paths, inverted_dimensions = get_offset_parameters_defaults(offset_parameters)
+        self.offset_directions = np.where(inverted_dimensions, -1, 1)
+
         self.register_tiles = register_tiles
         # background value for areas with no images in fusion
         # by setting it to an "unnatural number" like -1, we can distinguish areas that are not imaged yet
@@ -41,7 +43,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
 
         # virtual bbox of reference
         settings_reference = data_newest.measurement_settings[self.configuration]
-        (min_r, len_r) = _virtual_bbox_from_settings(settings_reference)
+        (min_r, len_r) = virtual_bbox_from_settings(settings_reference)
 
         # get all other indices of same level
         index_length = self.pipeline.hierarchy_levels.index(self.level) + 1
@@ -54,7 +56,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
 
             # virtual bbox of other image
             setts_i = data_other_i.measurement_settings[self.configuration]
-            (min_i, len_i) = _virtual_bbox_from_settings(setts_i)
+            (min_i, len_i) = virtual_bbox_from_settings(setts_i)
 
             # check overlap
             overlap = (get_overlap_bounding_box(len_r, len_i, min_r, min_i)) is not None
@@ -70,7 +72,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
         offs_other = []
         for data_other_i in data_other:
             setts_i = data_other_i.measurement_settings[self.configuration]
-            off_i = _approx_offset_from_settings(settings_reference, setts_i)
+            off_i = approximate_pixel_shift_from_settings(settings_reference, setts_i)
             img_i = np.squeeze(data_other_i.data[self.configuration][self.channel])
 
             imgs_other.append(img_i)
@@ -106,26 +108,19 @@ class StitchedNewestDataSelector(NewestDataSelector):
         additional_off = len_stitched_half - (len_orig_half - min_rev)
 
         # to world units
-        offs_stage_global = np.array([get_path_from_dict(settings_reference, path, False) for path in OFFSET_STAGE_GLOBAL_PARAMETERS],
-                                     dtype=float)
-        offs_scan = np.array([get_path_from_dict(settings_reference, path, False) for path in OFFSET_SCAN_PARAMETERS],
-                             dtype=float)
-        pixel_sizes = np.array([get_path_from_dict(settings_reference, path, False) for path in PIXEL_SIZE_PARAMETERS],
-                               dtype=float)
+        pixel_sizes = get_parameter_value_array_from_dict(settings_reference, PIXEL_SIZE_PARAMETERS)
 
         additional_off *= pixel_sizes
-        if self.generate_stage_offsets:
-            additional_off *= STAGE_DIRECTIONS
+        additional_off *= self.offset_directions
 
         new_len = len_stitched_half * 2 * pixel_sizes
 
         # use stage or scan offsets as basis for dummy offsets
-        offs_to_use = offs_stage_global if self.generate_stage_offsets else offs_scan
-        offset_paths_to_use = OFFSET_STAGE_GLOBAL_PARAMETERS if self.generate_stage_offsets else OFFSET_SCAN_PARAMETERS
+        offs_to_use = get_parameter_value_array_from_dict(settings_reference, self.offset_parameter_paths)
 
         # create dummy settings
         stitch_setts = merge_dicts(settings_reference)
-        for i, (p_off, p_len) in enumerate(zip(offset_paths_to_use, FOV_LENGTH_PARAMETERS)):
+        for i, (p_off, p_len) in enumerate(zip(self.offset_parameter_paths, FOV_LENGTH_PARAMETERS)):
             stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(new_len[i], p_off))
             stitch_setts = merge_dicts(stitch_setts, generate_nested_dict(offs_to_use[i] + additional_off[i], p_len))
 
@@ -146,38 +141,41 @@ class StitchedNewestDataSelector(NewestDataSelector):
         return res
 
 
-def _virtual_bbox_from_settings(settings):
+def virtual_bbox_from_settings(settings):
     """
-    Get a minimum and FOV length from Imspector settings
-    NB: since we move `down` in stack, we calculate a virtual origin here
-        that way, two bounding boxes can be checked for overlap, but the virtual origin does not correspond to the real location
+    Get a minimum, FOV length bounding box from Imspector settings
+    NOTE: we flip offests of axes that do not move in same direction as image pixel coordinates
+    that way, two bounding boxes can be checked for overlap, but the virtual origin does not correspond to the real location
     """
-    offs_stage = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_STAGE_PARAMETERS], dtype=float)
-    offs_stage_global = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_STAGE_GLOBAL_PARAMETERS], dtype=float)
 
-    offs_scan = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_SCAN_PARAMETERS], dtype=float)
-    offs_scan_global = np.array([get_path_from_dict(settings, path, False) for path in OFFSET_SCAN_GLOBAL_PARAMETERS], dtype=float)
+    # direction tuples to arrays
+    direction_scan, direction_stage = np.array(list(DIRECTION_SCAN), dtype=float), np.array(list(DIRECTION_STAGE), dtype=float)
 
-    fov_len = np.array([get_path_from_dict(settings, path, False) for path in FOV_LENGTH_PARAMETERS], dtype=float)
+    offs_stage = get_parameter_value_array_from_dict(settings, OFFSET_STAGE_PARAMETERS)
+    offs_stage_global = get_parameter_value_array_from_dict(settings, OFFSET_STAGE_GLOBAL_PARAMETERS)
+    offs_stage_total = offs_stage + offs_stage_global
 
-    offs = (offs_stage + offs_stage_global) * STAGE_DIRECTIONS + offs_scan + offs_scan_global
-    start = offs - fov_len / 2
+    offs_scan = get_parameter_value_array_from_dict(settings, OFFSET_SCAN_PARAMETERS)
+    offs_scan_global = get_parameter_value_array_from_dict(settings, OFFSET_SCAN_GLOBAL_PARAMETERS)
+    offs_scan_total = offs_scan + offs_scan_global
+
+    fov_len = get_parameter_value_array_from_dict(settings, FOV_LENGTH_PARAMETERS)
+
+    offset_combined = offs_stage_total * direction_stage + offs_scan_total * direction_scan
+    start = offset_combined - fov_len / 2
 
     return start, fov_len
 
 
-def _approx_offset_from_settings(setts_ref, setts2):
+def approximate_pixel_shift_from_settings(settings_reference, settings_moving):
     """
-    Get the approximate pixel offset of image with Imspector settings setts2 from reference image with setts_ref
+    Get the approximate pixel offset of image with Imspector settings settings_moving from reference image with settings_reference
     """
 
-    start_i, _ = _virtual_bbox_from_settings(setts2)
-    start_r, _ = _virtual_bbox_from_settings(setts_ref)
+    start_moving, _ = virtual_bbox_from_settings(settings_moving)
+    start_reference, _ = virtual_bbox_from_settings(settings_reference)
 
-    pixel_sizes = np.array([get_path_from_dict(setts_ref, path, False) for path in PIXEL_SIZE_PARAMETERS], dtype=float)
-    pixel_off = ((start_i - start_r) / pixel_sizes).astype(int)
+    pixel_sizes = get_parameter_value_array_from_dict(settings_reference, PIXEL_SIZE_PARAMETERS)
+    pixel_off = ((start_moving - start_reference) / pixel_sizes).astype(int)
 
     return pixel_off
-
-
-

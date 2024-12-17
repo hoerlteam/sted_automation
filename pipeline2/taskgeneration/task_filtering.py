@@ -1,8 +1,4 @@
-import numpy as np
-
-from calmutils.misc.bounding_boxes import get_iou
-from pipeline2.utils.dict_utils import merge_dicts
-from pipeline2.callback_buildingblocks.stitched_data_selection import _virtual_bbox_from_settings
+from pipeline2.callback_buildingblocks.stitched_data_selection import virtual_bbox_from_settings
 
 
 class AlreadyImagedFOVFilter:
@@ -26,7 +22,7 @@ class AlreadyImagedFOVFilter:
 
         for i in range(len(task)):
             measurement_updates, _ = task[i]
-            (min_i, len_i) = _virtual_bbox_from_settings(measurement_updates)
+            (min_i, len_i) = virtual_bbox_from_settings(measurement_updates)
             if self.z_ignore:
                     min_i = min_i[1:]
                     len_i = len_i[1:]
@@ -55,7 +51,7 @@ class AlreadyImagedFOVFilter:
             # go through all confs
             for setts_i in data_other_i.measurementSettings:
                 # virtual bbox of image
-                (min_i, len_i) = _virtual_bbox_from_settings(setts_i)
+                (min_i, len_i) = virtual_bbox_from_settings(setts_i)
                 if self.z_ignore:
                     min_i = min_i[1:]
                     len_i = len_i[1:]

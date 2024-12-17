@@ -5,7 +5,8 @@ import numpy as np
 from pipeline2.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
 from pipeline2.detection.display_util import draw_detections_multicolor, draw_detections_1c, DEFAULT_COLOR_NAMES
 from pipeline2.utils.coordinate_utils import pixel_to_physical_coordinates, get_offset_parameters_defaults
-from pipeline2.utils.dict_utils import get_path_from_dict
+from pipeline2.utils.coordinate_utils import refill_ignored_dimensions
+from pipeline2.utils.dict_utils import get_parameter_value_array_from_dict
 from pipeline2.data import MeasurementData
 from pipeline2.utils.parameter_constants import (PIXEL_SIZE_PARAMETERS, OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS)
 
@@ -54,11 +55,11 @@ class CoordinateDetectorWrapper:
         self.normalization_range = (0.5, 99.5)
         self.plot_colors = DEFAULT_COLOR_NAMES
 
-    def to_world_coordinates(self, detections_pixel, setts, ignore_dim):
+    def to_world_coordinates(self, detections_pixel, measurement_settings, ignore_dim):
 
-        offsets = np.array([get_path_from_dict(setts, path, False) for path in self.offset_parameter_paths], dtype=float)
-        fov_lengths = np.array([get_path_from_dict(setts, path, False) for path in self.fov_length_parameter_paths], dtype=float)
-        pixel_sizes = np.array([get_path_from_dict(setts, path, False) for path in self.pixel_size_parameter_paths], dtype=float)
+        offsets = get_parameter_value_array_from_dict(measurement_settings, self.offset_parameter_paths)
+        fov_lengths = get_parameter_value_array_from_dict(measurement_settings, self.fov_length_parameter_paths)
+        pixel_sizes = get_parameter_value_array_from_dict(measurement_settings, self.pixel_size_parameter_paths)
 
         res = []
         for detection in detections_pixel:
@@ -120,18 +121,6 @@ class CoordinateDetectorWrapper:
                 return ValuesToSettingsDictCallback(lambda: results, self.offset_parameter_paths, nested_generator_callback=True)()
             else:
                 return results
-
-
-def refill_ignored_dimensions(coordinates, ignore_dim):
-    coords_refilled = []
-    true_coords_i = 0
-    for d_ignored in ignore_dim:
-        if d_ignored:
-            coords_refilled.append(0.0)
-        else:
-            coords_refilled.append(coordinates[true_coords_i])
-            true_coords_i += 1
-    return coords_refilled
 
 
 if __name__ == '__main__':

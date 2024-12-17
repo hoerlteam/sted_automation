@@ -2,7 +2,11 @@ import warnings
 from time import sleep, time
 
 
-class TimeSeriesDummyAcquisitionTask:
+class DummyAcquisitionTask:
+
+    """
+    A dummy acquisition task with no measurements / configurations that can be added to the queue to trigger callbacks.
+    """
 
     def __init__(self, pipeline_level) -> None:
         self.pipeline_level = pipeline_level
@@ -53,4 +57,4 @@ class TimeSeriesCallback:
 
         # only enqueue dummy acquisition task if there is a next time point
         if self.current_time_point_idx <= len(self.time_points):
-            return self.pipeline_level, TimeSeriesDummyAcquisitionTask(self.pipeline_level)
+            return self.pipeline_level, DummyAcquisitionTask(self.pipeline_level)

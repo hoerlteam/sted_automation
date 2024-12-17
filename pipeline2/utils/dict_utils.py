@@ -3,6 +3,8 @@ import typing as collections
 from copy import deepcopy
 from math import isclose
 
+import numpy as np
+
 
 def dump_json_to_file(d, path):
     """
@@ -177,6 +179,14 @@ def generate_nested_dict(data, path, sep='/'):
     else:
         # add one level to result, then recurse
         return {first_path: generate_nested_dict(data, sep.join(paths[1:]))}
+
+
+def get_parameter_value_array_from_dict(settings_dict, parameter_paths, dtype=float):
+    """
+    extract multiple parameters of given paths from settings dictionary
+    will be returned as NumPy array (of given dtype, float by default)
+    """
+    np.array([get_path_from_dict(settings_dict, path, keep_structure=False) for path in parameter_paths], dtype=dtype)
 
 
 def diff_dicts(d1, d2, separator='/'):
