@@ -1,0 +1,1 @@
+from autosted.taskgeneration.taskgeneration import AcquisitionTaskGenerator

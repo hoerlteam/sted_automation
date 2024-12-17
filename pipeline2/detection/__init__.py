@@ -1,2 +1,0 @@
-from pipeline2.detection.autofocus import SimpleFocusPlaneDetector
-#from pipeline2.detection.nucleus_detection import SimpleNucleusMidplaneDetector

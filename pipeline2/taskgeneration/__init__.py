@@ -1,1 +1,0 @@
-from pipeline2.taskgeneration.taskgeneration import AcquisitionTaskGenerator

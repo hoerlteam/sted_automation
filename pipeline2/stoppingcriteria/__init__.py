@@ -1,1 +1,0 @@
-from pipeline2.stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion, TimedStoppingCriterion, MaximumAcquisitionsStoppingCriterion
