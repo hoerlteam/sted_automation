@@ -8,7 +8,7 @@ from autosted.callback_buildingblocks.coordinate_value_wrappers import ValuesToS
 class SpiralOffsetGenerator:
 
     def __init__(self, move_size, start_position, z_position=None,
-                 return_parameter_dict=False, offset_parameter_keys=OFFSET_STAGE_GLOBAL_PARAMETERS):
+                 return_parameter_dict=True, offset_parameter_keys=OFFSET_STAGE_GLOBAL_PARAMETERS):
 
         # if we get length-3 start coordinates, assume zyx and use only the second two
         # if no z position is given, re-use the one from start coords
@@ -42,7 +42,7 @@ class PositionListOffsetGenerator:
     #  -> might be necessary to re-image same positions multiple times?
 
     def __init__(self, positions, auto_add_empty_z=True,
-                 return_parameter_dict=False, offset_parameter_keys=OFFSET_STAGE_GLOBAL_PARAMETERS):
+                 return_parameter_dict=True, offset_parameter_keys=OFFSET_STAGE_GLOBAL_PARAMETERS):
 
         self.positions = positions
         self.auto_add_empty_z = auto_add_empty_z

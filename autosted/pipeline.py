@@ -17,7 +17,14 @@ class AcquisitionPipeline:
     """
     the main class of an acquisition pipeline run
     """
-    def __init__(self, name, path, hierarchy_levels, imspector=None, save_combined_hdf5=True, level_priorities=None):
+    def __init__(self,
+                 data_save_path,
+                 hierarchy_levels,
+                 imspector=None,
+                 save_combined_hdf5=False,
+                 level_priorities=None,
+                 name='automatic-acquisition',
+                 file_prefix=None):
 
         self.name = name
         self.hierarchy_levels = hierarchy_levels
@@ -53,8 +60,8 @@ class AcquisitionPipeline:
         self.logger = logging.getLogger(__name__)
 
         # set up file name handling and create output directory
-        self.base_path = path
-        self.filename_handler = FilenameHandler(self.base_path, self.hierarchy_levels)
+        self.base_path = os.path.abspath(data_save_path)
+        self.filename_handler = FilenameHandler(self.base_path, self.hierarchy_levels, file_prefix)
         # make directory if it does not exist yet
         if not os.path.exists(self.base_path):
             os.makedirs(self.base_path)
@@ -196,7 +203,7 @@ class AcquisitionPipeline:
         indices = indices_in_queue.union(indices_in_data)
         return indices
 
-    def enqueue_task(self, level, task, parent_index, reuse_parent_index=False):
+    def enqueue_task(self, level, task, parent_index=(), reuse_parent_index=False):
 
         new_priority = next(priority for hierarchy_level, priority in self.level_priorities.items() if hierarchy_level == level)
         new_hierarchy_index = self.hierarchy_levels.index(level)
