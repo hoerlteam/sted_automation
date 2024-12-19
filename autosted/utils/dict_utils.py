@@ -186,7 +186,7 @@ def get_parameter_value_array_from_dict(settings_dict, parameter_paths, dtype=fl
     extract multiple parameters of given paths from settings dictionary
     will be returned as NumPy array (of given dtype, float by default)
     """
-    np.array([get_path_from_dict(settings_dict, path, keep_structure=False) for path in parameter_paths], dtype=dtype)
+    return np.array([get_path_from_dict(settings_dict, path, keep_structure=False) for path in parameter_paths], dtype=dtype)
 
 
 def diff_dicts(d1, d2, separator='/'):
