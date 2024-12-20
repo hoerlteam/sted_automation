@@ -43,12 +43,12 @@ class AlreadyImagedFOVFilter:
         self.old_bboxes.clear()
 
         # get all other indices of same level
-        len_of_idx = self.pipeline.hierarchy_levels.levels.index(self.lvl) + 1
+        len_of_idx = self.pipeline.hierarchy_levels.index(self.lvl) + 1
         idxes_same_level = [idx for idx in self.pipeline.data.keys() if len(idx) == len_of_idx]
         for idx in idxes_same_level:
             data_other_i = self.pipeline.data.get(idx, None)
             # go through all confs
-            for setts_i in data_other_i.measurementSettings:
+            for setts_i in data_other_i.measurement_settings:
                 # virtual bbox of image
                 (min_i, len_i) = virtual_bbox_from_settings(setts_i)
                 if self.z_ignore:
