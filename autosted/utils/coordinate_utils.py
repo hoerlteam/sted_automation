@@ -61,9 +61,9 @@ def get_offset_parameters_defaults(offset_parameters='scan'):
     # boolean tuple of inverted dimensions
     # use default stage / scan directions
     if offset_parameters == 'scan':
-        invert_dimensions = (direction < 0 for direction in DIRECTION_SCAN)
+        invert_dimensions = tuple(direction < 0 for direction in DIRECTION_SCAN)
     elif offset_parameters == 'stage':
-        invert_dimensions = (direction < 0 for direction in DIRECTION_STAGE)
+        invert_dimensions = tuple(direction < 0 for direction in DIRECTION_STAGE)
     else:
         # if no preset is selected do not invert any dimension by default
         invert_dimensions = (False,) * len(offset_parameters)
