@@ -20,7 +20,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-    "CalmUtils @ git+http://github.com/CALM-LMU/CalmUtils.git"
+    "CalmUtils @ git+http://github.com/CALM-LMU/CalmUtils.git@0.0.22"
 ]
 
 [project.urls]
