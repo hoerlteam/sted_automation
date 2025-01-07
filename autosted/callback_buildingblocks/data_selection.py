@@ -7,11 +7,30 @@ class NewestDataSelector:
     Callback that will return the newest MeasurementData at a given hierarchy level from the pipeline
     """
 
-    def __init__(self, pipeline, level):
+    def __init__(self, pipeline=None, level=None):
         self.pipeline: AcquisitionPipeline = pipeline
         self.level = level
 
     def __call__(self):
+
+        # no pipeline reference was given
+        # -> use currently running instance at first callback usage
+        if self.pipeline is None:
+            if AcquisitionPipeline.__class__.running_instance is None:
+                raise ValueError("No running AcquisitionPipeline found")
+            self.pipeline = AcquisitionPipeline.__class__.running_instance
+
+        # no level was given
+        # -> use newest data level at first callback usage
+        if self.level is None:
+            # no data yet, postpone
+            if len(self.pipeline.data) == 0:
+                return None
+            # sort indices -> largest one should be newest
+            newest_data_idx = sorted(self.pipeline.data.keys())[-1]
+            # index length to corresponding level
+            self.level = self.pipeline.hierarchy_levels[len(newest_data_idx) - 1]
+
         
         # length of indices of same level: position in levels of pipeline + 1
         index_length = self.pipeline.hierarchy_levels.index(self.level) + 1

@@ -17,6 +17,10 @@ class AcquisitionPipeline:
     """
     the main class of an acquisition pipeline run
     """
+
+    # keep reference to currently running instance
+    running_instance = None
+
     def __init__(self,
                  data_save_path,
                  hierarchy_levels,
@@ -82,6 +86,11 @@ class AcquisitionPipeline:
         """
         run the pipeline
         """
+
+        # this instance is now the currently running one
+        if self.__class__.running_instance is not None:
+            self.logger.warning("Another pipeline instance is currently running, this is likely to cause conflicts.")
+        self.__class__.running_instance = self
 
         # we use this context manager to handle interrupts,
         # so we can finish the acquisition we are in before stopping
@@ -165,6 +174,9 @@ class AcquisitionPipeline:
 
             self.logger.info('PIPELINE {} FINISHED'.format(self.name))
 
+            # unset currently running instance
+            self.__class__.running_instance = None
+
     def get_next_free_index(self, hierarchy_level, parent_index=()):
         """
         get the next free index for a task to be added to the queue
@@ -213,7 +225,7 @@ class AcquisitionPipeline:
             new_index = parent_index + (parent_index[-1],)
             # check if it already exists, warn of overwrite in that case
             if new_index in self.get_all_used_indices(new_hierarchy_index):
-                self.logger.warn('Reusing index {new_index}, data will be overwritten!')
+                self.logger.warning('Reusing index {new_index}, data will be overwritten!')
         else:
             new_index = self.get_next_free_index(new_hierarchy_index, parent_index)
 

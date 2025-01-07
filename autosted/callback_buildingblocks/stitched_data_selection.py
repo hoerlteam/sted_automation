@@ -22,7 +22,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
     return virtually stitched data with all neighboring images of the same level 
     """
 
-    def __init__(self, pipeline, level, channel=0, configuration=0, offset_parameters='scan', register_tiles=True):
+    def __init__(self, pipeline=None, level=None, channel=0, configuration=0, offset_parameters='scan', register_tiles=True):
         super().__init__(pipeline, level)
         self.channel = channel
         self.configuration = configuration
