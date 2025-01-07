@@ -120,7 +120,11 @@ class HDF5DataStore(defaultdict):
         :return: list if index tuples
         """
 
-        p = re.compile('(\\d*)(?:_){,1}'.join(map(lambda l : '(?:{}){{,1}}'.format(l), self.pipeline_levels)) + '(\\d*)')
+        # regex to match abc_123_def_456... and capture numbers
+        # also matches old-style abc123_def456
+        idx_pattern = "(?:_)?".join(f"(?:{level}_?(\\d+))?" for level in self.pipeline_levels)
+        idx_pattern = re.compile(idx_pattern)
+
         idxes = []
 
         # get file handle for write: if member h5_file is already a File object, use as-is
@@ -129,10 +133,11 @@ class HDF5DataStore(defaultdict):
         fd = self.h5_file if file_is_file_handle else h5py.File(self.h5_file, 'r')
 
         for k in fd[self.root_path].keys():
-            if not p.match(k):
+            match = idx_pattern.match(k)
+            if match is None or not any(match.groups()):
                 continue
-            g = p.match(k).groups()
-            g = tuple([int(gi) for gi in g if gi != ''])
+            g = match.groups()
+            g = tuple([int(gi) for gi in g if gi is not None])
             idxes.append(g)
 
         # if we have opened a new file object, close it again
@@ -173,6 +178,10 @@ class HDF5MeasurementData(MeasurementData):
         # query corresponding group in hdf5 file
         path = _hdf5_group_path(self.pll, self.idxes, self.root_path)
         if path in fd:
+            h5_dataset = fd[path]
+            num_configs = h5py.AttributeManager(h5_dataset)['num_configs']
+        # in read-only mode, we still support old-style path without underscore
+        elif self.read_only and (path := _hdf5_group_path(self.pll, self.idxes, self.root_path, separator_index="")) in fd:
             h5_dataset = fd[path]
             num_configs = h5py.AttributeManager(h5_dataset)['num_configs']
         else:
@@ -265,11 +274,18 @@ class HDF5DataReader(HDF5DataStore):
         super().__init__(fd, None, root_path, True)
 
 
-def _hdf5_group_path(pll, idxes, root_name='experiment'):
+def _hdf5_group_path(pipeline_levels, idxes, root_name='experiment', separator_levels='_', separator_index='_'):
+    """
+    construct group path in hdf5 for data index of the form
+    root/level1_idx1_level2_idx2...
+
+    separator_levels is the separtator between groups (level1_idx1 and level2_idx2)
+    while separator_index is the separator between level name and index
+    both are _ by default to match .msr filenames
+    """
     path = root_name + '/'
-    for i, z in enumerate(zip(pll, idxes)):
-        lvl, idx = z
-        path = path + '{}{}{}'.format('_' if i != 0 else '', lvl, idx)
+    for i, (level, idx) in enumerate(zip(pipeline_levels, idxes)):
+        path = path + f'{separator_levels if i != 0 else ""}{level}{separator_index}{idx}'
     return path
 
 
