@@ -5,11 +5,12 @@ from scipy import ndimage as ndi
 
 from autosted.utils.dict_utils import get_path_from_dict
 from autosted.utils.parameter_constants import OFFSET_STAGE_GLOBAL_PARAMETERS, PIXEL_SIZE_PARAMETERS
+from autosted.callback_buildingblocks.data_selection import NewestDataSelector
 
 
 class SimpleFocusPlaneDetector:
 
-    def __init__(self, data_source_callback, configuration=0, channel=0, invert_z_direction=True,
+    def __init__(self, data_source_callback=None, configuration=0, channel=0, invert_z_direction=True,
                  focus_function=None, focus_function_kwargs=None):
         """
         Parameters
@@ -24,7 +25,11 @@ class SimpleFocusPlaneDetector:
             if none is given, by default, will detect the plane with the highest mean intensity
         focus_function_kwargs : a dictionary of keyword arguments to pass to the focus function
         """
+
+        if data_source_callback is None:
+            data_source_callback = NewestDataSelector()
         self.data_source_callback = data_source_callback
+
         self.configuration = configuration
         self.channel = channel
         self.logger = logging.getLogger(__name__)

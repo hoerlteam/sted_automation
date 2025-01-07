@@ -3,14 +3,17 @@ import logging
 import numpy as np
 
 from autosted.data import MeasurementData
-
+from autosted.callback_buildingblocks.data_selection import NewestDataSelector
 
 class AcceptanceCheck:
 
-    def __init__(self, data_source_callback, check_function, configurations=(0,), channels=(0,),
+    def __init__(self, check_function, data_source_callback=None, configurations=(0,), channels=(0,),
                  check_function_kwargs=None):
 
+        if data_source_callback is None:
+            data_source_callback = NewestDataSelector()
         self.data_source_callback = data_source_callback
+
         self.check_function = check_function
 
         # make sure we have a sequence of configurations & channels, even if just a single one is selected

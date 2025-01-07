@@ -3,6 +3,7 @@ import logging
 import numpy as np
 
 from autosted.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
+from autosted.callback_buildingblocks.data_selection import NewestDataSelector
 from autosted.detection.display_util import draw_detections_multicolor, draw_detections_1c, DEFAULT_COLOR_NAMES
 from autosted.utils.coordinate_utils import pixel_to_physical_coordinates, get_offset_parameters_defaults
 from autosted.utils.coordinate_utils import refill_ignored_dimensions
@@ -16,7 +17,7 @@ class CoordinateDetectorWrapper:
     fov_length_parameter_paths = FOV_LENGTH_PARAMETERS
     pixel_size_parameter_paths = PIXEL_SIZE_PARAMETERS
 
-    def __init__(self, data_source_callback, detection_function, configurations=(0,), channels=(0,), detection_kwargs=None,
+    def __init__(self, detection_function, data_source_callback=None, configurations=(0,), channels=(0,), detection_kwargs=None,
                  reference_configuration=None, offset_parameters='scan', plot_detections=True, return_parameter_dict=True):
         """
         Parameters
@@ -31,6 +32,8 @@ class CoordinateDetectorWrapper:
         return_parameter_dict : whether to return ready-to-use parameter dictionary instead of values
         """
 
+        if data_source_callback is None:
+            data_source_callback = NewestDataSelector()
         self.data_source_callback = data_source_callback
         self.detection_function = detection_function
         self.return_parameter_dict = return_parameter_dict
