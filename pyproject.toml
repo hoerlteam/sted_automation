@@ -7,7 +7,7 @@ allow-direct-references = true
 
 [project]
 name = "autosted"
-version = "0.1.0-dev"
+version = "2.0.0-dev"
 authors = [
   { name="David Hörl", email="hoerldavid@gmail.com" },
 ]
