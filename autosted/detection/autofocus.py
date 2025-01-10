@@ -35,7 +35,7 @@ class SimpleFocusPlaneDetector:
         self.logger = logging.getLogger(__name__)
         self.invert_z_direction = invert_z_direction
 
-        if focus_function is not None:
+        if focus_function is None:
             self.focus_function = SimpleFocusPlaneDetector.mean_intensity_focus
         self.focus_function_kwargs = focus_function_kwargs if focus_function_kwargs is not None else {}
 

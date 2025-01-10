@@ -18,7 +18,7 @@ class AlreadyImagedFOVFilter:
         # if pipeline and level are not set the first time the filter is called
         # use the currently running pipeline as well as the level of the task that is being checked
         if self.pipeline is None:
-            self.pipeline = AcquisitionPipeline.__class__.running_instance
+            self.pipeline = AcquisitionPipeline.running_instance
         if self.lvl is None:
             self.lvl = level
 

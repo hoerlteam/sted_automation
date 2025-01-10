@@ -16,9 +16,9 @@ class NewestDataSelector:
         # no pipeline reference was given
         # -> use currently running instance at first callback usage
         if self.pipeline is None:
-            if AcquisitionPipeline.__class__.running_instance is None:
+            if AcquisitionPipeline.running_instance is None:
                 raise ValueError("No running AcquisitionPipeline found")
-            self.pipeline = AcquisitionPipeline.__class__.running_instance
+            self.pipeline = AcquisitionPipeline.running_instance
 
         # no level was given
         # -> use newest data level at first callback usage

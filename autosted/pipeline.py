@@ -88,9 +88,9 @@ class AcquisitionPipeline:
         """
 
         # this instance is now the currently running one
-        if self.__class__.running_instance is not None:
+        if AcquisitionPipeline.running_instance is not None:
             self.logger.warning("Another pipeline instance is currently running, this is likely to cause conflicts.")
-        self.__class__.running_instance = self
+        AcquisitionPipeline.running_instance = self
 
         # we use this context manager to handle interrupts,
         # so we can finish the acquisition we are in before stopping
