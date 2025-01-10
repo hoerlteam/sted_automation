@@ -52,7 +52,7 @@ class AcquisitionTaskGenerator:
             # reject task if it does not conform to a task_filter
             skip = False
             for task_filter in self.task_filters:
-                if not task_filter.check(task):
+                if not task_filter.check(task, self.level):
                     skip = True
             if skip:
                 continue
