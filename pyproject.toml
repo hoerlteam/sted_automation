@@ -20,7 +20,12 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-    "CalmUtils @ git+http://github.com/CALM-LMU/CalmUtils.git@0.0.22"
+    "CalmUtils @ git+http://github.com/CALM-LMU/CalmUtils.git@0.0.22",
+    "numpy",
+    "scipy",
+    "h5py",
+    "scikit-image",
+    "matplotlib"
 ]
 
 [project.urls]
