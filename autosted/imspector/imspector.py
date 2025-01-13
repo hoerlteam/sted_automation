@@ -128,7 +128,7 @@ class ImspectorConnection:
     def get_n_channels(parameters):
         return len(get_path_from_dict(parameters, 'ExpControl/measurement/channels', False))
     
-    def make_measurement_from_task(self, task, delay=0.0):
+    def make_measurement_from_task(self, task):
 
         ms = self.imspector.create_measurement()
         self.set_parameters_in_measurement(ms, task)
@@ -150,7 +150,7 @@ class ImspectorConnection:
         if get_path_from_dict(measurement_updates, 'Measurement/axes/num_synced', False) == 1:
             ms.set_parameters('Measurement/axes/num_synced', 1)
 
-    def make_configuration_from_task(self, task, delay = 0.0):
+    def make_configuration_from_task(self, task):
 
         # clone configuration in current measurement
         ms = self.imspector.active_measurement()

@@ -69,8 +69,6 @@ class AcquisitionTask:
     representing a measurement (consisting of multiple configurations) to be run.
     '''
 
-    # TODO: this has minimal added value to just a list of parameter pairs, remove?
-
     def __init__(self, pipeline_level):
         self.pipeline_level = pipeline_level
         self.measurement_updates = []

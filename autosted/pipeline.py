@@ -2,7 +2,7 @@ import logging
 from itertools import chain
 import heapq
 from collections import defaultdict
-from time import time
+from time import time, sleep
 import os
 import hashlib
 
@@ -79,6 +79,9 @@ class AcquisitionPipeline:
         # callbacks are stored in a dict level_name -> list of callbacks
         self.callbacks = defaultdict(list)
 
+        # keep track of last time measurements of each level were started
+        self.last_measurement_start_times = defaultdict(float)
+
         # boolean flag member, the DelayedKeyboardInterrupt will indicate a received SIGINT here
         self.interrupted = False
 
@@ -119,14 +122,20 @@ class AcquisitionPipeline:
                 # otherwise (e.g. we have list of parameters) default to 0
                 delay = acquisition_task.delay if isinstance(acquisition_task, AcquisitionTask) else 0
 
+                if delay > 0:
+                    wait_time = max(0, delay - (time() - self.last_measurement_start_times[current_level]))
+                    sleep(wait_time)
+
+                self.last_measurement_start_times[current_level] = time()
+
                 # go through updates sequentially (we might have multiple configurations per measurement)
                 for update_index in range(len(acquisition_task)):
 
                     # make measurement (for first update) or configuration (for subsequent) in Imspector
                     if update_index == 0:
-                        self.imspector_connection.make_measurement_from_task(acquisition_task[update_index], delay)
+                        self.imspector_connection.make_measurement_from_task(acquisition_task[update_index])
                     else:
-                        self.imspector_connection.make_configuration_from_task(acquisition_task[update_index], delay)
+                        self.imspector_connection.make_configuration_from_task(acquisition_task[update_index])
 
                     # run in Imspector
                     self.imspector_connection.run_current_measurement()
