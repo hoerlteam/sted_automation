@@ -124,6 +124,7 @@ class AcquisitionPipeline:
 
                 if delay > 0:
                     wait_time = max(0, delay - (time() - self.last_measurement_start_times[current_level]))
+                    self.logger.info(f"Waiting {wait_time:.3f} seconds until next acquisition at level {current_level} (for delay of {delay}).")
                     sleep(wait_time)
 
                 self.last_measurement_start_times[current_level] = time()
