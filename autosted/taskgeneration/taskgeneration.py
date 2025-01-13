@@ -104,6 +104,19 @@ class AcquisitionTask:
         return [self.get_updates(n, concatenate) for n in range(self.num_acquisitions)]
 
 
+class DummyUpdateGenerator:
+    """
+    Callback that returns empty measurement and hardware updates.
+    Should be combined with other building blocks in an AcquisitiontaskGenerator.
+    
+    Can be e.g. wrapped in a ResultsRepeater,
+    causing a measurement defined with the other blocks to be repeated n times.
+    """
+
+    def __call__(self):
+        return [[({}, {})]]
+
+
 def broadcast_updates(updates: Sequence[Sequence]):
 
     # get number of measurements / configurations in each update
