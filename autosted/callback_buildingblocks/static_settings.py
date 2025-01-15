@@ -201,7 +201,7 @@ class JSONSettingsLoader:
         '/Measurement/propset_id', # remove, otherwise we will always use a set propset
         ]
 
-    def __init__(self, measurement_config_sources, hardware_config_sources=None, as_measurements=True):
+    def __init__(self, measurement_config_sources, hardware_config_sources=None, as_measurements=False):
         self.measurement_configs = []
         self.as_measurements = as_measurements
 

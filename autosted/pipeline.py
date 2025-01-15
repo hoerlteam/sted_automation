@@ -101,7 +101,7 @@ class AcquisitionPipeline:
 
             # record starting time, so we can check whether a StoppingCondition is met
             self.starting_time = time()
-
+            
             # run initial callback to populate queue
             if initial_callback is not None:
                 new_level, new_tasks = initial_callback()
@@ -128,6 +128,11 @@ class AcquisitionPipeline:
                     sleep(wait_time)
 
                 self.last_measurement_start_times[current_level] = time()
+
+                # even if we have an empty dummy acquisition task, add empty data to storage
+                # otherwise, indices may be re-used and lead to weird phenomena
+                if len(acquisition_task) == 0:
+                    self.data[index]
 
                 # go through updates sequentially (we might have multiple configurations per measurement)
                 for update_index in range(len(acquisition_task)):
