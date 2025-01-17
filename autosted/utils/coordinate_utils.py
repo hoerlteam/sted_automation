@@ -113,7 +113,7 @@ def virtual_bbox_from_settings(settings):
     return start, fov_len
 
 
-def approximate_pixel_shift_from_settings(settings_reference, settings_moving):
+def approximate_pixel_shift_from_settings(settings_reference, settings_moving, dtype=int):
     """
     Get the approximate pixel offset of image with Imspector settings settings_moving from reference image with settings_reference
     """
@@ -122,6 +122,6 @@ def approximate_pixel_shift_from_settings(settings_reference, settings_moving):
     start_reference, _ = virtual_bbox_from_settings(settings_reference)
 
     pixel_sizes = get_parameter_value_array_from_dict(settings_reference, PIXEL_SIZE_PARAMETERS)
-    pixel_off = ((start_moving - start_reference) / pixel_sizes).astype(int)
+    pixel_off = ((start_moving - start_reference) / pixel_sizes).astype(dtype)
 
     return pixel_off
