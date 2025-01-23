@@ -64,7 +64,7 @@ def draw_detections_multicolor(images, coordinates, normalization_range=None, ax
         c = plt.Circle((d[1], d[0]), size, color=marker_color, linewidth=1.5, fill=False)
         ax.add_patch(c)
 
-    fig.show()
+    plt.show()
 
 
 def draw_detections_1c(im, detections, ran=None, projection_axis=0, siz=3, percentile_range=False):
@@ -102,7 +102,7 @@ def draw_bboxes_multicolor(images, bboxes, normalization_range=None, axis=None, 
         rec = plt.Rectangle(xy_start, w, h, edgecolor=box_color, fill=None, linewidth=box_width)
         ax.add_patch(rec)
 
-    fig.show()
+    plt.show()
 
 
 def draw_bboxes_1c(image, bboxes, normalization_range=None, axis=None, box_width=2, percentile_range=False):
