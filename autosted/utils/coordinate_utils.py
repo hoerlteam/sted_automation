@@ -1,10 +1,27 @@
 import numpy as np
 
 from autosted.utils.dict_utils import get_parameter_value_array_from_dict
-from autosted.utils.parameter_constants import FOV_LENGTH_PARAMETERS, OFFSET_SCAN_GLOBAL_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS, OFFSET_SCAN_PARAMETERS, DIRECTION_SCAN, DIRECTION_STAGE, OFFSET_STAGE_PARAMETERS, PIXEL_SIZE_PARAMETERS
+from autosted.utils.parameter_constants import (
+    FOV_LENGTH_PARAMETERS,
+    OFFSET_SCAN_GLOBAL_PARAMETERS,
+    OFFSET_STAGE_GLOBAL_PARAMETERS,
+    OFFSET_SCAN_PARAMETERS,
+    DIRECTION_SCAN,
+    DIRECTION_STAGE,
+    OFFSET_STAGE_PARAMETERS,
+    PIXEL_SIZE_PARAMETERS,
+)
 
 
-def pixel_to_physical_coordinates(pixel_coordinates, offset, pixel_size, fov_size=None, shape=None, ignore_dimension=None, invert_dimension=None):
+def pixel_to_physical_coordinates(
+    pixel_coordinates,
+    offset,
+    pixel_size,
+    fov_size=None,
+    shape=None,
+    ignore_dimension=None,
+    invert_dimension=None,
+):
     """
     Transform pixel coordinates in an image to physical coordinates usable as Imspector parameters.
     Pixel coordinates will be added to physical offset of an image which in Imspector corresponds to the center of the image.
@@ -21,7 +38,7 @@ def pixel_to_physical_coordinates(pixel_coordinates, offset, pixel_size, fov_siz
 
     # defaults for fov size / shape: we need one
     if fov_size is None and shape is None:
-        raise ValueError('Either physical FOV size or pixel shape have to be provided')
+        raise ValueError("Either physical FOV size or pixel shape have to be provided")
     # alternative: only shape is given -> multiply with pixel size to get fov
     if fov_size is None:
         fov_size = np.array(list(shape)) * np.array(pixel_size)
@@ -41,28 +58,36 @@ def pixel_to_physical_coordinates(pixel_coordinates, offset, pixel_size, fov_siz
     ignore_dimension = np.array(ignore_dimension, dtype=bool)
     invert_dimension = np.array(invert_dimension, dtype=bool)
 
-    return (offset  # old offset
-            - np.logical_not(ignore_dimension) * np.where(invert_dimension, -1, 1) * fov_size / 2.0  # minus half length
-            + np.logical_not(ignore_dimension) * np.where(invert_dimension, -1, 1) * pixel_coordinates * pixel_size) # new offset in units
+    return (
+        offset  # old offset
+        - np.logical_not(ignore_dimension)
+        * np.where(invert_dimension, -1, 1)
+        * fov_size
+        / 2.0  # minus half length
+        + np.logical_not(ignore_dimension)
+        * np.where(invert_dimension, -1, 1)
+        * pixel_coordinates
+        * pixel_size
+    )  # new offset in units
 
 
-def get_offset_parameters_defaults(offset_parameters='scan'):
+def get_offset_parameters_defaults(offset_parameters="scan"):
 
     # use stage or scan parameter paths if specified via string
-    if offset_parameters == 'scan':
+    if offset_parameters == "scan":
         offset_parameter_paths = OFFSET_SCAN_PARAMETERS
-    elif offset_parameters == 'stage':
+    elif offset_parameters == "stage":
         offset_parameter_paths = OFFSET_STAGE_GLOBAL_PARAMETERS
     else:
-        offset_parameter_paths = offset_parameters # use as-is if not preset
+        offset_parameter_paths = offset_parameters  # use as-is if not preset
 
     # TODO: raise exception on wrong input (not sequence of strings)?
 
     # boolean tuple of inverted dimensions
     # use default stage / scan directions
-    if offset_parameters == 'scan':
+    if offset_parameters == "scan":
         invert_dimensions = tuple(direction < 0 for direction in DIRECTION_SCAN)
-    elif offset_parameters == 'stage':
+    elif offset_parameters == "stage":
         invert_dimensions = tuple(direction < 0 for direction in DIRECTION_STAGE)
     else:
         # if no preset is selected do not invert any dimension by default
@@ -95,25 +120,34 @@ def virtual_bbox_from_settings(settings):
     """
 
     # direction tuples to arrays
-    direction_scan, direction_stage = np.array(list(DIRECTION_SCAN), dtype=float), np.array(list(DIRECTION_STAGE), dtype=float)
+    direction_scan = np.array(list(DIRECTION_SCAN), dtype=float)
+    direction_stage = np.array(list(DIRECTION_STAGE), dtype=float)
 
     offs_stage = get_parameter_value_array_from_dict(settings, OFFSET_STAGE_PARAMETERS)
-    offs_stage_global = get_parameter_value_array_from_dict(settings, OFFSET_STAGE_GLOBAL_PARAMETERS)
+    offs_stage_global = get_parameter_value_array_from_dict(
+        settings, OFFSET_STAGE_GLOBAL_PARAMETERS
+    )
     offs_stage_total = offs_stage + offs_stage_global
 
     offs_scan = get_parameter_value_array_from_dict(settings, OFFSET_SCAN_PARAMETERS)
-    offs_scan_global = get_parameter_value_array_from_dict(settings, OFFSET_SCAN_GLOBAL_PARAMETERS)
+    offs_scan_global = get_parameter_value_array_from_dict(
+        settings, OFFSET_SCAN_GLOBAL_PARAMETERS
+    )
     offs_scan_total = offs_scan + offs_scan_global
 
     fov_len = get_parameter_value_array_from_dict(settings, FOV_LENGTH_PARAMETERS)
 
-    offset_combined = offs_stage_total * direction_stage + offs_scan_total * direction_scan
+    offset_combined = (
+        offs_stage_total * direction_stage + offs_scan_total * direction_scan
+    )
     start = offset_combined - fov_len / 2
 
     return start, fov_len
 
 
-def approximate_pixel_shift_from_settings(settings_reference, settings_moving, dtype=int):
+def approximate_pixel_shift_from_settings(
+    settings_reference, settings_moving, dtype=int
+):
     """
     Get the approximate pixel offset of image with Imspector settings settings_moving from reference image with settings_reference
     """
@@ -121,7 +155,9 @@ def approximate_pixel_shift_from_settings(settings_reference, settings_moving, d
     start_moving, _ = virtual_bbox_from_settings(settings_moving)
     start_reference, _ = virtual_bbox_from_settings(settings_reference)
 
-    pixel_sizes = get_parameter_value_array_from_dict(settings_reference, PIXEL_SIZE_PARAMETERS)
+    pixel_sizes = get_parameter_value_array_from_dict(
+        settings_reference, PIXEL_SIZE_PARAMETERS
+    )
     pixel_off = ((start_moving - start_reference) / pixel_sizes).astype(dtype)
 
     return pixel_off

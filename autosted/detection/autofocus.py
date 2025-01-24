@@ -4,14 +4,24 @@ import numpy as np
 from scipy import ndimage as ndi
 
 from autosted.utils.dict_utils import get_path_from_dict
-from autosted.utils.parameter_constants import OFFSET_STAGE_GLOBAL_PARAMETERS, PIXEL_SIZE_PARAMETERS
+from autosted.utils.parameter_constants import (
+    OFFSET_STAGE_GLOBAL_PARAMETERS,
+    PIXEL_SIZE_PARAMETERS,
+)
 from autosted.callback_buildingblocks.data_selection import NewestDataSelector
 
 
 class SimpleFocusPlaneDetector:
 
-    def __init__(self, data_source_callback=None, configuration=0, channel=0, invert_z_direction=True,
-                 focus_function=None, focus_function_kwargs=None):
+    def __init__(
+        self,
+        data_source_callback=None,
+        configuration=0,
+        channel=0,
+        invert_z_direction=True,
+        focus_function=None,
+        focus_function_kwargs=None,
+    ):
         """
         Parameters
         ----------
@@ -37,7 +47,9 @@ class SimpleFocusPlaneDetector:
 
         if focus_function is None:
             self.focus_function = SimpleFocusPlaneDetector.mean_intensity_focus
-        self.focus_function_kwargs = focus_function_kwargs if focus_function_kwargs is not None else {}
+        self.focus_function_kwargs = (
+            focus_function_kwargs if focus_function_kwargs is not None else {}
+        )
 
         self.offset_z_path = OFFSET_STAGE_GLOBAL_PARAMETERS[0]
         self.pixel_size_z_path = PIXEL_SIZE_PARAMETERS[0]
@@ -56,7 +68,7 @@ class SimpleFocusPlaneDetector:
         # TODO: move pixel size out of the function
         # get mean profile, smooth it via a Gaussian blur
         profile = SimpleFocusPlaneDetector.mean_along_axis(img, axis)
-        smooth_profile = ndi.gaussian_filter1d(profile, sigma=sigma, mode='constant')
+        smooth_profile = ndi.gaussian_filter1d(profile, sigma=sigma, mode="constant")
         profile_max = np.argmax(smooth_profile)
         # calculate offset of maximum in comparison to middle
         pix_d = profile_max - ((len(profile) - 1) / 2)
@@ -68,11 +80,13 @@ class SimpleFocusPlaneDetector:
 
         # no data yet -> empty update
         if data is None:
-            self.logger.info(': No data for Z correction present -> skipping.')
+            self.logger.info(": No data for Z correction present -> skipping.")
             return [[None, None, None]]
 
-        if (data.num_configurations <= self.configuration) or (data.num_channels(self.configuration) <= self.channel):
-            raise ValueError('no images present. TODO: fail gracefully/skip here')
+        if (data.num_configurations <= self.configuration) or (
+            data.num_channels(self.configuration) <= self.channel
+        ):
+            raise ValueError("no images present. TODO: fail gracefully/skip here")
 
         # get image of selected configuration and channel and convert to float
         img = data.data[self.configuration][self.channel][0, :, :, :]
@@ -80,18 +94,26 @@ class SimpleFocusPlaneDetector:
 
         # 2D image -> empty update
         if img.shape[0] <= 1:
-            self.logger.info(': Image is 2D, cannot do Z correction -> skipping.')
+            self.logger.info(": Image is 2D, cannot do Z correction -> skipping.")
             return [[None, None, None]]
 
         # get old z-offset and pixel size
         setts = data.measurement_settings[self.configuration]
-        z_offset_old = get_path_from_dict(setts, self.offset_z_path, keep_structure=False)
-        z_pixel_size = get_path_from_dict(setts, self.pixel_size_z_path, keep_structure=False)
+        z_offset_old = get_path_from_dict(
+            setts, self.offset_z_path, keep_structure=False
+        )
+        z_pixel_size = get_path_from_dict(
+            setts, self.pixel_size_z_path, keep_structure=False
+        )
 
         # get z delta, add or subtract from old z-offset
-        z_delta = self.focus_function(img, z_pixel_size, 0, **self.focus_function_kwargs)
+        z_delta = self.focus_function(
+            img, z_pixel_size, 0, **self.focus_function_kwargs
+        )
         new_z = z_offset_old + z_delta * (-1 if self.invert_z_direction else 1)
 
-        self.logger.info(': Corrected Focus (was {}, new {})'.format(z_offset_old, new_z))
+        self.logger.info(
+            ": Corrected Focus (was {}, new {})".format(z_offset_old, new_z)
+        )
 
         return [[new_z, None, None]]

@@ -1,2 +1,1 @@
 from autosted.detection.autofocus import SimpleFocusPlaneDetector
-

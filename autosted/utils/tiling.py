@@ -14,17 +14,17 @@ def relative_spiral_generator(steps, start=[0, 0]):
     n = 1
     while True:
         # move n rows "left & down"
-        bookmark = [- n * steps[0] + start[0], n * steps[1] + start[1]]
-        for _ in range(2*n):
+        bookmark = [-n * steps[0] + start[0], n * steps[1] + start[1]]
+        for _ in range(2 * n):
             yield bookmark.copy()
             bookmark[0] += steps[0]
-        for _ in range(2*n):
+        for _ in range(2 * n):
             yield bookmark.copy()
             bookmark[1] -= steps[1]
-        for _ in range(2*n):
+        for _ in range(2 * n):
             yield bookmark.copy()
             bookmark[0] -= steps[0]
-        for _ in range(2*n):
+        for _ in range(2 * n):
             yield bookmark.copy()
             bookmark[1] += steps[1]
         n += 1

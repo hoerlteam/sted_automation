@@ -2,13 +2,21 @@ import logging
 
 from autosted.utils.tiling import relative_spiral_generator
 from autosted.utils.parameter_constants import OFFSET_STAGE_GLOBAL_PARAMETERS
-from autosted.callback_buildingblocks.coordinate_value_wrappers import ValuesToSettingsDictCallback
+from autosted.callback_buildingblocks.coordinate_value_wrappers import (
+    ValuesToSettingsDictCallback,
+)
 
 
 class SpiralOffsetGenerator:
 
-    def __init__(self, move_size, start_position, z_position=None,
-                 return_parameter_dict=True, offset_parameter_keys=OFFSET_STAGE_GLOBAL_PARAMETERS):
+    def __init__(
+        self,
+        move_size,
+        start_position,
+        z_position=None,
+        return_parameter_dict=True,
+        offset_parameter_keys=OFFSET_STAGE_GLOBAL_PARAMETERS,
+    ):
 
         # if we get length-3 start coordinates, assume zyx and use only the second two
         # if no z position is given, re-use the one from start coords
@@ -23,15 +31,19 @@ class SpiralOffsetGenerator:
         self.return_parameter_dict = return_parameter_dict
         self.offset_parameter_keys = offset_parameter_keys
 
-        self.location_generator = relative_spiral_generator(self.move_size, self.start_position)
+        self.location_generator = relative_spiral_generator(
+            self.move_size, self.start_position
+        )
         self.logger = logging.getLogger(__name__)
 
     def __call__(self):
         coordinates = [self.z_position] + next(self.location_generator)
-        self.logger.info('new coordinates in spiral: ' + str(coordinates))
+        self.logger.info("new coordinates in spiral: " + str(coordinates))
 
         if self.return_parameter_dict:
-            return ValuesToSettingsDictCallback(lambda: [coordinates], self.offset_parameter_keys)()
+            return ValuesToSettingsDictCallback(
+                lambda: [coordinates], self.offset_parameter_keys
+            )()
         else:
             return [coordinates]
 
@@ -41,8 +53,13 @@ class PositionListOffsetGenerator:
     # TODO: add possibility to reset index during acquisition?
     #  -> might be necessary to re-image same positions multiple times?
 
-    def __init__(self, positions, auto_add_empty_z=True,
-                 return_parameter_dict=True, offset_parameter_keys=OFFSET_STAGE_GLOBAL_PARAMETERS):
+    def __init__(
+        self,
+        positions,
+        auto_add_empty_z=True,
+        return_parameter_dict=True,
+        offset_parameter_keys=OFFSET_STAGE_GLOBAL_PARAMETERS,
+    ):
 
         self.positions = positions
         self.auto_add_empty_z = auto_add_empty_z
@@ -71,10 +88,12 @@ class PositionListOffsetGenerator:
         if self.auto_add_empty_z and len(coordinates) < 3:
             coordinates = [None] * (3 - len(coordinates)) + coordinates
 
-        self.logger.info('new coordinates from list: ' + str(coordinates))
+        self.logger.info("new coordinates from list: " + str(coordinates))
 
         if self.return_parameter_dict:
-            return ValuesToSettingsDictCallback(lambda: [coordinates], self.offset_parameter_keys)()
+            return ValuesToSettingsDictCallback(
+                lambda: [coordinates], self.offset_parameter_keys
+            )()
         else:
             return [coordinates]
 
@@ -92,5 +111,5 @@ def __test_main():
     print(generator())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     __test_main()

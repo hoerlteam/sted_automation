@@ -1,1 +1,5 @@
-from autosted.stoppingcriteria.stoppingcriteria import InterruptedStoppingCriterion, TimedStoppingCriterion, MaximumAcquisitionsStoppingCriterion
+from autosted.stoppingcriteria.stoppingcriteria import (
+    InterruptedStoppingCriterion,
+    TimedStoppingCriterion,
+    MaximumAcquisitionsStoppingCriterion,
+)

@@ -15,23 +15,33 @@ class MaximumAcquisitionsStoppingCriterion:
 
         # check total amount of acquisitions
         total_acquisitions = len(pipeline.data)
-        if self.max_acquisitions is not None and total_acquisitions >= self.max_acquisitions:
+        if (
+            self.max_acquisitions is not None
+            and total_acquisitions >= self.max_acquisitions
+        ):
             return True
 
         # check acquisitions per level
         if self.max_acquisitions_per_level is not None:
-            for level, max_acquisitions_at_level in self.max_acquisitions_per_level.items():
+            for (
+                level,
+                max_acquisitions_at_level,
+            ) in self.max_acquisitions_per_level.items():
                 # length of indices of same level: position in levels of pipeline + 1
                 index_length = self.pipeline.hierarchy_levels.index(level) + 1
                 # get number of all measurement indices in data of same length (same level)
-                num_acquisitions_level = len([k for k in self.pipeline.data.keys() if len(k) == index_length])
+                num_acquisitions_level = len(
+                    [k for k in self.pipeline.data.keys() if len(k) == index_length]
+                )
                 if num_acquisitions_level >= max_acquisitions_at_level:
                     return True
 
         return False
 
     def desc(self, pipeline):
-        return 'STOPPING PIPELINE {}: maximum number of acquisitions reached'.format(pipeline.name)
+        return "STOPPING PIPELINE {}: maximum number of acquisitions reached".format(
+            pipeline.name
+        )
 
 
 class TimedStoppingCriterion:
@@ -46,7 +56,7 @@ class TimedStoppingCriterion:
         return time() > (pipeline.starting_time + self.max_time_sec)
 
     def desc(self, pipeline):
-        return 'STOPPING PIPELINE {}: maximum time exceeded'.format(pipeline.name)
+        return "STOPPING PIPELINE {}: maximum time exceeded".format(pipeline.name)
 
 
 class InterruptedStoppingCriterion:
@@ -68,4 +78,4 @@ class InterruptedStoppingCriterion:
         pipeline.interrupted = False
 
     def desc(self, pipeline):
-        return 'STOPPING PIPELINE {}: interrupted by user'.format(pipeline.name)
+        return "STOPPING PIPELINE {}: interrupted by user".format(pipeline.name)

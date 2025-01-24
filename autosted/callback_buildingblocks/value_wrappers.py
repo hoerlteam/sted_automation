@@ -7,7 +7,6 @@ from autosted.utils.fov_util import group_in_bounding_boxes
 
 
 class SimpleManualOffset:
-
     """
     Callback to wrap another callback and add a manual offset to the returned parameter values.
 
@@ -27,7 +26,9 @@ class SimpleManualOffset:
 
             # we have a sequence of collection types (e.g., list of lists of coordinates)
             # add offset to all, keep structure
-            if len(values_i) > 0 and not (np.isscalar(values_i[0]) or values_i[0] is None):
+            if len(values_i) > 0 and not (
+                np.isscalar(values_i[0]) or values_i[0] is None
+            ):
                 ri_tup = []
                 for values_i_inner in values_i:
                     ri = []
@@ -59,6 +60,7 @@ class BoundingBoxLocationGrouper:
     bounding_box_size : 3d vector (array-like)
         size of the bounding boxes to group in (same unit as vectors returned by locationGenerator)
     """
+
     def __init__(self, location_generator, bounding_box_size):
         self.location_generator = location_generator
         self.bounding_box_size = bounding_box_size
@@ -68,9 +70,9 @@ class BoundingBoxLocationGrouper:
         xs = self.location_generator()
         res = group_in_bounding_boxes(xs, self.bounding_box_size)
 
-        self.logger.info('grouped detections into {} FOVs'.format(len(res)))
+        self.logger.info("grouped detections into {} FOVs".format(len(res)))
         for loc in res:
-            self.logger.debug('FOV: {}'.format(loc))
+            self.logger.debug("FOV: {}".format(loc))
         return res
 
 
@@ -87,6 +89,7 @@ class LocalizationNumberFilter:
     max_num_locs: int, optional
         maximum number of localizations
     """
+
     def __init__(self, location_generator, min_num_locs=None, max_num_locs=None):
         self.location_generator = location_generator
         self.min = min_num_locs

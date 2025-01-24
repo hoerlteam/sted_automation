@@ -3,16 +3,27 @@ from operator import add
 from functools import reduce
 
 from autosted.utils.dict_utils import merge_dicts, generate_nested_dict
-from autosted.utils.parameter_constants import OFFSET_SCAN_PARAMETERS, OFFSET_STAGE_GLOBAL_PARAMETERS, FOV_LENGTH_PARAMETERS
+from autosted.utils.parameter_constants import (
+    OFFSET_SCAN_PARAMETERS,
+    OFFSET_STAGE_GLOBAL_PARAMETERS,
+    FOV_LENGTH_PARAMETERS,
+)
 
 
 class ValuesToSettingsDictCallback:
-
     """
     General callback to wrap other callbacks that return parameter values / collections of values
     and create microscope-/Imspector-compatible nested dicts of settings
     """
-    def __init__(self, value_generator_callback, settings_paths, as_measurements=True, nested_generator_callback=False, hardware_settings=False):
+
+    def __init__(
+        self,
+        value_generator_callback,
+        settings_paths,
+        as_measurements=True,
+        nested_generator_callback=False,
+        hardware_settings=False,
+    ):
         """
         Parameters
         ----------
@@ -61,7 +72,9 @@ class ValuesToSettingsDictCallback:
                 if value is None:
                     continue
                 # merge into result dict
-                result_dict = merge_dicts(result_dict, generate_nested_dict(value, settings_path))
+                result_dict = merge_dicts(
+                    result_dict, generate_nested_dict(value, settings_path)
+                )
         return result_dict
 
     def __call__(self):
@@ -78,10 +91,16 @@ class ValuesToSettingsDictCallback:
         for values_measurement in values:
             settings_for_configuration = []
             for values_configuration in values_measurement:
-                settings_dict = self.values_to_settings_dict(values_configuration, self.settings_paths, self.nested_settings)
+                settings_dict = self.values_to_settings_dict(
+                    values_configuration, self.settings_paths, self.nested_settings
+                )
                 # settings for one configuration are tuple (measurement settings, hardware settings)
                 # pick one, leave the other as empty dict
-                settings_for_configuration.append(({}, settings_dict) if self.hardware_settings else (settings_dict, {}))
+                settings_for_configuration.append(
+                    ({}, settings_dict)
+                    if self.hardware_settings
+                    else (settings_dict, {})
+                )
             settings_for_measurement.append(settings_for_configuration)
 
         # return list of measurements (default)
@@ -99,33 +118,48 @@ class ScanOffsetsSettingsGenerator(ValuesToSettingsDictCallback):
 
 class StageOffsetsSettingsGenerator(ValuesToSettingsDictCallback):
     def __init__(self, location_generator, as_measurements=True):
-        super().__init__(location_generator, OFFSET_STAGE_GLOBAL_PARAMETERS, as_measurements)
+        super().__init__(
+            location_generator, OFFSET_STAGE_GLOBAL_PARAMETERS, as_measurements
+        )
 
 
 class ZDCOffsetSettingsGenerator(ValuesToSettingsDictCallback):
     # mixed offsets when using Z-drift-controller (ZDC) -> use stage coords instead of piezo
     # TODO: check if this is still the correct path, esp. z
-    offset_settings_paths = OFFSET_STAGE_GLOBAL_PARAMETERS[:1] + OFFSET_SCAN_PARAMETERS[1:]
+    offset_settings_paths = (
+        OFFSET_STAGE_GLOBAL_PARAMETERS[:1] + OFFSET_SCAN_PARAMETERS[1:]
+    )
 
     def __init__(self, location_generator, as_measurements=True):
-        super().__init__(location_generator, self.offset_settings_paths, as_measurements)
+        super().__init__(
+            location_generator, self.offset_settings_paths, as_measurements
+        )
 
 
 class MultipleScanOffsetsSettingsGenerator(ValuesToSettingsDictCallback):
     def __init__(self, location_generator, as_measurements=True):
-        super().__init__(location_generator, OFFSET_SCAN_PARAMETERS, as_measurements, nested_generator_callback=True)
+        super().__init__(
+            location_generator,
+            OFFSET_SCAN_PARAMETERS,
+            as_measurements,
+            nested_generator_callback=True,
+        )
 
 
 class ScanFieldSettingsGenerator(ValuesToSettingsDictCallback):
 
     def __init__(self, location_generator, as_measurements=True):
-        super().__init__(location_generator, (OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS), as_measurements)
+        super().__init__(
+            location_generator,
+            (OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS),
+            as_measurements,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     # dummy callback returning list of 3D coordinates
-    positions = [[1,2,3], [4,5,6]]
+    positions = [[1, 2, 3], [4, 5, 6]]
     position_callback = lambda: positions
 
     # test ScanOffsetsSettingsGenerator / Stage... / ZDC...

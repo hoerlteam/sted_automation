@@ -2,7 +2,7 @@ import signal
 import threading
 
 
-class DelayedKeyboardInterrupt():
+class DelayedKeyboardInterrupt:
     """
     context manager to allow finishing of one acquisition loop
     before quitting queue due to KeyboardInterrupt
@@ -25,5 +25,3 @@ class DelayedKeyboardInterrupt():
     def __exit__(self, type, value, traceback):
         if threading.current_thread() is threading.main_thread():
             signal.signal(signal.SIGINT, self.old_handler)
-
-

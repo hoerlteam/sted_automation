@@ -5,7 +5,9 @@ class ResultsRepeater:
     E.g., can be used to image each location returned by a spot or ROI detector multiple times.
     """
 
-    def __init__(self, wrapped_callback, n, make_nested=False, wrapped_callback_is_nested=False):
+    def __init__(
+        self, wrapped_callback, n, make_nested=False, wrapped_callback_is_nested=False
+    ):
         self.wrapped_callback = wrapped_callback
         self.n = n
         self.make_nested = make_nested
@@ -20,7 +22,7 @@ class ResultsRepeater:
             # case 1: add multiple copies of values wrapped in a tuple,
             # this way, the nested values can become configurations in a wrapping building block
             if self.make_nested:
-                # case 1a: results are already nested, just repaet 
+                # case 1a: results are already nested, just repaet
                 if self.wrapped_callback_is_nested:
                     repeated_values.append(values * self.n)
                 # case 1b: assume single results, we wrap in tuple and repeat

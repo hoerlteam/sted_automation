@@ -6,13 +6,20 @@ from itertools import cycle
 from operator import add
 from typing import Sequence
 
-from autosted.utils.dict_utils import generate_nested_dict, remove_path_from_dict, merge_dicts
-from autosted.utils.parameter_constants import FOV_LENGTH_PARAMETERS, PIXEL_SIZE_PARAMETERS
+from autosted.utils.dict_utils import (
+    generate_nested_dict,
+    remove_path_from_dict,
+    merge_dicts,
+)
+from autosted.utils.parameter_constants import (
+    FOV_LENGTH_PARAMETERS,
+    PIXEL_SIZE_PARAMETERS,
+)
 
 
 class FOVSettingsGenerator:
     """
-    SettingsGenerator to set field of view (FOV) to defined length and pixel size. 
+    SettingsGenerator to set field of view (FOV) to defined length and pixel size.
 
     Parameters
     ----------
@@ -24,6 +31,7 @@ class FOVSettingsGenerator:
         if more than one FOV is specified: whether to create multiple `measurements` or
         multiple `configurations` in one measurement
     """
+
     def __init__(self, lengths=None, pixel_sizes=None, as_measurements=True):
 
         # check if parameters are list of lists (or None), wrap single list
@@ -61,9 +69,13 @@ class FOVSettingsGenerator:
             for l_i, psz_i in zip(l, psz):
                 path_l, path_psz = next(paths)
                 if l_i is not None:
-                    res_measurement_i = merge_dicts(res_measurement_i, generate_nested_dict(l_i, path_l))
+                    res_measurement_i = merge_dicts(
+                        res_measurement_i, generate_nested_dict(l_i, path_l)
+                    )
                 if psz_i is not None:
-                    res_measurement_i = merge_dicts(res_measurement_i, generate_nested_dict(psz_i, path_psz))
+                    res_measurement_i = merge_dicts(
+                        res_measurement_i, generate_nested_dict(psz_i, path_psz)
+                    )
             res.append([(res_measurement_i, {})])
 
         # return either list of single element lists of parameter pairs (multiple measurements @ 1 configuration)
@@ -93,7 +105,9 @@ class DifferentFirstFOVSettingsGenerator(FOVSettingsGenerator):
         multiple `configurations` in one measurement
     """
 
-    def __init__(self, lengths=None, pixel_sizes=None, first_lengths=None, as_measurements=True):
+    def __init__(
+        self, lengths=None, pixel_sizes=None, first_lengths=None, as_measurements=True
+    ):
         self.first_measurement = True
         super().__init__(lengths, pixel_sizes, as_measurements)
 
@@ -125,7 +139,7 @@ class ScanModeSettingsGenerator:
         the mode strings, e.g. 'xy'
     as_measurements: boolean
         if more than one FOV is specified: whether to create multiple `measurements` or
-        multiple `configurations` in one measurement    
+        multiple `configurations` in one measurement
     """
 
     def __init__(self, modes, as_measurements=True):
@@ -142,20 +156,35 @@ class ScanModeSettingsGenerator:
 
         for mode in self.modes:
             resD = {}
-            resD = merge_dicts(resD, generate_nested_dict(ScanModeSettingsGenerator.gen_mode_flag(mode), self._path))
+            resD = merge_dicts(
+                resD,
+                generate_nested_dict(
+                    ScanModeSettingsGenerator.gen_mode_flag(mode), self._path
+                ),
+            )
 
             resD = merge_dicts(
                 resD,
-                generate_nested_dict(['ExpControl {}'.format(mode[i].upper()) if i < len(mode) else "None" for i in range(4)],
-                                     self._path_axes))
+                generate_nested_dict(
+                    [
+                        (
+                            "ExpControl {}".format(mode[i].upper())
+                            if i < len(mode)
+                            else "None"
+                        )
+                        for i in range(4)
+                    ],
+                    self._path_axes,
+                ),
+            )
 
             # z-cut -> sync line
             # FIXME: this causes weird problems in xz cut followed by any other image
             # therefore, we removed it for the time being...
-            '''
+            """
             if len(mode) == 2 and 'z' in mode.lower():
                 resD = update_dicts(resD, gen_json(1, 'Measurement/axes/num_synced'))
-            '''
+            """
             res.append([(resD, {})])
 
         if self.as_measurements:
@@ -163,18 +192,13 @@ class ScanModeSettingsGenerator:
         else:
             return [reduce(add, res)]
 
-    _path = 'ExpControl/scan/range/mode'
-    _path_axes = 'Measurement/axes/scan_axes'
+    _path = "ExpControl/scan/range/mode"
+    _path_axes = "Measurement/axes/scan_axes"
 
     @staticmethod
     def gen_mode_flag(mode_str):
 
-        _mode_vals = {
-            'x': 0,
-            'y': 1,
-            'z': 2,
-            't': 3
-        }
+        _mode_vals = {"x": 0, "y": 1, "z": 2, "t": 3}
 
         if len(mode_str) > 4:
             return None
@@ -197,11 +221,17 @@ class JSONSettingsLoader:
 
     # parameters to remove from measurement parameter dicts because they caused problems
     parameters_to_drop = [
-        '/Measurement/LoopMeasurement', '/Measurement/ResumeIdx', # remove, otherwise Imspector complains that those parameters do not exist (yet?)
-        '/Measurement/propset_id', # remove, otherwise we will always use a set propset
-        ]
+        "/Measurement/LoopMeasurement",
+        "/Measurement/ResumeIdx",  # remove, otherwise Imspector complains that those parameters do not exist (yet?)
+        "/Measurement/propset_id",  # remove, otherwise we will always use a set propset
+    ]
 
-    def __init__(self, measurement_config_sources, hardware_config_sources=None, as_measurements=False):
+    def __init__(
+        self,
+        measurement_config_sources,
+        hardware_config_sources=None,
+        as_measurements=False,
+    ):
         self.measurement_configs = []
         self.as_measurements = as_measurements
 
@@ -211,16 +241,20 @@ class JSONSettingsLoader:
 
         for measurement_config_source in measurement_config_sources:
             if isinstance(measurement_config_source, (str, Path)):
-                with open(measurement_config_source, 'r') as fd:
+                with open(measurement_config_source, "r") as fd:
                     measurement_config_loaded = json.load(fd)
             elif isinstance(measurement_config_source, dict):
                 measurement_config_loaded = measurement_config_source
             else:
-                raise ValueError('configuration should be either a valid filename or an already loaded dict')
+                raise ValueError(
+                    "configuration should be either a valid filename or an already loaded dict"
+                )
 
             # remove parameters known to cause problems
             for parameter_to_drop in self.parameters_to_drop:
-                measurement_config_loaded = remove_path_from_dict(measurement_config_loaded, parameter_to_drop)
+                measurement_config_loaded = remove_path_from_dict(
+                    measurement_config_loaded, parameter_to_drop
+                )
 
             self.measurement_configs.append(measurement_config_loaded)
 
@@ -238,16 +272,20 @@ class JSONSettingsLoader:
                 hardware_config_sources = [hardware_config_sources]
 
             if len(hardware_config_sources) != len(self.measurement_configs):
-                raise ValueError('length of settings and measurement configs do not match')
+                raise ValueError(
+                    "length of settings and measurement configs do not match"
+                )
 
             for hardware_config_source in hardware_config_sources:
                 if isinstance(hardware_config_source, (str, Path)):
-                    with open(hardware_config_source, 'r') as fd:
+                    with open(hardware_config_source, "r") as fd:
                         hardware_config_loaded = json.load(fd)
                 elif isinstance(hardware_config_source, dict):
                     hardware_config_loaded = hardware_config_source
                 else:
-                    raise ValueError('configuration should be either a valid filename or an already loaded dict')
+                    raise ValueError(
+                        "configuration should be either a valid filename or an already loaded dict"
+                    )
 
                 self.hardware_configs.append(hardware_config_loaded)
 
@@ -259,33 +297,66 @@ class JSONSettingsLoader:
         else:
             res_inner = []
             for i in range(len(self.measurement_configs)):
-                res_inner.append((self.measurement_configs[i], self.hardware_configs[i]))
+                res_inner.append(
+                    (self.measurement_configs[i], self.hardware_configs[i])
+                )
             res.append(res_inner)
         return res
 
 
 class PinholeSizeSettingsGenerator:
-
     """
     SettingsGenerator to adjust the pinhole size
     """
 
-    valid_pinhole_sizes = (25e-6, 30e-6, 35e-6, 40e-6, 45e-6, 50e-6, 60e-6, 70e-6, 80e-6, 90e-6, 100e-6, 125e-6, 200e-6, 300e-6, 1000e-6, 2000e-6)
-    pinhole_size_setting_path = 'Pinhole/pinhole_size'
+    valid_pinhole_sizes = (
+        25e-6,
+        30e-6,
+        35e-6,
+        40e-6,
+        45e-6,
+        50e-6,
+        60e-6,
+        70e-6,
+        80e-6,
+        90e-6,
+        100e-6,
+        125e-6,
+        200e-6,
+        300e-6,
+        1000e-6,
+        2000e-6,
+    )
+    pinhole_size_setting_path = "Pinhole/pinhole_size"
 
     def __init__(self, pinhole_size):
         if pinhole_size not in self.valid_pinhole_sizes:
-            warnings.warn('Pinhole size {} is not in valid sizes, will result in default size.'.format(pinhole_size))
+            warnings.warn(
+                "Pinhole size {} is not in valid sizes, will result in default size.".format(
+                    pinhole_size
+                )
+            )
         self.pinhole_size = pinhole_size
 
     def __call__(self):
-        settings = [[(generate_nested_dict(self.pinhole_size, self.pinhole_size_setting_path), {})]]
+        settings = [
+            [
+                (
+                    generate_nested_dict(
+                        self.pinhole_size, self.pinhole_size_setting_path
+                    ),
+                    {},
+                )
+            ]
+        ]
         return settings
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
-    generator = DifferentFirstFOVSettingsGenerator([None, None, None], first_lengths=[15e-6, None, None])
+    generator = DifferentFirstFOVSettingsGenerator(
+        [None, None, None], first_lengths=[15e-6, None, None]
+    )
     print(generator())
     print(generator())
 

@@ -63,11 +63,10 @@ class AcquisitionTaskGenerator:
 
 
 class AcquisitionTask:
-
-    '''
+    """
     Wrapper for (measurement_settings, hardware_settings) dict-pairs
     representing a measurement (consisting of multiple configurations) to be run.
-    '''
+    """
 
     def __init__(self, pipeline_level):
         self.pipeline_level = pipeline_level
@@ -108,7 +107,7 @@ class DummyUpdateGenerator:
     """
     Callback that returns empty measurement and hardware updates.
     Should be combined with other building blocks in an AcquisitiontaskGenerator.
-    
+
     Can be e.g. wrapped in a ResultsRepeater,
     causing a measurement defined with the other blocks to be repeated n times.
     """
@@ -129,11 +128,15 @@ def broadcast_updates(updates: Sequence[Sequence]):
     # run some sanity checks to make sure we can do reasonable broadcasting of updates
     update_lengths_unique = set(update_lengths)
     if len(update_lengths_unique) > 2:
-        raise ValueError(f"Can't combine updates with more than two lengths: {update_lengths_unique}")
+        raise ValueError(
+            f"Can't combine updates with more than two lengths: {update_lengths_unique}"
+        )
     # if we have two different lengths, it is okay only if one of them is 1
     # then, the single update will be combined with all other updates
     if len(update_lengths_unique) == 2 and 1 not in update_lengths_unique:
-        raise ValueError(f"Can't combine updates with two different lengths > 1: {update_lengths_unique}")
+        raise ValueError(
+            f"Can't combine updates with two different lengths > 1: {update_lengths_unique}"
+        )
 
     # get combined updates: cycle so ones with len < maximum len will be repeated
     result = []
@@ -147,36 +150,43 @@ def broadcast_updates(updates: Sequence[Sequence]):
 
 def main():
 
-    from autosted.callback_buildingblocks.regular_position_generators import SpiralOffsetGenerator
-    spiralGen = SpiralOffsetGenerator().withStart([0,0]).withFOV([5,5]).withZOffset(1)
+    from autosted.callback_buildingblocks.regular_position_generators import (
+        SpiralOffsetGenerator,
+    )
+
+    spiralGen = SpiralOffsetGenerator().withStart([0, 0]).withFOV([5, 5]).withZOffset(1)
     for _ in range(5):
         print(spiralGen.get_locations())
 
 
 def ATGTest():
     from unittest.mock import MagicMock
-    from autosted.callback_buildingblocks.coordinate_value_wrappers import ZDCOffsetSettingsGenerator
+    from autosted.callback_buildingblocks.coordinate_value_wrappers import (
+        ZDCOffsetSettingsGenerator,
+    )
 
-    locMock = MagicMock(return_value = [])
-    locMock.get_locations = MagicMock(return_value = [])
+    locMock = MagicMock(return_value=[])
+    locMock.get_locations = MagicMock(return_value=[])
     og = ZDCOffsetSettingsGenerator(locMock)
 
     pipelineMock = MagicMock()
     atg = AcquisitionTaskGenerator(0, og)
     atg(pipelineMock)
 
-
     print(locMock.get_locations())
 
 
-if __name__ == '__main__':
-    test_updates = [('u1', 'u2', 'u3'), ['v1', 'v2', 'v3']]
+if __name__ == "__main__":
+    test_updates = [("u1", "u2", "u3"), ["v1", "v2", "v3"]]
     print(broadcast_updates(test_updates))
 
-    u1 = ['coords1', 'coords1-1']
-    u2 = ['coords2', 'coords2-1']
-    u3 = ['coords3', 'coords3-1']
-    v1 = ['settings1', 'settings2',]
+    u1 = ["coords1", "coords1-1"]
+    u2 = ["coords2", "coords2-1"]
+    u3 = ["coords3", "coords3-1"]
+    v1 = [
+        "settings1",
+        "settings2",
+    ]
     test_updates = ((u1, u2, u3), (v1,))
 
     for meas_updates in broadcast_updates(test_updates):

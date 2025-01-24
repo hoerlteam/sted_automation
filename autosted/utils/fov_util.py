@@ -34,9 +34,11 @@ def group_in_bounding_boxes(xs, bbox_size):
     # check for incompatible arguments
     dims = len(bbox_size)
     if np.any(np.array(bbox_size) == 0):
-        raise ValueError('cannot group in bounding boxes of zero extent')
+        raise ValueError("cannot group in bounding boxes of zero extent")
     if np.any(np.array([len(x) for x in xs]) != dims):
-        raise ValueError('one or more of the given points does not match the dimensionality of bbox')
+        raise ValueError(
+            "one or more of the given points does not match the dimensionality of bbox"
+        )
 
     # while not empty
     while worklist:
@@ -62,14 +64,10 @@ def group_in_bounding_boxes(xs, bbox_size):
 
 
 def main():
-    points = [
-        [0,0,0],
-        [0.5,0.5,0.5],
-        [1,1,1.5]
-    ]
-    size = [1,1,1]
+    points = [[0, 0, 0], [0.5, 0.5, 0.5], [1, 1, 1.5]]
+    size = [1, 1, 1]
     print(group_in_bounding_boxes(points, size))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
