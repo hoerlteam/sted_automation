@@ -61,13 +61,3 @@ def group_in_bounding_boxes(xs, bbox_size):
         bbox_centers.append(center)
 
     return bbox_centers
-
-
-def main():
-    points = [[0, 0, 0], [0.5, 0.5, 0.5], [1, 1, 1.5]]
-    size = [1, 1, 1]
-    print(group_in_bounding_boxes(points, size))
-
-
-if __name__ == "__main__":
-    main()

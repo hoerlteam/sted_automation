@@ -96,20 +96,3 @@ class PositionListOffsetGenerator:
             )()
         else:
             return [coordinates]
-
-
-def __test_main():
-
-    logging.basicConfig(level=logging.INFO)
-
-    positions = [[1, 2], [3, 4]]
-    generator = PositionListOffsetGenerator(positions, return_parameter_dict=True)
-    print(generator())
-
-    generator = SpiralOffsetGenerator([5, 5], [2, 0, 0], return_parameter_dict=True)
-    print(generator())
-    print(generator())
-
-
-if __name__ == "__main__":
-    __test_main()

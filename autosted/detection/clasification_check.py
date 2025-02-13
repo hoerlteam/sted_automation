@@ -16,6 +16,17 @@ class AcceptanceCheck:
         channels=(0,),
         check_function_kwargs=None,
     ):
+        
+        """
+        Parameters
+        ----------
+        check_function : a callable taking one or more images as the first positional arguments and optionally keyword arguments
+            should return True ("image here") or False ("don't image here")
+        data_source_callback : a callable (e.g. NewestDataSelector), which should return a MeasurementData object
+        configurations : index of configuration to use, or list of indices to use multiple
+        channels : index of channel to use, or list of indices to use multiple
+        check_function_kwargs : keyword arguments to pass to check_function
+        """
 
         if data_source_callback is None:
             data_source_callback = NewestDataSelector()
@@ -55,27 +66,3 @@ class AcceptanceCheck:
         # if we reject, we return an empty list -> no measurements
         else:
             return []
-
-
-if __name__ == "__main__":
-
-    import numpy as np
-    from autosted.taskgeneration import AcquisitionTaskGenerator
-    from autosted.callback_buildingblocks.static_settings import (
-        ScanModeSettingsGenerator,
-    )
-    from autosted.data import MeasurementData
-
-    logging.basicConfig(level=logging.INFO)
-
-    data = MeasurementData()
-    data.append({}, {}, np.zeros((1, 1, 100, 100)))
-    data_call = lambda: data
-
-    gen = AcquisitionTaskGenerator(
-        "test",
-        ScanModeSettingsGenerator("xy"),
-        AcceptanceCheck(data_call, lambda *x: True),
-    )
-    _, task = gen()
-    print(task[0].get_all_updates(True))

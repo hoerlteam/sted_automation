@@ -154,31 +154,3 @@ class ScanFieldSettingsGenerator(ValuesToSettingsDictCallback):
             (OFFSET_SCAN_PARAMETERS, FOV_LENGTH_PARAMETERS),
             as_measurements,
         )
-
-
-if __name__ == "__main__":
-
-    # dummy callback returning list of 3D coordinates
-    positions = [[1, 2, 3], [4, 5, 6]]
-    position_callback = lambda: positions
-
-    # test ScanOffsetsSettingsGenerator / Stage... / ZDC...
-    gen = ZDCOffsetSettingsGenerator(position_callback, False)
-    res = gen()
-    pprint.pprint(res)
-
-    # dummy callback returning pairs of 3D coordinates
-    # -> can be interpreted as offset, size for ScanFieldSettingsGenerator
-    # or as pairs of offsets from MultipleScanOffsetsSettingsGenerator
-    coord_pairs = [((1, 2, 3), (1, 2, 3)), ((2, 3, 4), (5, 6, 7))]
-    coord_pairs_callback = lambda: coord_pairs
-
-    # test field/ROI settings generator
-    gen = ScanFieldSettingsGenerator(coord_pairs_callback, True)
-    res = gen()
-    pprint.pprint(res)
-
-    # test multiple offsets generator
-    gen = MultipleScanOffsetsSettingsGenerator(coord_pairs_callback, True)
-    res = gen()
-    pprint.pprint(res)

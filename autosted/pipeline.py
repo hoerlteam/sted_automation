@@ -14,9 +14,6 @@ from autosted.taskgeneration.taskgeneration import AcquisitionTask
 
 
 class AcquisitionPipeline:
-    """
-    the main class of an acquisition pipeline run
-    """
 
     # keep reference to currently running instance
     running_instance = None
@@ -28,11 +25,34 @@ class AcquisitionPipeline:
         imspector=None,
         save_combined_hdf5=False,
         level_priorities=None,
-        name="automatic-acquisition",
         file_prefix=None,
     ):
+        """
+        An `AcquisitionPipeline` is the main object of an autoSTED acquisition pipeline run.
 
-        self.name = name
+        Parameters
+        ----------
+        data_save_path (str):
+            The path where the acquired data will be saved.
+        hierarchy_levels (list of str):
+            names of the levels in a hierarchical acquisition (e.g. ["overview", "detail"])
+            Acquisition Tasks with a later level in this list will have higher priority
+        imspector (Imspector, optional):
+            An instance of SpcPy `Imspector` class to use to interface with the microscope.
+            By default, we make a new instance connecting to a local Imspector.
+        save_combined_hdf5 (bool, optional):
+            A flag indicating whether to save the all acquired data in one HDF5 file
+            (in addition to the individual .msr files). Default is False.
+        level_priorities (dict of str->int, optional):
+            Assign different priorities to levels of the acquisition (lower values will be prioritized).
+        file_prefix (str, optional):
+            A prefix for the filenames of the saved data files.
+            Default is None (a random alphanumeric string will be used).
+        """
+
+        # name of the run, mostly unused at the moment
+        self.name = "automatic-acquisition"
+
         self.hierarchy_levels = hierarchy_levels
 
         # by default, priorities are the inverse of the order of hierarchy_levels
@@ -378,19 +398,3 @@ class FilenameHandler:
 
     def get_path(self, idxes=(), ending=None, mask_levels=None):
         return os.path.join(self.path, self.get_filename(idxes, ending, mask_levels))
-
-
-if __name__ == "__main__":
-    FilenameHandler.random_prefix_length = 6
-    file_handler = FilenameHandler(
-        "/path/to/file", ["overview", "detail"], min_index_padding_length=3
-    )
-    print(file_handler.get_path((2, 3), ending=".h5"))
-    print(file_handler.get_path(ending=".h5"))
-
-    file_handler = FilenameHandler(
-        "/path/to/file",
-        ["pre-overview", "overview", "detail"],
-        min_index_padding_length=3,
-    )
-    print(file_handler.get_path((2, 3, 4), ending=".h5", mask_levels=["pre-overview"]))

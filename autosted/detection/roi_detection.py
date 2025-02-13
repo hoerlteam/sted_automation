@@ -47,6 +47,23 @@ class SegmentationWrapper:
         plot_detections=True,
         return_parameter_dict=True,
     ):
+        
+        """
+        Parameters
+        ----------
+        detection_function : a callable taking one or more images as the first positional arguments and optionally keyword arguments
+            should return a label map as integer-valued array
+        data_source_callback : a callable (e.g. NewestDataSelector), which should return a MeasurementData object
+        configurations : index of configuration to use, or list of indices to use multiple
+        channels : index of channel to use, or list of indices to use multiple
+        detection_kwargs : keyword arguments to pass to detection_function
+        regionprops_filters: dict mapping property (str) -> min, max (2-tuple)
+        reference_configuration : index of configuration from which to get metadata (e.g. stage/scan position)
+        offset_parameters : parameter paths of offset position in measurement settings
+            or "scan"/"stage" to use default scan/stage parameters
+        plot_detections: whether to produce a plot showing detections or not
+        return_parameter_dict : whether to return ready-to-use parameter dictionary instead of values
+        """
 
         if data_source_callback is None:
             data_source_callback = NewestDataSelector()
@@ -216,59 +233,19 @@ class SegmentationWrapper:
 
 class ROIDetectorWrapper(SegmentationWrapper):
 
+    def __init__(self, *args, **kwargs):
+        """
+        subclass of SegmentationWrapper wrapping a function that directly returns object bounding boxes
+        parameters are the same, only differences shown here:
+
+        Parameters
+        ----------
+        detection_function : a callable taking one or more images as the first positional arguments and optionally keyword arguments
+            should return sequence of (min_0, min_1, ..., max_0, max_1, ...) bounding boxes
+        regionprops_filters: is unused
+        """
+        super().__init__(*args, **kwargs)
+
     def run_segmentation(self, images):
         bboxes = self.detection_function(*images, **self.detection_kwargs)
         return bboxes
-
-
-if __name__ == "__main__":
-
-    from pprint import pprint
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG)
-
-    img = np.zeros((1, 5, 201, 201), dtype=float)
-
-    img[0, 0, 100:111, 100:111] = 5
-    img[0, 0, 20:45, 50:85] = 10
-
-    off = [0, 0, 0]
-    pixel_size = [0.1, 0.1, 0.1]
-    fov = np.array([0.1, 0.1, 0.1]) * (201 - 1)
-
-    settings_call = ValuesToSettingsDictCallback(
-        lambda: ((off, pixel_size, fov),),
-        (OFFSET_SCAN_PARAMETERS, PIXEL_SIZE_PARAMETERS, FOV_LENGTH_PARAMETERS),
-    )
-    measurement_settings, hardware_settings = settings_call()[0][0]
-
-    data = MeasurementData()
-    data.append(hardware_settings, measurement_settings, [img])
-    data_call = lambda: data
-
-    def detection_fun(img, thresh=0):
-        from scipy.ndimage import label
-
-        return label(img > thresh)[0]
-
-    def detection_rois(img, thresh=0):
-        from scipy.ndimage import label
-
-        return [r.bbox for r in regionprops(label(img > thresh)[0])]
-
-    callback = SegmentationWrapper(
-        data_call,
-        detection_fun,
-        return_parameter_dict=True,
-        detection_kwargs={"thresh": 0.1},
-        regionprops_filters={"area": (24, 2000)},
-    )
-    # callback = ROIDetectorWrapper(data_call, detection_rois, return_parameter_dict=True,
-    #                                detection_kwargs={'thresh': 1})
-    callback.invert_dimensions = (False, True, True)
-    callback.plot_detections = True
-
-    res = callback()
-
-    pprint(res)

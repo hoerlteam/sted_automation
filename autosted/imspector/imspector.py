@@ -5,6 +5,8 @@ from threading import Semaphore
 
 import numpy as np
 
+# do not fail on missing SpecPy
+# so we can develop on systems other than the microscope control workstation
 try:
     import specpy
 except ImportError:

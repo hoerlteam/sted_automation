@@ -346,19 +346,3 @@ def _hdf5_group_path(
             path + f'{separator_levels if i != 0 else ""}{level}{separator_index}{idx}'
         )
     return path
-
-
-def _path_test():
-    pll = ("ov", "det", "det2")
-    idxes = (1, 2)
-    print(_hdf5_group_path(pll, idxes))
-
-
-def main():
-    path = "C:/Users/david/Desktop/msr-test-files/6542d40dcd6ed1833ed868ac060f73a1.h5"
-    r = HDF5DataReader(path)
-    print(r[(0, 22)].measurement_settings)
-
-
-if __name__ == "__main__":
-    _path_test()

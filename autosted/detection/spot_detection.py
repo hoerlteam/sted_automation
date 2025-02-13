@@ -45,13 +45,18 @@ class CoordinateDetectorWrapper:
         """
         Parameters
         ----------
-        data_source_callback : a callable (e.g. NewestDataSelector), which should return a MeasurementData object
         detection_function : a callable taking one or more images as the first positional arguments and optionally keyword arguments
+            should return a list (or array) of coordinates (list/array)
+            or a list of lists of coordinates
+            (e.g. for detected coords "belong together" and will later form configurations of one measurement)
+        data_source_callback : a callable (e.g. NewestDataSelector), which should return a MeasurementData object
         configurations : index of configuration to use, or list of indices to use multiple
         channels : index of channel to use, or list of indices to use multiple
         detection_kwargs : keyword arguments to pass to detection_function
         reference_configuration : index of configuration from which to get metadata (e.g. stage/scan position)
         offset_parameters : parameter paths of offset position in measurement settings
+            or "scan"/"stage" to use default scan/stage parameters
+        plot_detections: whether to produce a plot showing detections or not
         return_parameter_dict : whether to return ready-to-use parameter dictionary instead of values
         """
 
@@ -185,7 +190,7 @@ class CoordinateDetectorWrapper:
             )
             if self.return_parameter_dict:
                 return ValuesToSettingsDictCallback(
-                    lambda: detection_unit, self.offset_parameter_paths
+                    lambda: detections_unit, self.offset_parameter_paths
                 )()
             else:
                 return detections_unit
@@ -196,10 +201,10 @@ class CoordinateDetectorWrapper:
                     refill_ignored_dimensions(detections_i_pixel, singleton_dims)
                     for detections_i_pixel in detections_i
                 ]
-                detection_unit = self.to_world_coordinates(
+                detections_unit = self.to_world_coordinates(
                     detections_i, measurement_settings, singleton_dims
                 )
-                results.append(detection_unit)
+                results.append(detections_unit)
 
             if self.return_parameter_dict:
                 return ValuesToSettingsDictCallback(
@@ -209,53 +214,3 @@ class CoordinateDetectorWrapper:
                 )()
             else:
                 return results
-
-
-if __name__ == "__main__":
-
-    from autosted.data import MeasurementData
-    from pprint import pprint
-
-    logging.basicConfig(level=logging.DEBUG)
-
-    img = np.zeros((1, 1, 201, 201), dtype=float)
-    img[0, 0, 100, 100] = 5
-    img[0, 0, 20, 50] = 5
-
-    img_ch2 = img.copy()
-
-    off = [0, 0, 0]
-    pixel_size = [0.1, 0.1, 0.1]
-    fov = np.array([0.1, 0.1, 0.1]) * 200
-    settings_call = ValuesToSettingsDictCallback(
-        lambda: ((off, pixel_size, fov),),
-        (OFFSET_SCAN_PARAMETERS, PIXEL_SIZE_PARAMETERS, FOV_LENGTH_PARAMETERS),
-    )
-    measurement_settings, hardware_settings = settings_call()[0][0]
-
-    data = MeasurementData()
-    data.append(hardware_settings, measurement_settings, [img, img_ch2])
-    data_call = lambda: data
-
-    def fun(img, *other_imgs, sigma=3):
-        from scipy.ndimage import gaussian_laplace
-        from skimage.feature import peak_local_max
-
-        for oi in other_imgs:
-            print(oi.shape)
-
-        return peak_local_max(
-            -gaussian_laplace(img.astype(float), sigma), threshold_abs=1e-6
-        )
-
-    detector = CoordinateDetectorWrapper(
-        data_call, fun, channels=(0, 1), detection_kwargs={"sigma": 3}
-    )
-    #
-    # detector = LegacySpotPairFinder(data_call, 1, [500, 0.1], plot_detections=True, return_parameter_dict=True)
-    detector.normalization_range = (0, 100)
-    # detector.plot_colors = ('cyan', 'magenta')
-
-    res = detector()
-    # res = ParameterValuesRepeater(SimpleManualOffset(detector, [13,13,13]), 2, nested=False)()
-    pprint(res)

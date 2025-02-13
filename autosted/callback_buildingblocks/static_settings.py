@@ -232,6 +232,22 @@ class JSONSettingsLoader:
         hardware_config_sources=None,
         as_measurements=False,
     ):
+        """
+        SettingsGenerator that returns settings saved to a JSON file or from given dict.
+
+        Parameters
+        ----------
+        measurement_config_sources: str / dict or sequence of str / dict
+            filename of JSON-format parameters or already loaded dict. Optionally multiple in list
+        hardware_config_sources: str / dict or sequence of str / dict (optional)
+            like measurement_config_sources, but for hardware parameters.
+            May be left as None to not return any hardware parameter updates
+        as_measurements: bool
+            How to handle multiple sources of updates:
+            if True, this will return multiple parameter updates (measurements),
+            each containing parameters from one of the given sources
+            if False (default), returns one update containing multiple configurations
+        """
         self.measurement_configs = []
         self.as_measurements = as_measurements
 
@@ -350,15 +366,3 @@ class PinholeSizeSettingsGenerator:
             ]
         ]
         return settings
-
-
-if __name__ == "__main__":
-
-    generator = DifferentFirstFOVSettingsGenerator(
-        [None, None, None], first_lengths=[15e-6, None, None]
-    )
-    print(generator())
-    print(generator())
-
-    generator = PinholeSizeSettingsGenerator(25e-6)
-    print(generator())
