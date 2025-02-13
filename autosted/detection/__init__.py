@@ -1,1 +1,7 @@
 from autosted.detection.autofocus import SimpleFocusPlaneDetector
+
+from autosted.detection.roi_detection import SegmentationWrapper, ROIDetectorWrapper
+
+from autosted.detection.spot_detection import CoordinateDetectorWrapper
+
+from autosted.detection.clasification_check import AcceptanceCheck
