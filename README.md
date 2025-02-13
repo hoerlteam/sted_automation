@@ -1,11 +1,11 @@
 # A flexible framework for automated STED super-resolution microscopy
 
-This framework allows you to automate an Abberior Instruments STED microscope in a flexible and generic way.
-We have sucessfully used it for super-resolution studies dealing mainly with chromatin organization:
+**autoSTED** allows you to automate an Abberior Instruments STED microscope in a flexible and generic way.
+We have sucessfully used it for multiple super-resolution studies dealing mainly with chromatin organization:
 * [Brandstetter et al. (Biophysical Journal, 2022)](https://linkinghub.elsevier.com/retrieve/pii/S0006349522001096)
 * [Palikyras et al. (Aging Cell, 2024)](https://onlinelibrary.wiley.com/doi/10.1111/acel.14083)
 * [Steinek et al. (Cell Reports Methods, 2024)](https://doi.org/10.1016/j.crmeth.2024.100840)
-* Stumberger et al. (in preparation, 2025)
+* [Stumberger et al. (bioRxiv preprint, 2025)](http://biorxiv.org/lookup/doi/10.1101/2025.01.20.633941)
 
 A technical manuscript describing the framework is currently in preparation.
 
@@ -43,6 +43,19 @@ Alternatively, install directly without cloning:
 ```bash
 pip install git+https://github.com/hoerlteam/sted_automation.git
 ```
+
+### Aviod NumPy updates
+
+**Warning:** Installing additional third-party packages may sometimes update NumPy, causing SpecPy to stop working. Consider using the ```--dry-run``` options of ```pip/conda``` to check if an installation might cause problems.
+
+Sometimes, it helps to explicity re-state the NumPy version during install:
+
+```bash
+pip install package-of-choice numpy==1.24.3
+conda install package-of-choice numpy=1.24.3
+```
+
+Pinning the NumPy version in ```conda``` might also be worth a look: [https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#preventing-packages-from-updating-pinning](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#preventing-packages-from-updating-pinning)
 
 ## Usage
 
