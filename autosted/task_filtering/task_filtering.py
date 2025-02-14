@@ -1,3 +1,4 @@
+from autosted import AcquisitionPipeline
 from autosted.utils.coordinate_utils import virtual_bbox_from_settings
 from calmutils.misc.bounding_boxes import get_iou
 
@@ -14,9 +15,6 @@ class AlreadyImagedFOVFilter:
         self.old_bboxes = []
 
     def check(self, task, level):
-
-        # to avoid a circular import
-        from autosted import AcquisitionPipeline
 
         # if pipeline and level are not set the first time the filter is called
         # use the currently running pipeline as well as the level of the task that is being checked

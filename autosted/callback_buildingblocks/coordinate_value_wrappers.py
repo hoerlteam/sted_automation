@@ -1,3 +1,10 @@
+"""
+This file contains callback classes to wrap callbacks that return arrays/lists of numbers into parameter dics. 
+
+We provide a few specific wrappers to turn the results of a callback returning lists of coordinates
+into stage or scan coordinates plus a generic ValuesToSettingsDictCallback.
+"""
+
 import pprint
 from operator import add
 from functools import reduce

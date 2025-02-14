@@ -4,5 +4,3 @@ from autosted.taskgeneration.taskgeneration import (
 )
 
 from autosted.taskgeneration.timeseries import TimeSeriesCallback
-
-from autosted.taskgeneration.task_filtering import AlreadyImagedFOVFilter
