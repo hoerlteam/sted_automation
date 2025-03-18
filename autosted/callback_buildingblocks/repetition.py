@@ -1,3 +1,7 @@
+from typing import Sequence
+from itertools import product
+
+
 class ResultsRepeater:
     """
     Simple callback to wrap another callback and repeat the results n times.
@@ -34,3 +38,54 @@ class ResultsRepeater:
                     repeated_values.append(values)
 
         return repeated_values
+
+
+class ValueCombinationsGenerator:
+    """
+    Callback that returns combinations (Cartesian product) of values from multiple value lists. 
+    """
+
+    def __init__(self, value_lists: Sequence[Sequence], n_repeats_per_combination=1, keep_looping=False):
+        
+        # check if list/sequence of lists
+        if not (isinstance(value_lists, Sequence) and isinstance(value_lists[0], Sequence)):
+            raise ValueError("value_lists should be list/sequence of lists of parameter values")
+
+        self.value_lists = value_lists
+        self.n_repeats_per_combination = n_repeats_per_combination
+        self.keep_looping = keep_looping
+
+        # build generator
+        def _generator():
+            while True:
+                for value_combo in product(*self.value_lists):
+                    for _ in range(self.n_repeats_per_combination):
+                        yield value_combo
+                if not self.keep_looping:
+                    break
+
+        # start generator
+        self.generator = _generator()
+
+
+    def get_all_combinations(self):
+
+        """
+        return all parameter values combinations at once, ignores keep_looping
+        """
+
+        results = []
+        for value_combo in product(*self.value_lists):
+            for _ in range(self.n_repeats_per_combination):
+                results.append(value_combo)
+
+        return results
+
+
+    def __call__(self):
+
+        # get next item from generator, None by default
+        res = next(self.generator, None)
+
+        # return empty result if no next item, else list containing that one item
+        return [] if res is None else [res]

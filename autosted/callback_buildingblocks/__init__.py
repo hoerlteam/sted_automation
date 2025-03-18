@@ -23,7 +23,10 @@ from autosted.callback_buildingblocks.regular_position_generators import (
     SpiralOffsetGenerator,
 )
 
-from autosted.callback_buildingblocks.repetition import ResultsRepeater
+from autosted.callback_buildingblocks.repetition import (
+    ResultsRepeater,
+    ValueCombinationsGenerator,
+)
 
 from autosted.callback_buildingblocks.static_settings import (
     DifferentFirstFOVSettingsGenerator,
