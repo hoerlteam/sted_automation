@@ -2,6 +2,7 @@ import re
 from warnings import warn
 import logging
 from threading import Semaphore
+import time
 
 import numpy as np
 
@@ -12,7 +13,7 @@ try:
 except ImportError:
     pass
 
-from autosted.utils.dict_utils import get_path_from_dict
+from autosted.utils.dict_utils import get_path_from_dict, remove_path_from_dict
 from autosted.utils.parameter_constants import (
     OFFSET_STAGE_GLOBAL_PARAMETERS,
     OFFSET_SCAN_PARAMETERS,
@@ -106,14 +107,42 @@ class ImspectorConnection:
             imspector = specpy.get_application()
 
         self.imspector = imspector
-        self.dropped_parameters = set()
+
+        # sets of parameters to ignore because we got errors trying to set them
+        self.dropped_parameters_measurement = set()
+        self.dropped_parameters_hardware = set()
 
         self.logger = logging.getLogger(__name__)
 
     def set_parameters_recursive(self, where, params, value_type):
 
+        # we keep separate sets of dropped parameters for measurement and hardware
+        # pick the relevant one
+        if value_type == specpy.ValueTree.Measurement:
+            dropped_parameter_set = self.dropped_parameters_measurement
+        elif value_type == specpy.ValueTree.Hardware:
+            dropped_parameter_set = self.dropped_parameters_hardware
+        else:
+            raise ValueError("Trying to set non-measurement and non-hardware parameters not supported.")
+
+        # if we are at the root of parameter tree, filter dropped parameters
+        if where == "":
+            for param_to_drop in dropped_parameter_set:
+                params = remove_path_from_dict(params, param_to_drop)
+
+        # try to set all parameters at once
+        try:
+            self.imspector.value_at(where, value_type).set(params)
+            bulk_success = True
+        except RuntimeError:
+            bulk_success = False
+        # we encountered no error we're done and don't have to set recursively
+        if bulk_success:
+            return
+
         # skip if the parameter caused an error before
-        if where in self.dropped_parameters:
+        # NOTE: most likely redundant if we drop at the root above, kept for the moment
+        if where in dropped_parameter_set:
             return
 
         if not isinstance(params, dict):
@@ -121,13 +150,13 @@ class ImspectorConnection:
             try:
                 self.imspector.value_at(where, value_type).set(params)
             except RuntimeError:
-                if where not in self.dropped_parameters:
+                if where not in dropped_parameter_set:
                     self.logger.debug(
                         "parameter {} cannot be set, ignoring from here on".format(
                             where
                         )
                     )
-                    self.dropped_parameters.add(where)
+                    dropped_parameter_set.add(where)
         else:
             # we have a dict of parameters, set all individually
             for k, v in params.items():
@@ -160,6 +189,7 @@ class ImspectorConnection:
     def set_parameters_in_measurement(self, ms, task):
 
         measurement_updates, hardware_updates = task
+
         # we do the update twice to also set grayed-out values
         self.set_parameters_recursive(
             "", measurement_updates, specpy.ValueTree.Measurement
@@ -168,6 +198,7 @@ class ImspectorConnection:
             self.set_parameters_recursive(
                 "", hardware_updates, specpy.ValueTree.Hardware
             )
+
         self.set_parameters_recursive(
             "", measurement_updates, specpy.ValueTree.Measurement
         )
@@ -175,25 +206,31 @@ class ImspectorConnection:
             self.set_parameters_recursive(
                 "", hardware_updates, specpy.ValueTree.Hardware
             )
-
+        
         # NOTE: sync axis seems to jump back to frame after setting
         # if we want lines, we manually re-set just that one parameter
         # FIXME: this causes weird problems in xz cut followed by any other image
-        if (
-            get_path_from_dict(
-                measurement_updates, "Measurement/axes/num_synced", False
-            )
-            == 1
-        ):
-            ms.set_parameters("Measurement/axes/num_synced", 1)
+        # if (
+        #     get_path_from_dict(
+        #         measurement_updates, "Measurement/axes/num_synced", False
+        #     )
+        #     == 1
+        # ):
+        #     ms.set_parameters("Measurement/axes/num_synced", 1)
 
     def make_configuration_from_task(self, task):
 
-        # clone configuration in current measurement
+        # clone active configuration in current measurement
         ms = self.imspector.active_measurement()
         ac = ms.active_configuration()
-        ac = ms.clone(ac)
-        ms.activate(ac)
+        new_ac = ms.clone(ac)
+        ms.activate(new_ac)
+
+        # we sometimes had delay in switching configurations
+        # keep trying with 50ms delay
+        while (ms.active_configuration().name() != new_ac.name()):
+            ms.activate(new_ac)
+            time.sleep(0.05)
 
         self.set_parameters_in_measurement(ms, task)
 
