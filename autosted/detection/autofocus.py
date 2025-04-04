@@ -18,7 +18,7 @@ class SimpleFocusPlaneDetector:
         data_source_callback=None,
         configuration=0,
         channel=0,
-        invert_z_direction=True,
+        invert_z_direction=False,
         focus_function=None,
         focus_function_kwargs=None,
     ):
