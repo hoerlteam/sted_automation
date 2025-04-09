@@ -99,7 +99,7 @@ class AcquisitionPipeline:
         # set up data storage, can be hdf5 or just an in-memory defaultdict
         if save_combined_hdf5:
             self.data = HDF5DataStore(
-                self.filename_handler.get_path((), ".h5"), self.hierarchy_levels
+                self.filename_handler.get_path((), ".h5")
             )
         else:
             self.data = defaultdict(MeasurementData)
@@ -146,11 +146,7 @@ class AcquisitionPipeline:
                 priority, index, acquisition_task = heapq.heappop(self.queue)
 
                 # get level of current task
-                current_level = next(
-                    hierarchy_level
-                    for hierarchy_level, priority_i in self.level_priorities.items()
-                    if priority_i == priority
-                )
+                current_level = index[-1][0]
 
                 # if we have an actual AcquisitionTask wrapper object, get it's delay
                 # otherwise (e.g. we have list of parameters) default to 0
@@ -255,12 +251,6 @@ class AcquisitionPipeline:
         checks already imaged idxs from data and idxs currently in queue to prevent re-use of the same index
         """
 
-        # quick sanity check to ensure we have a long enough parent index to generate a new one
-        if len(parent_index) < hierarchy_level:
-            raise ValueError(
-                "length of parent index must be at least equal to hierarchy level"
-            )
-
         indices = self.get_all_used_indices(hierarchy_level)
 
         # get all that start with parent index
@@ -270,17 +260,17 @@ class AcquisitionPipeline:
         indices = [
             idx
             for idx in indices
-            if idx[:hierarchy_level] == parent_index[:hierarchy_level]
+            if idx[:-1] == parent_index[:-1]
         ]
 
         # get the indices of the last hierarchy level
-        index_at_level = [idx[hierarchy_level] for idx in indices]
+        index_at_level = [idx[-1][1] for idx in indices]
 
         # next index is either the maximum found + 1 or 0 if nothing yet at this level
         next_index = max(index_at_level) + 1 if len(index_at_level) > 0 else 0
 
-        # return as index tuple
-        return parent_index[:hierarchy_level] + (next_index,)
+        # return as tuple of (level, index) pairs
+        return parent_index + ((hierarchy_level, next_index),)
 
     def get_all_used_indices(self, hierarchy_level):
         """
@@ -289,33 +279,28 @@ class AcquisitionPipeline:
         """
 
         indices_in_queue = {
-            idx for prio, idx, task in self.queue if len(idx) == hierarchy_level + 1
+            idx for prio, idx, task in self.queue if idx[-1][0] == hierarchy_level
         }
         indices_in_data = {
-            idx for idx in self.data.keys() if len(idx) == hierarchy_level + 1
+            idx for idx in self.data.keys() if idx[-1][0] == hierarchy_level
         }
         indices = indices_in_queue.union(indices_in_data)
         return indices
 
     def enqueue_task(self, level, task, parent_index=(), reuse_parent_index=False):
 
-        new_priority = next(
-            priority
-            for hierarchy_level, priority in self.level_priorities.items()
-            if hierarchy_level == level
-        )
-        new_hierarchy_index = self.hierarchy_levels.index(level)
+        new_priority = self.level_priorities[level]
 
         if reuse_parent_index:
-            # repeat last value from parent index e.g. (4, 2) -> (4, 2, 2)
-            new_index = parent_index + (parent_index[-1],)
+            # repeat last value from parent index e.g. (('a', 4), ('b', 2)) -> (('a', 4), ('b', 2), ('c', 2))
+            new_index = parent_index + ((level, parent_index[-1][1]),)
             # check if it already exists, warn of overwrite in that case
-            if new_index in self.get_all_used_indices(new_hierarchy_index):
+            if new_index in self.get_all_used_indices(level):
                 self.logger.warning(
                     "Reusing index {new_index}, data will be overwritten!"
                 )
         else:
-            new_index = self.get_next_free_index(new_hierarchy_index, parent_index)
+            new_index = self.get_next_free_index(level, parent_index)
 
         heapq.heappush(self.queue, (new_priority, new_index, task))
 
@@ -350,7 +335,8 @@ class FilenameHandler:
         min_index_padding_length=0,
     ):
         self.path = path
-        self.levels = levels
+        # TODO: remove unnecessary levels parameter
+        # self.levels = levels
         self.default_ending = default_ending
         self.min_index_padding_length = min_index_padding_length
 
@@ -378,11 +364,11 @@ class FilenameHandler:
         if mask_levels is not None:
             insert_pairs = [
                 (level, index)
-                for level, index in zip(self.levels[0 : len(idxes)], idxes)
+                for level, index in idxes
                 if level not in mask_levels
             ]
         else:
-            insert_pairs = list(zip(self.levels[0 : len(idxes)], idxes))
+            insert_pairs = idxes
 
         # make chained inserts [level1, idx1, level2, idx2, ...]
         insert = chain.from_iterable(insert_pairs)

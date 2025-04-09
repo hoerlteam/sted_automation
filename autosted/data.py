@@ -73,7 +73,6 @@ class HDF5DataStore(defaultdict):
     def __init__(
         self,
         h5_file,
-        pipeline_levels=None,
         root_path="experiment",
         read_only=False,
         compressed=True,
@@ -85,8 +84,6 @@ class HDF5DataStore(defaultdict):
         file_mode = "r" if read_only else "a"
 
         self.root_path = root_path
-        self.pipeline_levels = pipeline_levels
-
         self.compressed = compressed
 
         # get file handle for write: if member h5_file is already a File object, use as-is
@@ -94,7 +91,7 @@ class HDF5DataStore(defaultdict):
         file_is_file_handle = isinstance(self.h5_file, h5py.File)
         fd = self.h5_file if file_is_file_handle else h5py.File(self.h5_file, file_mode)
 
-        # add root group and information about pipeline levels to h5 file
+        # add root group
         if root_path not in fd:
             if self.read_only:
                 raise ValueError(
@@ -102,21 +99,6 @@ class HDF5DataStore(defaultdict):
                 )
             else:
                 fd.create_group(root_path)
-        attrs = h5py.AttributeManager(fd[root_path])
-
-        if "levels" in attrs:
-            levels_from_file = attrs["levels"].split(",")
-        else:
-            levels_from_file = None
-
-        if self.pipeline_levels is None:
-            self.pipeline_levels = levels_from_file
-
-        if not self.read_only:
-            if levels_from_file is not None:
-                # TODO: clean warning/logging
-                print("WARNING: overwriting existing levels")
-            attrs["levels"] = ",".join(self.pipeline_levels)
 
         # if we have opened a new file object, close it again
         # otherwise (we are using a provided object), leave it
@@ -135,13 +117,6 @@ class HDF5DataStore(defaultdict):
         :return: list if index tuples
         """
 
-        # regex to match abc_123_def_456... and capture numbers
-        # also matches old-style abc123_def456
-        idx_pattern = "(?:_)?".join(
-            f"(?:{level}_?(\\d+))?" for level in self.pipeline_levels
-        )
-        idx_pattern = re.compile(idx_pattern)
-
         idxes = []
 
         # get file handle for write: if member h5_file is already a File object, use as-is
@@ -150,12 +125,14 @@ class HDF5DataStore(defaultdict):
         fd = self.h5_file if file_is_file_handle else h5py.File(self.h5_file, "r")
 
         for k in fd[self.root_path].keys():
-            match = idx_pattern.match(k)
-            if match is None or not any(match.groups()):
-                continue
-            g = match.groups()
-            g = tuple([int(gi) for gi in g if gi is not None])
-            idxes.append(g)
+
+            # regex to match abc_123_def_456... and capture numbers
+            if (groups := re.findall("(.+?)_(\\d+)_?", k)):
+                idxes.append(tuple([(level, int(idx_i)) for level, idx_i in groups ]))
+            # old-style abc123_def456
+            else:
+                groups = re.findall("(.+?)(\\d+)_?", k)
+                idxes.append(tuple([(level, int(idx_i)) for level, idx_i in groups ]))
 
         # if we have opened a new file object, close it again
         # otherwise (we are using a provided object), leave it
@@ -168,7 +145,6 @@ class HDF5DataStore(defaultdict):
 
         new_data = HDF5MeasurementData(
             self.h5_file,
-            self.pipeline_levels,
             key,
             self.root_path,
             self.read_only,
@@ -184,16 +160,14 @@ class HDF5MeasurementData(MeasurementData):
     def __init__(
         self,
         h5_file,
-        pipeline_levels,
-        idxes,
+        key,
         root_path="experiment",
         read_only=False,
         compressed=True,
     ):
         super().__init__()
         self.h5_file = h5_file
-        self.pll = pipeline_levels
-        self.idxes = idxes
+        self.levels, self.idxes = zip(*key)
         self.root_path = root_path
         self.read_only = read_only
         self.compressed = compressed
@@ -208,7 +182,7 @@ class HDF5MeasurementData(MeasurementData):
         fd = self.h5_file if file_is_file_handle else h5py.File(self.h5_file, "r")
 
         # query corresponding group in hdf5 file
-        path = _hdf5_group_path(self.pll, self.idxes, self.root_path)
+        path = _hdf5_group_path(self.levels, self.idxes, self.root_path)
         if path in fd:
             h5_dataset = fd[path]
             num_configs = h5py.AttributeManager(h5_dataset)["num_configs"]
@@ -217,7 +191,7 @@ class HDF5MeasurementData(MeasurementData):
             self.read_only
             and (
                 path := _hdf5_group_path(
-                    self.pll, self.idxes, self.root_path, separator_index=""
+                    self.levels, self.idxes, self.root_path, separator_index=""
                 )
             )
             in fd
@@ -272,7 +246,7 @@ class HDF5MeasurementData(MeasurementData):
         fd = self.h5_file if file_is_file_handle else h5py.File(self.h5_file, "a")
 
         # make HDF5 group if it does not exist already (first config in acquisition)
-        group_path = _hdf5_group_path(self.pll, self.idxes, self.root_path)
+        group_path = _hdf5_group_path(self.levels, self.idxes, self.root_path)
         if group_path not in fd:
             fd.create_group(group_path)
             attrs = h5py.AttributeManager(fd[group_path])
@@ -318,11 +292,10 @@ class HDF5DataReader(HDF5DataStore):
         the file object to read from, should be opened in read mode
     root_path: str
         name of the root group in fd
-
     """
 
     def __init__(self, fd, root_path="experiment"):
-        super().__init__(fd, None, root_path, True)
+        super().__init__(fd, root_path, True)
 
 
 def _hdf5_group_path(

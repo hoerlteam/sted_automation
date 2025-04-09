@@ -72,9 +72,8 @@ class StitchedNewestDataSelector(NewestDataSelector):
         )
 
         # get all other indices of same level
-        index_length = self.pipeline.hierarchy_levels.index(self.level) + 1
         indices_same_level = [
-            k for k in self.pipeline.data.keys() if len(k) == index_length
+            (lvl, idx) for (lvl, idx) in self.pipeline.data.keys() if lvl == self.level
         ]
 
         # as index tuples are increasing, latest measurement will be first in reverse-sorted indices

@@ -26,16 +26,14 @@ class NewestDataSelector:
             # no data yet, postpone
             if len(self.pipeline.data) == 0:
                 return None
-            # sort indices -> largest one should be newest
-            newest_data_idx = sorted(self.pipeline.data.keys())[-1]
+            # as Python dicts are ordered, last key should be newest
+            newest_data_idx = list(self.pipeline.data.keys())[-1]
             # index length to corresponding level
-            self.level = self.pipeline.hierarchy_levels[len(newest_data_idx) - 1]
+            self.level = newest_data_idx[-1][0]
 
-        # length of indices of same level: position in levels of pipeline + 1
-        index_length = self.pipeline.hierarchy_levels.index(self.level) + 1
-        # get all measurement indices in data of same length (same level)
+        # get all other indices of same level
         indices_same_level = [
-            k for k in self.pipeline.data.keys() if len(k) == index_length
+            (lvl, idx) for (lvl, idx) in self.pipeline.data.keys() if lvl == self.level
         ]
 
         # if no data, return None
