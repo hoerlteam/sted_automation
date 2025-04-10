@@ -79,7 +79,7 @@ class AcquisitionPipeline:
         # TODO: mask levels in H5 as well
         self._masked_levels_in_filename = []
 
-        # keep track of starting time, so
+        # keep track of starting time, e.g. for TimedStoppingCriterion
         self.starting_time = None
 
         # hold the Imspector connection
@@ -90,7 +90,7 @@ class AcquisitionPipeline:
         # set up file name handling and create output directory
         self.base_path = os.path.abspath(data_save_path)
         self.filename_handler = FilenameHandler(
-            self.base_path, self.hierarchy_levels, file_prefix
+            self.base_path, file_prefix
         )
         # make directory if it does not exist yet
         if not os.path.exists(self.base_path):
@@ -145,8 +145,8 @@ class AcquisitionPipeline:
                 # pop next task from queue
                 priority, index, acquisition_task = heapq.heappop(self.queue)
 
-                # get level of current task
-                current_level = index[-1][0]
+                # get level of current task (last (level, idx) of index)
+                current_level, _ = index[-1]
 
                 # if we have an actual AcquisitionTask wrapper object, get it's delay
                 # otherwise (e.g. we have list of parameters) default to 0
@@ -263,7 +263,7 @@ class AcquisitionPipeline:
             if idx[:-1] == parent_index[:-1]
         ]
 
-        # get the indices of the last hierarchy level
+        # get the indices (acq. numbers) of the last hierarchy level
         index_at_level = [idx[-1][1] for idx in indices]
 
         # next index is either the maximum found + 1 or 0 if nothing yet at this level
@@ -278,6 +278,9 @@ class AcquisitionPipeline:
         and from queue (not yet imaged but already enqueued, so also taken)
         """
 
+        # get indices of same hierarchy level from queue and data store
+        # indices are (level, number) pairs
+        # the last index indicates the level of actual measurement, the others parent indices
         indices_in_queue = {
             idx for prio, idx, task in self.queue if idx[-1][0] == hierarchy_level
         }
@@ -329,7 +332,6 @@ class FilenameHandler:
     def __init__(
         self,
         path,
-        levels,
         prefix=None,
         default_ending=".msr",
         min_index_padding_length=0,
