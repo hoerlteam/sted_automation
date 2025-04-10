@@ -251,6 +251,11 @@ class AcquisitionPipeline:
         checks already imaged idxs from data and idxs currently in queue to prevent re-use of the same index
         """
 
+        # we are at the same level as parent (e.g. next overview is enqueued after previous)
+        # therefore, we ignore the last element of parent
+        if len(parent_index) > 0 and parent_index[-1][0] == hierarchy_level:
+            parent_index = parent_index[:-1]
+
         indices = self.get_all_used_indices(hierarchy_level)
 
         # get all that start with parent index
@@ -260,7 +265,7 @@ class AcquisitionPipeline:
         indices = [
             idx
             for idx in indices
-            if idx[:-1] == parent_index[:-1]
+            if idx[:-1] == parent_index
         ]
 
         # get the indices (acq. numbers) of the last hierarchy level
@@ -360,7 +365,7 @@ class FilenameHandler:
     def get_filename(self, idxes=(), ending=None, mask_levels=None):
 
         # left-pad to desired length
-        idxes = [self.leftpad(str(idx), self.min_index_padding_length) for idx in idxes]
+        idxes = [(level, self.leftpad(str(idx), self.min_index_padding_length)) for level, idx in idxes]
 
         # get level, index-pairs, drop masked levels if necessary
         if mask_levels is not None:

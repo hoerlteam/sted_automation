@@ -73,7 +73,7 @@ class StitchedNewestDataSelector(NewestDataSelector):
 
         # get all other indices of same level
         indices_same_level = [
-            (lvl, idx) for (lvl, idx) in self.pipeline.data.keys() if lvl == self.level
+            k for k in self.pipeline.data.keys() if k[-1][0] == self.level
         ]
 
         # as index tuples are increasing, latest measurement will be first in reverse-sorted indices

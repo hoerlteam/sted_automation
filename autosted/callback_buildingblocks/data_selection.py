@@ -33,7 +33,7 @@ class NewestDataSelector:
 
         # get all other indices of same level
         indices_same_level = [
-            (lvl, idx) for (lvl, idx) in self.pipeline.data.keys() if lvl == self.level
+            k for k in self.pipeline.data.keys() if k[-1][0] == self.level
         ]
 
         # if no data, return None

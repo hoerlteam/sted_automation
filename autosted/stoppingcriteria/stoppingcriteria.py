@@ -30,7 +30,7 @@ class MaximumAcquisitionsStoppingCriterion:
 
                 # get number of all measurement indices in data of same length (same level)
                 num_acquisitions_level = len(
-                    [k for k in self.pipeline.data.keys() if k[-1][0] == level]
+                    [k for k in pipeline.data.keys() if k[-1][0] == level]
                 )
                 if num_acquisitions_level >= max_acquisitions_at_level:
                     return True
