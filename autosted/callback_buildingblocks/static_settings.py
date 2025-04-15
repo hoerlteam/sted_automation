@@ -156,10 +156,21 @@ class ScanModeSettingsGenerator:
 
         for mode in self.modes:
             resD = {}
+
+            # old-style with mode flag
+            # NOTE: should be redundant, but will be dropped anyway so we leave it in
             resD = merge_dicts(
                 resD,
                 generate_nested_dict(
-                    ScanModeSettingsGenerator.gen_mode_flag(mode), self._path
+                    ScanModeSettingsGenerator.gen_mode_flag(mode), self._path_scanmode_flag
+                ),
+            )
+
+            # new with just string
+            resD = merge_dicts(
+                resD,
+                generate_nested_dict(
+                    mode, self._path_scanmode
                 ),
             )
 
@@ -192,7 +203,8 @@ class ScanModeSettingsGenerator:
         else:
             return [reduce(add, res)]
 
-    _path = "ExpControl/scan/range/mode"
+    _path_scanmode = "ExpControl/scan/range/scanmode"
+    _path_scanmode_flag = "ExpControl/scan/range/mode"
     _path_axes = "Measurement/axes/scan_axes"
 
     @staticmethod

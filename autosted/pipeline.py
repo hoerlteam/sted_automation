@@ -83,7 +83,11 @@ class AcquisitionPipeline:
         self.starting_time = None
 
         # hold the Imspector connection
-        self.imspector_connection = ImspectorConnection(imspector)
+        if imspector is not None:
+            self.imspector_connection = ImspectorConnection(imspector)
+        # delay if Imspector is not explicitly given
+        else:
+            self.imspector_connection = None
 
         self.logger = logging.getLogger(__name__)
 
@@ -124,6 +128,11 @@ class AcquisitionPipeline:
                 "Another pipeline instance is currently running, this is likely to cause conflicts."
             )
         AcquisitionPipeline.running_instance = self
+
+        # init Imspector connection if we didn't already
+        # e.g. it could have been replaced by a simulated demo connection
+        if self.imspector_connection is None:
+            self.imspector_connection = ImspectorConnection(None)
 
         # we use this context manager to handle interrupts,
         # so we can finish the acquisition we are in before stopping

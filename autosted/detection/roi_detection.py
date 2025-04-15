@@ -215,8 +215,15 @@ class SegmentationWrapper:
             )
 
             # min/max to center/length
-            roi_center = (mins + maxs) / 2
-            roi_length = np.abs(maxs - mins)
+            roi_center = list((mins + maxs) / 2)
+            roi_length = list(np.abs(maxs - mins))
+
+            # set ROI length for singleton dimensions to None
+            # as we can't, e.g. determine 3D ROI from a 2D image
+            # (by returning None, settings from other building blocks will be used)
+            for d, is_singleton in enumerate(singleton_dims):
+                if is_singleton:
+                    roi_length[d] = None
 
             results.append((roi_center, roi_length))
 

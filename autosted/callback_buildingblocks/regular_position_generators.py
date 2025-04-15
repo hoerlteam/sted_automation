@@ -25,7 +25,7 @@ class SpiralOffsetGenerator:
                 z_position = start_position[0]
             start_position = start_position[1:]
 
-        self.start_position = start_position
+        self.start_position = list(start_position)
         self.move_size = move_size
         self.z_position = z_position
         self.return_parameter_dict = return_parameter_dict
