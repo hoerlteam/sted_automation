@@ -61,7 +61,7 @@ def try_load_stage_directions(hardware_parameters=None):
 
     if hardware_parameters is None:
         import specpy as sp
-        hardware_parameters = sp.get_application().value_at("", sp.ValueTree.Hardware)
+        hardware_parameters = sp.get_application().value_at("", sp.ValueTree.Hardware).get()
 
     x_inverted = get_path_from_dict(hardware_parameters, "OlympusIX/stage/invert_x", False)
     y_inverted = get_path_from_dict(hardware_parameters, "OlympusIX/stage/invert_y", False)
@@ -75,7 +75,7 @@ def try_load_scan_directions(hardware_parameters=None):
 
     if hardware_parameters is None:
         import specpy as sp
-        hardware_parameters = sp.get_application().value_at("", sp.ValueTree.Hardware)
+        hardware_parameters = sp.get_application().value_at("", sp.ValueTree.Hardware).get()
 
     x_flipped = get_path_from_dict(hardware_parameters, "ExpControl/calibration/scan/flip_x_axis", False)
     y_flipped = get_path_from_dict(hardware_parameters, "ExpControl/calibration/scan/flip_y_axis", False)
