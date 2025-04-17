@@ -17,13 +17,16 @@ from calmutils.imageio import save_tiff_imagej
 
 class DemoImspectorConnection:
 
-    def __init__(self, path_h5_dataset, plot_images=True):
+    def __init__(self, path_h5_dataset, plot_images=True, register_images=True, registration_correlation_threshhold=0.7, plot_cmap="gray", interpolation_mode="linear"):
 
         # current ("acquired") data
         self.measurement_parameters = []
         self.data = []
 
         self.plot_images = plot_images
+        self.plot_cmap = plot_cmap
+
+        self.interpolation_mode = interpolation_mode
 
         dataset = HDF5DataReader(path_h5_dataset)
 
@@ -45,13 +48,15 @@ class DemoImspectorConnection:
             self.transforms.append(transform)
             self.pixel_sizes.append(pixel_size)
 
-        # stitch - will give transforms relative to first img
-        reference_tr = self.transforms[0]
-        self.transforms = stitch(self.imgs, [tr[:-1,-1] for tr in self.transforms])
-        # re-apply first transform
-        self.transforms = [tr @ reference_tr for tr in self.transforms]
-
         self.logger = logging.getLogger(__name__)
+
+        if register_images:
+            self.logger.info(f"Registering {len(self.imgs)} images in virtual dataset.")
+            # stitch - will give transforms relative to first img
+            reference_tr = self.transforms[0]
+            self.transforms = stitch(self.imgs, [tr[:-1,-1] for tr in self.transforms], corr_thresh=registration_correlation_threshhold)
+            # re-apply first transform
+            self.transforms = [tr @ reference_tr for tr in self.transforms]
 
     def make_measurement_from_task(self, task):
         # append measurement parameters to parameter list
@@ -113,11 +118,11 @@ class DemoImspectorConnection:
             scale_factors = pixel_size_ref / pixel_size
             transforms_scaled.append(scale_matrix(scale_factors) @ tr)
 
-        fused_img = fuse_image(self.imgs, transforms_scaled, bbox)
+        fused_img = fuse_image(self.imgs, transforms_scaled, bbox, interpolation_mode=self.interpolation_mode)
 
         # TODO: plot image
         if self.plot_images:
-            plt.imshow(fused_img.max(0), cmap="gray")
+            plt.imshow(fused_img.max(0), cmap=self.plot_cmap)
             plt.show()
         
         # add dummy dimesions so we have 4D stack as in Imspector

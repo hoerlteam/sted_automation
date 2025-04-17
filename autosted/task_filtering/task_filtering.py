@@ -52,8 +52,9 @@ class AlreadyImagedFOVFilter:
         self.old_bboxes.clear()
 
         # get all other indices of same level
+        # (where the level of last (level, idx) pair matches callback level)
         idxes_same_level = [
-            (lvl, idx) for (lvl, idx) in self.pipeline.data.keys() if lvl == self.lvl
+            key for key in self.pipeline.data.keys() if key[-1][0] == self.lvl
         ]
         for idx in idxes_same_level:
             data_other_i = self.pipeline.data.get(idx, None)

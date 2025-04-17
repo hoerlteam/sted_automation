@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 from scipy import ndimage as ndi
 from matplotlib import pyplot as plt
@@ -304,6 +306,8 @@ class SimpleNucleusMidplaneDetector:
         self.manual_offset = manual_offset
         self.use_stage = use_stage
 
+        self.logger = logging.getLogger(__name__)
+
     def midplane_detection_fun(self, img):
         return nucleus_midplane_detection(
             img, 0, self.region_filters, self.do_plot, True, -1, self.n_classes
@@ -396,11 +400,7 @@ class SimpleNucleusMidplaneDetector:
 
             off[0] += self.manual_offset
 
-            if self.verbose:
-                print(
-                    self.__class__.__name__
-                    + ": Found Nucleus at {}, FOV: {}".format(off, fov)
-                )
+            self.logger.info("Found Nucleus at {}, FOV: {}".format(off, fov))
 
             res.append((list(off), fov))
 
