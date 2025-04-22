@@ -68,4 +68,4 @@ Pinning the NumPy version in ```conda``` might also be worth a look: [https://do
 
 You can find Jupyter notebooks showcasing the use of autoSTED under ```examples```. To run the notebooks, you should also install jupyter into your environment via conda/pip.
 
-We assume that the microscope and Imspector are running and typically that the sample is (roughly) in focus when an automation pipeline is started.
+We assume that the microscope and Imspector are running and typically that the sample is (roughly) in focus when an automation pipeline is started. **As an exception, we provide the ```examples/demo_overview_detail.ipynb``` notebook that performs virtual microscopy in a pre-recorded dataset, allowing testing of autoSTED without a microscope.**
