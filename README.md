@@ -9,6 +9,13 @@ We have sucessfully used it for multiple super-resolution studies dealing mainly
 
 A technical manuscript describing the framework is currently in preparation.
 
+## Warning
+
+**autoSTED is designed to automate operation of expensive scientific equipment. While we don't do anything that is not also possible manually via Imspector or SpecPy, be careful to avoid damage to the microscope (e.g. through collisions of stage and objective) or danger to yourself (e.g. from lasers).**
+
+- **SpecPy and therefore autoSTED uses SI units, so a movement or image size of ```1.0``` would correspond to 1 meter. Stages and scanners should typically stop when they reach their limits, but nonetheless, pay attention to specify, e.g. distances in the appropriate fractions of meters (in Python you can use scientific notation like ```5e-6``` to indicate $5*10^{-6}$ (m) = 5 micron).**
+- **Never use autoSTED to operate a microscope when laser safety measures are disabled!**
+
 ## Installation
 
 ### SpecPy and compatible NumPy
