@@ -17,7 +17,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-    "CalmUtils >= 0.1.2",
+    "CalmUtils >= 0.1.3",
     "numpy",
     "scipy",
     "h5py",
