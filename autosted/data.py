@@ -18,7 +18,7 @@ class MeasurementData:
         self.data = []
 
     # TODO: remove defaults?
-    def append(self, hardware_settings=None, measurement_settings=None, data=None):
+    def append(self, hardware_settings=None, measurement_settings=None, data=None, **kwargs):
         self.hardware_settings.append(hardware_settings)
         self.measurement_settings.append(measurement_settings)
         self.data.append(data)
@@ -227,10 +227,11 @@ class HDF5MeasurementData(MeasurementData):
         measurement_settings=None,
         data=None,
         write_to_file=True,
+        **kwargs
     ):
 
         # add to in-memory copy
-        super().append(hardware_settings, measurement_settings, data)
+        super().append(hardware_settings, measurement_settings, data, **kwargs)
 
         # we don't actually want to write to file (e.g. when populating the object from already existing data)
         if not write_to_file:
@@ -266,6 +267,12 @@ class HDF5MeasurementData(MeasurementData):
         attrs_cfg["num_channels"] = len(data)
         attrs_cfg["measurement_meta"] = json.dumps(measurement_settings, indent=1)
         attrs_cfg["global_meta"] = json.dumps(hardware_settings, indent=1)
+
+        # if we have timing info, save as attribute as well
+        if "run_start_time" in kwargs:
+            attrs_cfg["run_start_time"] = kwargs["run_start_time"]
+            attrs_cfg["run_end_time"] = kwargs["run_end_time"]
+
 
         # save channels as actual datasets
         for idx, data_i in enumerate(data):

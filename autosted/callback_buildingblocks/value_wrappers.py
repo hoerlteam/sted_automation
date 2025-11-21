@@ -96,7 +96,7 @@ class LocalizationNumberFilter:
         self.max = max_num_locs
 
     def __call__(self):
-        locs = self.location_generator.get_locations()
+        locs = self.location_generator()
         n_locs = len(locs)
 
         # return all or nothing, depending on number of locs

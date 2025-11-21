@@ -114,6 +114,10 @@ class ImspectorConnection:
 
         self.logger = logging.getLogger(__name__)
 
+        # keep track of last measurement run start/end times
+        self.last_run_start_time = None
+        self.last_run_end_time = None
+
     def set_parameters_recursive(self, where, params, value_type):
 
         # we keep separate sets of dropped parameters for measurement and hardware
@@ -262,8 +266,12 @@ class ImspectorConnection:
         self.logger.debug("scan offsets global: {}".format(offsets_scan_global))
         self.logger.debug("FOV length: {}".format(fov_length))
 
+        self.last_run_start_time = time.time()
+
         # actually run
         self.imspector.run(ms)
+
+        self.last_run_end_time = time.time()
 
     @staticmethod
     def blocking_imspector_run(imspector, measurement):

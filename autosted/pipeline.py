@@ -199,9 +199,16 @@ class AcquisitionPipeline:
                     # run in Imspector
                     self.imspector_connection.run_current_measurement()
 
+                    # pass run time as kwarg if the microscope connection kept track of it
+                    data_kwargs = {}
+                    if hasattr(self.imspector_connection, 'last_run_start_time'):
+                        data_kwargs['run_start_time'] = self.imspector_connection.last_run_start_time
+                        data_kwargs['run_end_time'] = self.imspector_connection.last_run_end_time
+
                     # add data copy (of most recent configuration) to data storage
                     self.data[index].append(
-                        *self.imspector_connection.get_current_data()
+                        *self.imspector_connection.get_current_data(),
+                        **data_kwargs
                     )
 
                 # save and close in Imspector
