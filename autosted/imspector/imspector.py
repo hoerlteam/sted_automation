@@ -13,7 +13,7 @@ try:
 except ImportError:
     pass
 
-from autosted.utils.dict_utils import get_path_from_dict, remove_path_from_dict
+from autosted.utils.dict_utils import get_path_from_dict, remove_path_from_dict, merge_dict_pair
 from autosted.utils.parameter_constants import (
     OFFSET_STAGE_GLOBAL_PARAMETERS,
     OFFSET_SCAN_PARAMETERS,
@@ -100,7 +100,7 @@ class ParameterSanitizer:
 
 class ImspectorConnection:
 
-    def __init__(self, imspector=None):
+    def __init__(self, imspector=None, reuse_measurement=False):
 
         # make default (local) specpy handle if none is given
         if imspector is None:
@@ -113,6 +113,14 @@ class ImspectorConnection:
         self.dropped_parameters_hardware = set()
 
         self.logger = logging.getLogger(__name__)
+
+        self.reuse_measurement = reuse_measurement
+        self.current_measurement = None
+        self.template_parameters = None
+
+        if reuse_measurement:
+            self.logger.warning("""ImspectorConnection will re-use one measurement (experimental).
+                                This can be finicky if you select different measurements in the UI - don't touch Imspector while the pipeline is running.""")
 
         # keep track of last measurement run start/end times
         self.last_run_start_time = None
@@ -187,8 +195,38 @@ class ImspectorConnection:
 
     def make_measurement_from_task(self, task):
 
-        ms = self.imspector.create_measurement()
-        self.set_parameters_in_measurement(ms, task)
+        # potentially faster: reuse one measurement
+        # make a new configuration and delete all old ones
+        if self.reuse_measurement:
+
+            # create a new measurement once on start, remember parameters!
+            if self.current_measurement is None:
+                self.current_measurement = self.imspector.create_measurement()
+                self.template_parameters = self.current_measurement.parameters("")
+
+            # get saved measurement and activate
+            ms = self.current_measurement
+            self.imspector.activate(ms)
+
+            # get all configurations
+            old_configs = [ms.configuration(name) for name in ms.configuration_names()]
+
+            # prepend template parameters to task (avoids e.g. offsets from previous image)
+            measurement_updates, hardware_updates = task
+            measurement_updates = merge_dict_pair(self.template_parameters, measurement_updates)
+            task = measurement_updates, hardware_updates
+
+            # make a new configuration from task
+            self.make_configuration_from_task(task)
+
+            # remove old configs
+            for old_config in old_configs:
+                ms.remove(old_config)
+
+        # if not reusing: always create a new measurement
+        else:
+            ms = self.imspector.create_measurement()
+            self.set_parameters_in_measurement(ms, task)
 
     def set_parameters_in_measurement(self, ms, task):
 
@@ -241,7 +279,11 @@ class ImspectorConnection:
     def run_current_measurement(self):
 
         # get last configuration of active measurement
-        ms = self.imspector.active_measurement()
+        # make sure to use saved measurement if we are re-using
+        if self.reuse_measurement:
+            ms = self.current_measurement
+        else:
+            ms = self.imspector.active_measurement()
         ms.activate(ms.configuration(ms.number_of_configurations() - 1))
 
         # get acquisition coordinates / fov and log for debug
@@ -309,8 +351,10 @@ class ImspectorConnection:
         ms.save_as(path)
 
     def close_current_measurement(self):
-        ms = self.imspector.active_measurement()
-        self.imspector.close(ms)
+        # close current measurement if we are not reusing it
+        if not self.reuse_measurement:
+            ms = self.imspector.active_measurement()
+            self.imspector.close(ms)
 
 
 def get_active_measurement_safe(imspector):
