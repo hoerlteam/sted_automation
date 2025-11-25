@@ -1,5 +1,3 @@
-from itertools import batched
-
 import numpy as np
 import fastremap
 
@@ -63,7 +61,8 @@ def greedy_mesh(mask, threshold=10, relaxed=True):
 
         # borders will be 1 at starts and ends of runs, go over in batches of 2
         border_idxs = np.flatnonzero(borders)
-        for start, end in batched(border_idxs, 2):
+        for i in range(0, len(border_idxs), 2):
+            start, end = border_idxs[i:i+2]
             next_active_rects.add((row_idx, start.item(), 1, (end-start).item()))
 
         # active rects for next iteration
@@ -130,7 +129,7 @@ def greedy_mesh_3d(mask, threshold=10, relaxed=True):
                 final_cuboids.append((z, y, x, d, h, w))
 
         # 1s that are NOT in claimed_mask (pad so we can find border at start and end)
-        remaining_plane = np.pad((plane & (~ claimed_mask)), 1)
+        remaining_plane = (plane & (~ claimed_mask))
 
         # greedy mesh remaining mask in 2d, open new active cubes
         for (y, x, h, w) in greedy_mesh(remaining_plane, (threshold_h, threshold_w), relaxed):
