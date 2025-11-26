@@ -99,3 +99,21 @@ def periphery_segmentation_active_contours(img, blur_sigma=2, active_contour_ite
     else:
         outlines = get_outline_mask(mask, expand_innner=outline_radius, expand_outer=outline_radius)
         return outlines
+
+
+def get_axis_aligned_poles(mask):
+
+    """
+    Get "poles" of a mask image along all axes
+    i.e. coordinates of the first and last nonzero pixel along each axis
+    """
+
+    nonzero_coords = np.stack(np.nonzero(mask)).T
+
+    # add min and max coord index for each dimension
+    pole_idxs = []
+    for d in range(mask.ndim):
+        pole_idxs.append(np.argmin(nonzero_coords.T[d]))
+        pole_idxs.append(np.argmax(nonzero_coords.T[d]))
+
+    return nonzero_coords[pole_idxs]
