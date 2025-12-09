@@ -5,7 +5,7 @@ We have sucessfully used it for multiple super-resolution studies dealing mainly
 * [Brandstetter et al. (Biophysical Journal, 2022)](https://linkinghub.elsevier.com/retrieve/pii/S0006349522001096)
 * [Palikyras et al. (Aging Cell, 2024)](https://onlinelibrary.wiley.com/doi/10.1111/acel.14083)
 * [Steinek et al. (Cell Reports Methods, 2024)](https://doi.org/10.1016/j.crmeth.2024.100840)
-* [Stumberger et al. (bioRxiv preprint, 2025)](http://biorxiv.org/lookup/doi/10.1101/2025.01.20.633941)
+* [Stumberger et al. (Nucleic Acids Research, 2025)](https://academic.oup.com/nar/article/doi/10.1093/nar/gkaf1255/8373955)
 
 The technical manuscript describing the framework (**D. Hörl: *A flexible framework for automated STED super-resolution microscopy*, 2025**) is available as a preprint at [https://www.biorxiv.org/content/10.1101/2025.05.05.652196v1](https://www.biorxiv.org/content/10.1101/2025.05.05.652196v1).
 
